@@ -44,40 +44,33 @@ impl Backend {
                 let exts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
                 let mut parsed = Parser::new_ext(text, exts);
 
-                if let Some(event) = parsed.next()
-                    && let Event::Start(tag) = event
-                    && tag == Tag::MetadataBlock(MetadataBlockKind::PlusesStyle)
-                {
-                } else {
+                if parsed.next().is_none_or(|event| {
+                    event != Event::Start(Tag::MetadataBlock(MetadataBlockKind::PlusesStyle))
+                }) {
                     return None;
-                };
+                }
 
                 let edit = if let Some(event) = parsed.next()
                     && let Event::Text(s) = event
                     && let Ok(mut metadata) = toml::from_str::<Metadata>(&s)
+                    && let now = Local::now().date_naive()
+                    && metadata.modified != now
                 {
-                    let now = Local::now().date_naive();
-                    if metadata.modified != now {
-                        metadata.modified = now;
-                        let new_text = toml::to_string(&metadata).unwrap();
-                        let start = Position::new(1, 0);
-                        let end = Position::new(4, 0);
-                        let range = Range::new(start, end);
-                        TextEdit { range, new_text }
-                    } else {
-                        return None;
-                    }
+                    metadata.modified = now;
+                    let new_text = toml::to_string(&metadata).unwrap();
+                    let start = Position::new(1, 0);
+                    let end = Position::new(4, 0);
+                    let range = Range::new(start, end);
+                    TextEdit { range, new_text }
                 } else {
                     return None;
                 };
 
-                if let Some(event) = parsed.next()
-                    && let Event::End(tag) = event
-                    && tag == TagEnd::MetadataBlock(MetadataBlockKind::PlusesStyle)
-                {
-                } else {
+                if parsed.next().is_none_or(|event| {
+                    event != Event::End(TagEnd::MetadataBlock(MetadataBlockKind::PlusesStyle))
+                }) {
                     return None;
-                };
+                }
 
                 Some(edit)
             }
