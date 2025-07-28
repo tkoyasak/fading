@@ -1,16 +1,86 @@
 use chrono::{Local, NaiveDate};
+use crop::Rope;
 use dashmap::DashMap;
-use pulldown_cmark::{Event, MetadataBlockKind, Options, Parser, Tag, TagEnd};
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
 use tower_lsp_server::{Client, LanguageServer};
 
+use crate::utils::lsp_range_to_rope_range;
+
 #[derive(Debug)]
 pub struct Backend {
     #[allow(dead_code)]
     client: Client,
-    documents: DashMap<String, String>,
+    documents: DashMap<String, Rope>,
+}
+
+impl LanguageServer for Backend {
+    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        Ok(InitializeResult {
+            server_info: Some(ServerInfo {
+                name: "fading-ls".to_owned(),
+                version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            }),
+            capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::INCREMENTAL),
+                        will_save: None,
+                        will_save_wait_until: Some(true),
+                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                    },
+                )),
+                ..Default::default()
+            },
+        })
+    }
+
+    async fn shutdown(&self) -> jsonrpc::Result<()> {
+        Ok(())
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let rope = Rope::from(params.text_document.text);
+        self.documents
+            .insert(params.text_document.uri.to_string(), rope);
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        self.documents.remove(params.text_document.uri.as_str());
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        self.documents
+            .alter(params.text_document.uri.as_str(), |_, mut rope| {
+                for change in params.content_changes {
+                    if let Some(ref range) = change.range {
+                        let range = lsp_range_to_rope_range(&rope, range);
+                        rope.replace(range, &change.text);
+                    } else {
+                        rope = Rope::from(change.text);
+                    }
+                }
+                rope
+            });
+    }
+
+    async fn will_save_wait_until(
+        &self,
+        params: WillSaveTextDocumentParams,
+    ) -> jsonrpc::Result<Option<Vec<TextEdit>>> {
+        let edits = self.on_update(&params.text_document.uri);
+        Ok(edits)
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        if let Some(text) = params.text {
+            let rope = Rope::from(text);
+            self.documents
+                .insert(params.text_document.uri.to_string(), rope);
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -30,30 +100,16 @@ impl Backend {
         }
     }
 
-    fn on_change(&self, uri: &Uri, text: &str) {
-        self.documents.insert(uri.to_string(), text.to_owned());
-    }
-
-    fn on_remove(&self, uri: &Uri) {
-        self.documents.remove(&uri.to_string());
-    }
-
-    fn on_update(&self, uri: &Uri) -> Option<TextEdit> {
-        match self.documents.get(&uri.to_string()) {
-            Some(ref text) => {
-                let exts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
-                let mut parsed = Parser::new_ext(text, exts);
-
-                if parsed.next().is_none_or(|event| {
-                    event != Event::Start(Tag::MetadataBlock(MetadataBlockKind::PlusesStyle))
-                }) {
+    fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
+        match self.documents.get(uri.as_str()) {
+            Some(rope) => {
+                if rope.line_slice(0..1) != "+++\n" {
                     return None;
                 }
 
-                let edit = if let Some(event) = parsed.next()
-                    && let Event::Text(s) = event
-                    && let Ok(mut metadata) = toml::from_str::<Metadata>(&s)
-                    && let now = Local::now().date_naive()
+                let s = rope.line_slice(1..4).to_string();
+                let now = Local::now().date_naive();
+                let edit = if let Ok(mut metadata) = toml::from_str::<Metadata>(&s)
                     && metadata.modified != now
                 {
                     metadata.modified = now;
@@ -66,71 +122,13 @@ impl Backend {
                     return None;
                 };
 
-                if parsed.next().is_none_or(|event| {
-                    event != Event::End(TagEnd::MetadataBlock(MetadataBlockKind::PlusesStyle))
-                }) {
+                if rope.line_slice(4..5) != "+++\n" {
                     return None;
                 }
 
-                Some(edit)
+                Some(vec![edit])
             }
             None => None,
         }
-    }
-}
-
-impl LanguageServer for Backend {
-    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        Ok(InitializeResult {
-            server_info: Some(ServerInfo {
-                name: "fading-ls".to_owned(),
-                version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-            }),
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::FULL),
-                        will_save: None,
-                        will_save_wait_until: Some(true),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
-                    },
-                )),
-                ..Default::default()
-            },
-        })
-    }
-
-    async fn shutdown(&self) -> jsonrpc::Result<()> {
-        Ok(())
-    }
-
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let _ = params;
-    }
-
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.on_remove(&params.text_document.uri);
-    }
-
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let Some(event) = params.content_changes.last() else {
-            return;
-        };
-        self.on_change(&params.text_document.uri, &event.text);
-    }
-
-    async fn will_save_wait_until(
-        &self,
-        params: WillSaveTextDocumentParams,
-    ) -> jsonrpc::Result<Option<Vec<TextEdit>>> {
-        match self.on_update(&params.text_document.uri) {
-            Some(edit) => Ok(Some(vec![edit])),
-            None => Ok(None),
-        }
-    }
-
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        self.on_remove(&params.text_document.uri);
     }
 }
