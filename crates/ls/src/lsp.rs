@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
 use tower_lsp_server::{Client, LanguageServer};
+use tracing::info;
 
 use crate::utils::lsp_range_to_rope_range;
 
 #[derive(Debug)]
 pub struct Backend {
-    #[allow(dead_code)]
-    client: Client,
+    _client: Client,
     documents: DashMap<String, Rope>,
 }
 
@@ -37,21 +37,29 @@ impl LanguageServer for Backend {
         })
     }
 
+    async fn initialized(&self, _: InitializedParams) {
+        info!("initialized!");
+    }
+
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         Ok(())
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        info!("file opened!");
+        let uri = params.text_document.uri.to_string();
         let rope = Rope::from(params.text_document.text);
-        self.documents
-            .insert(params.text_document.uri.to_string(), rope);
+        self.documents.insert(uri, rope);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.remove(params.text_document.uri.as_str());
+        info!("file closed!");
+        let uri = params.text_document.uri.as_str();
+        self.documents.remove(uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        info!("file changed!");
         self.documents
             .alter(params.text_document.uri.as_str(), |_, mut rope| {
                 for change in params.content_changes {
@@ -75,6 +83,7 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        info!("file saved!");
         if let Some(text) = params.text {
             let rope = Rope::from(text);
             self.documents
@@ -93,9 +102,9 @@ struct Metadata {
 }
 
 impl Backend {
-    pub fn new(client: Client) -> Self {
+    pub fn new(_client: Client) -> Self {
         Self {
-            client,
+            _client,
             documents: DashMap::new(),
         }
     }
@@ -126,6 +135,7 @@ impl Backend {
                     return None;
                 }
 
+                info!("update requested!");
                 Some(vec![edit])
             }
             None => None,
