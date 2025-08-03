@@ -10,13 +10,12 @@ impl zed::Extension for FadingExtension {
     fn language_server_command(
         &mut self,
         _language_server_id: &zed::LanguageServerId,
-        _worktree: &zed::Worktree,
+        worktree: &zed::Worktree,
     ) -> zed::Result<zed::Command> {
-        Ok(zed::Command {
-            command: env!("LS_PATH").to_owned(),
-            args: Default::default(),
-            env: Default::default(),
-        })
+        match worktree.which("fading-ls") {
+            Some(path) => Ok(zed::Command::new(path)),
+            None => Err("`fading-ls` bin not found.".to_string()),
+        }
     }
 }
 
