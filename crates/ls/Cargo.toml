@@ -1,5 +1,5 @@
 [package]
-name = "ls"
+name = "fading-ls"
 version.workspace = true
 edition.workspace = true
 

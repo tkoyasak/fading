@@ -4,7 +4,7 @@ description = "`fading` support."
 version = "0.0.1"
 schema_version = 1
 authors = ["tkoyasak"]
-repository = "https://github.com/tkoyasak/fading-zed"
+repository = "https://github.com/tkoyasak/fading-crates/crates/zed"
 
 [language_servers.fading-ls]
 name = "fading ls"

@@ -37,7 +37,7 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&self, _params: InitializedParams) {
         info!("initialized!");
     }
 
