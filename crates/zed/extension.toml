@@ -1,0 +1,11 @@
+id = "fading"
+name = "fading"
+description = "`fading` support."
+version = "0.0.1"
+schema_version = 1
+authors = ["tkoyasak"]
+repository = "https://github.com/tkoyasak/fading-zed"
+
+[language_servers.fading-ls]
+name = "fading ls"
+language = "Markdown"
