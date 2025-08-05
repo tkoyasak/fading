@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::ops::Deref;
+
 use chrono::{Local, NaiveDate};
 use crop::Rope;
 use dashmap::DashMap;
@@ -5,31 +8,42 @@ use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
 use tower_lsp_server::{Client, LanguageServer};
-use tracing::info;
+use tracing::instrument;
 
 use crate::utils::lsp_range_to_rope_range;
+
+const CODE_ACTION_UPDATE_METADATA: &str = "fading.updateMetadata";
 
 #[derive(Debug)]
 pub struct Backend {
     _client: Client,
-    documents: DashMap<String, Rope>,
+    documents: DashMap<String, (i32, Rope)>,
 }
 
 impl LanguageServer for Backend {
+    // https://github.com/zed-industries/zed/blob/6c83a3bcdea1212bc74fc6d46cc6fca869137808/crates/lsp/src/lsp.rs#L597-L837
+    #[instrument(skip_all)]
     async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
-                name: "fading-ls".to_owned(),
-                version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                name: "fading-ls".into(),
+                version: Some(env!("CARGO_PKG_VERSION").into()),
             }),
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
                         change: Some(TextDocumentSyncKind::INCREMENTAL),
-                        will_save: None,
-                        will_save_wait_until: Some(true),
                         save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                        ..Default::default()
+                    },
+                )),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::new(
+                            CODE_ACTION_UPDATE_METADATA,
+                        )]),
+                        ..Default::default()
                     },
                 )),
                 ..Default::default()
@@ -37,31 +51,34 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _params: InitializedParams) {
-        info!("initialized!");
-    }
+    #[instrument(skip_all)]
+    async fn initialized(&self, _params: InitializedParams) {}
 
+    #[instrument(skip_all)]
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        info!("file opened!");
         let uri = params.text_document.uri.to_string();
+        let version = params.text_document.version;
         let rope = Rope::from(params.text_document.text);
-        self.documents.insert(uri, rope);
+        self.documents.insert(uri, (version, rope));
     }
 
+    #[instrument(skip_all)]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        info!("file closed!");
         let uri = params.text_document.uri.as_str();
         self.documents.remove(uri);
     }
 
+    #[instrument(skip_all)]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        info!("file changed!");
-        self.documents
-            .alter(params.text_document.uri.as_str(), |_, mut rope| {
+        let uri = params.text_document.uri.as_str();
+        self.documents.alter(uri, |_, (mut version, mut rope)| {
+            if version < params.text_document.version {
+                version = params.text_document.version;
                 for change in params.content_changes {
                     if let Some(ref range) = change.range {
                         let range = lsp_range_to_rope_range(&rope, range);
@@ -70,24 +87,44 @@ impl LanguageServer for Backend {
                         rope = Rope::from(change.text);
                     }
                 }
-                rope
-            });
+                (version, rope)
+            } else {
+                (version, rope)
+            }
+        });
     }
 
-    async fn will_save_wait_until(
-        &self,
-        params: WillSaveTextDocumentParams,
-    ) -> jsonrpc::Result<Option<Vec<TextEdit>>> {
-        let edits = self.on_update(&params.text_document.uri);
-        Ok(edits)
-    }
-
+    #[instrument(skip_all)]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        info!("file saved!");
         if let Some(text) = params.text {
+            let uri = params.text_document.uri.as_str();
+            let version = i32::MIN;
             let rope = Rope::from(text);
-            self.documents
-                .insert(params.text_document.uri.to_string(), rope);
+            self.documents.alter(uri, |_, _| (version, rope));
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> jsonrpc::Result<Option<CodeActionResponse>> {
+        if let Some(kinds) = params.context.only
+            && kinds
+                .iter()
+                .any(|kind| kind.as_str() == CODE_ACTION_UPDATE_METADATA)
+            && let Some(update) = self.on_update(&params.text_document.uri)
+        {
+            #[allow(clippy::mutable_key_type)]
+            let changes = HashMap::from([(params.text_document.uri, update)]);
+            Ok(Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
+                title: "Update Metadata".into(),
+                kind: Some(CodeActionKind::new(CODE_ACTION_UPDATE_METADATA)),
+                edit: Some(WorkspaceEdit::new(changes)),
+                ..Default::default()
+            })]))
+        } else {
+            Ok(None)
         }
     }
 }
@@ -111,7 +148,8 @@ impl Backend {
 
     fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
         match self.documents.get(uri.as_str()) {
-            Some(rope) => {
+            Some(v) => {
+                let (_, rope) = v.deref();
                 if rope.line_slice(0..1) != "+++\n" {
                     return None;
                 }
@@ -134,8 +172,6 @@ impl Backend {
                 if rope.line_slice(4..5) != "+++\n" {
                     return None;
                 }
-
-                info!("update requested!");
                 Some(vec![edit])
             }
             None => None,
