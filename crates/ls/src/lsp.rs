@@ -16,7 +16,7 @@ const CODE_ACTION_UPDATE_METADATA: &str = "source.updateMetadata.fading";
 #[derive(Debug)]
 pub struct Backend {
     _client: Client,
-    documents: DashMap<String, (Option<i32>, Rope)>,
+    documents: DashMap<String, (Option<i32>, bool, Rope)>,
 }
 
 impl LanguageServer for Backend {
@@ -64,7 +64,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri.to_string();
         let version = params.text_document.version;
         let rope = Rope::from(params.text_document.text);
-        self.documents.insert(uri, (Some(version), rope));
+        self.documents.insert(uri, (Some(version), false, rope));
     }
 
     #[instrument(skip_all)]
@@ -78,7 +78,7 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri.as_str();
 
-        self.documents.alter(uri, |_, (mut version, mut rope)| {
+        self.documents.alter(uri, |_, (mut version, _, mut rope)| {
             if version.is_none_or(|old_version| old_version <= new_version) {
                 version = Some(new_version);
 
@@ -91,7 +91,7 @@ impl LanguageServer for Backend {
                     }
                 }
 
-                (version, rope)
+                (version, true, rope)
             } else {
                 let old_version = version.unwrap();
                 panic!("Out-of-sync: currently at {old_version}, get {new_version}");
@@ -104,7 +104,8 @@ impl LanguageServer for Backend {
         if let Some(text) = params.text {
             let uri = params.text_document.uri.as_str();
             let rope = Rope::from(text);
-            self.documents.alter(uri, |_, _| (None, rope));
+            self.documents
+                .alter(uri, |_, (_, date, _)| (None, date, rope));
         }
     }
 
@@ -165,9 +166,10 @@ impl Backend {
     fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
         match self.documents.get(uri.as_str()) {
             Some(v) => {
-                let (_, rope) = v.value();
+                let (_, changed, rope) = v.value();
 
-                if rope.line_len() <= 5
+                if !(*changed)
+                    || rope.line_len() <= 5
                     || rope.line_slice(0..1) != "+++\n"
                     || rope.line_slice(4..5) != "+++\n"
                 {
