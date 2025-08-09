@@ -94,7 +94,7 @@ impl LanguageServer for Backend {
                 (version, true, rope)
             } else {
                 let old_version = version.unwrap();
-                panic!("Out-of-sync: currently at {old_version}, get {new_version}");
+                panic!("Out-of-sync: currently at {old_version}, got {new_version}");
             }
         });
     }
@@ -105,11 +105,10 @@ impl LanguageServer for Backend {
             let uri = params.text_document.uri.as_str();
             let rope = Rope::from(text);
             self.documents
-                .alter(uri, |_, (_, date, _)| (None, date, rope));
+                .alter(uri, |_, (_, changed, _)| (None, changed, rope));
         }
     }
 
-    #[allow(clippy::mutable_key_type)]
     #[instrument(skip_all)]
     async fn code_action(
         &self,
@@ -122,6 +121,7 @@ impl LanguageServer for Backend {
             && kinds.contains(&code_action_kind)
             && let Some(update) = self.on_update(&uri)
         {
+            #[allow(clippy::mutable_key_type)]
             let changes = HashMap::from([(uri, update)]);
 
             let code_action = CodeAction {

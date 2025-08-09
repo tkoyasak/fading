@@ -37,7 +37,7 @@ impl Metadata {
         }
     }
 
-    fn to_metadata_block(&self) -> String {
+    fn to_block(&self) -> String {
         let s = toml::to_string(self).unwrap();
         format!("+++\n{s}+++\n")
     }
@@ -55,7 +55,7 @@ impl Entry {
         let entry = if let Some(arg) = arg {
             let s = format!("{arg}-01");
             NaiveDate::parse_from_str(&s, "%Y-%m-%d").with_context(|| {
-                format!("Error: failed to parse '{arg}', date format should be '%Y-%m'")
+                format!("failed to parse '{arg}', date format should be '%Y-%m'")
             })?
         } else {
             Local::now().date_naive()
@@ -65,7 +65,7 @@ impl Entry {
             let s = format!("entries/{}.md", entry.format("%Y-%m"));
             let path = Path::new(&s);
             if path.exists() {
-                bail!("Error: '{}' already exists", path.display());
+                bail!("'{}' already exists", path.display());
             }
             path.to_path_buf()
         };
@@ -82,7 +82,7 @@ impl Entry {
     fn generate(&self) -> Result<()> {
         let mut buf = String::with_capacity(1_000);
 
-        let metadata = self.metadata.to_metadata_block();
+        let metadata = self.metadata.to_block();
         write!(&mut buf, "{metadata}")?;
 
         let n = self.entry.num_days_in_month();
