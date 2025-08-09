@@ -1,7 +1,7 @@
 use std::{fmt::Write as FmtWrite, fs, io::Write as IOWrite, path::Path};
 
-use anyhow::{Result, bail};
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate};
+use anyhow::{Context, Result, bail};
+use chrono::{Datelike, Duration, Local, NaiveDate};
 use serde::{Serialize, Serializer};
 
 #[derive(Debug, Serialize)]
@@ -23,12 +23,12 @@ where
 }
 
 impl Metadata {
-    fn new(entry: &NaiveDate, now: &DateTime<Local>) -> Self {
-        let date = now.date_naive();
+    fn new(id: NaiveDate) -> Self {
+        let now = Local::now().date_naive();
         Self {
-            id: *entry,
-            created: date,
-            modified: date,
+            id,
+            created: now,
+            modified: now,
         }
     }
 
@@ -39,11 +39,11 @@ impl Metadata {
 }
 
 pub fn generate_monthly_entry(s: Option<String>) -> Result<()> {
-    let now = Local::now();
     let entry = if let Some(s) = s {
-        NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")?
+        NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
+            .context("failed to parse: date format should be '%Y-%m'")?
     } else {
-        now.date_naive()
+        Local::now().date_naive()
     };
 
     let entry_path = format!("entries/{}.md", entry.format("%Y-%m"));
@@ -51,13 +51,13 @@ pub fn generate_monthly_entry(s: Option<String>) -> Result<()> {
         bail!("'{entry_path}' already exists");
     }
 
-    let mut buf = String::with_capacity(1000);
+    let mut buf = String::with_capacity(1_000);
 
-    let metadata = Metadata::new(&entry, &now).to_metadata_block();
+    let metadata = Metadata::new(entry).to_metadata_block();
     write!(&mut buf, "{metadata}")?;
 
-    let n = now.num_days_in_month();
-    let mut cursor = now.with_day(1).unwrap();
+    let n = entry.num_days_in_month();
+    let mut cursor = entry.with_day(1).unwrap();
     for _ in 0..n {
         let date = cursor.format("%Y-%m-%d %a");
         write!(&mut buf, "\n###### {date}\n\n\n")?;
