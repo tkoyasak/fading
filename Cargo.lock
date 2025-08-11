@@ -241,9 +241,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "octocrab",
- "serde",
  "tokio",
- "toml",
 ]
 
 [[package]]

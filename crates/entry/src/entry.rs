@@ -2,29 +2,12 @@ use std::fmt::Write;
 
 use anyhow::{Context, Result};
 use chrono::{Datelike, Duration, Local, NaiveDate};
-use serde::{Serialize, Serializer, ser::SerializeStruct};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Entry {
     pub id: NaiveDate,
     pub path: String,
     pub content: String,
-}
-
-impl Serialize for Entry {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let id = self.id.format("%Y-%m").to_string();
-        let today = Local::now().date_naive();
-
-        let mut s = serializer.serialize_struct("Metadata", 3)?;
-        s.serialize_field("id", &id)?;
-        s.serialize_field("created", &today)?;
-        s.serialize_field("modified", &today)?;
-        s.end()
-    }
 }
 
 impl Entry {
@@ -45,13 +28,22 @@ impl Entry {
         Ok(Self { id, path, content })
     }
 
-    fn to_metadata_block(&self) -> String {
-        let s = toml::to_string(self).unwrap();
-        format!("+++\n{s}+++\n")
+    fn metadata_block(&self) -> String {
+        let id = self.id.format("%Y-%m").to_string();
+        let today = Local::now().format("%Y-%m-%d").to_string();
+
+        format!(
+            r#"+++
+id = "{id}"
+created = "{today}"
+modified = "{today}"
++++
+"#
+        )
     }
 
     fn generate(&mut self) -> Result<()> {
-        let metadata = self.to_metadata_block();
+        let metadata = self.metadata_block();
         write!(&mut self.content, "{metadata}")?;
 
         let n = self.id.num_days_in_month();
