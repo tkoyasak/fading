@@ -1,108 +1,75 @@
-use std::{
-    fmt::Write as FmtWrite,
-    fs,
-    io::Write as IOWrite,
-    path::{Path, PathBuf},
-};
+use std::fmt::Write;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use chrono::{Datelike, Duration, Local, NaiveDate};
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 
-#[derive(Debug, Serialize)]
-struct Metadata {
-    #[serde(serialize_with = "serialize_id")]
-    id: NaiveDate,
-    #[serde(default)]
-    created: NaiveDate,
-    #[serde(default)]
-    modified: NaiveDate,
+#[derive(Debug, Clone)]
+pub struct Entry {
+    pub id: NaiveDate,
+    pub path: String,
+    pub content: String,
 }
 
-fn serialize_id<S>(id: &NaiveDate, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s = id.format("%Y-%m").to_string();
-    serializer.serialize_str(&s)
-}
+impl Serialize for Entry {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let id = self.id.format("%Y-%m").to_string();
+        let today = Local::now().date_naive();
 
-impl Metadata {
-    fn new(id: NaiveDate) -> Self {
-        let now = Local::now().date_naive();
-        Self {
-            id,
-            created: now,
-            modified: now,
-        }
+        let mut s = serializer.serialize_struct("Metadata", 3)?;
+        s.serialize_field("id", &id)?;
+        s.serialize_field("created", &today)?;
+        s.serialize_field("modified", &today)?;
+        s.end()
     }
-
-    fn to_block(&self) -> String {
-        let s = toml::to_string(self).unwrap();
-        format!("+++\n{s}+++\n")
-    }
-}
-
-#[derive(Debug)]
-struct Entry {
-    entry: NaiveDate,
-    path: PathBuf,
-    metadata: Metadata,
 }
 
 impl Entry {
     fn new(arg: Option<String>) -> Result<Self> {
-        let entry = if let Some(arg) = arg {
+        let id = if let Some(arg) = arg {
             let s = format!("{arg}-01");
             NaiveDate::parse_from_str(&s, "%Y-%m-%d").with_context(|| {
                 format!("failed to parse '{arg}', date format should be '%Y-%m'")
             })?
         } else {
-            Local::now().date_naive()
+            Local::now().date_naive().with_day(1).unwrap()
         };
 
-        let path = {
-            let s = format!("entries/{}.md", entry.format("%Y-%m"));
-            let path = Path::new(&s);
-            if path.exists() {
-                bail!("'{}' already exists", path.display());
-            }
-            path.to_path_buf()
-        };
+        let path = format!("entries/{}.md", id.format("%Y-%m"));
 
-        let metadata = Metadata::new(entry);
+        let content = String::with_capacity(1_000);
 
-        Ok(Self {
-            entry,
-            path,
-            metadata,
-        })
+        Ok(Self { id, path, content })
     }
 
-    fn generate(&self) -> Result<()> {
-        let mut buf = String::with_capacity(1_000);
+    fn to_metadata_block(&self) -> String {
+        let s = toml::to_string(self).unwrap();
+        format!("+++\n{s}+++\n")
+    }
 
-        let metadata = self.metadata.to_block();
-        write!(&mut buf, "{metadata}")?;
+    fn generate(&mut self) -> Result<()> {
+        let metadata = self.to_metadata_block();
+        write!(&mut self.content, "{metadata}")?;
 
-        let n = self.entry.num_days_in_month();
-        let mut cur = self.entry.with_day(1).unwrap();
+        let n = self.id.num_days_in_month();
+        let mut cur = self.id;
 
         for _ in 0..n {
             let date = cur.format("%Y-%m-%d %a");
-            write!(&mut buf, "\n###### {date}\n\n\n")?;
+            write!(&mut self.content, "\n###### {date}\n\n\n")?;
 
             cur += Duration::days(1);
         }
 
-        fs::create_dir_all("entries")?;
-        fs::File::create(&self.path)?.write_all(buf.as_bytes())?;
-
-        println!("Done: generated '{}'", self.path.display());
         Ok(())
     }
 }
 
-pub fn generate_monthly_entry(arg: Option<String>) -> Result<()> {
-    Entry::new(arg)?.generate()
+pub fn generate_entry(arg: Option<String>) -> Result<Entry> {
+    let mut entry = Entry::new(arg)?;
+    entry.generate()?;
+    Ok(entry)
 }
