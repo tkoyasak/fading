@@ -1,3 +1,11 @@
+//! NOTE: Using GitHub App tokens (like GITHUB_TOKEN in GitHub Actions)
+//! automatically creates verified commits when using the GitHub API.
+//! This is because GitHub can cryptographically verify that the commit
+//! originated from the authenticated GitHub App/bot.
+//!
+//! https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps/
+//! https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots
+
 use std::env;
 
 use anyhow::{Result, bail};
@@ -66,7 +74,7 @@ impl GitHubClient {
             .pulls(&self.owner, &self.repo)
             .create(
                 format!("cron: generated entry for {branch_name}"),
-                branch_name,
+                &branch_name,
                 "main",
             )
             .send()

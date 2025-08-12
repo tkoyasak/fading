@@ -7,7 +7,7 @@ version = "0.0.1"
 edition = "2024"
 
 [workspace.dependencies]
-anyhow = { version = "1.0.98" }
+anyhow = { version = "1.0.99" }
 chrono = { version = "0.4.41", features = ["serde"] }
 crop = { version = "0.4.3", features = ["utf16-metric"] }
 dashmap = { version = "6.1.0" }

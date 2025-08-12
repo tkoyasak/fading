@@ -29,8 +29,8 @@ impl Entry {
     }
 
     fn metadata_block(&self) -> String {
-        let id = self.id.format("%Y-%m").to_string();
-        let today = Local::now().format("%Y-%m-%d").to_string();
+        let id = self.id.format("%Y-%m");
+        let today = Local::now().format("%Y-%m-%d");
 
         format!(
             r#"+++
