@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{Local, NaiveDate};
+use chrono::{Datelike, Local};
 use crop::Rope;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -20,35 +20,46 @@ pub struct Backend {
 }
 
 impl LanguageServer for Backend {
-    // https://github.com/zed-industries/zed/blob/6c83a3bcdea1212bc74fc6d46cc6fca869137808/crates/lsp/src/lsp.rs#L597-L837
     #[instrument(skip_all)]
-    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        Ok(InitializeResult {
-            server_info: Some(ServerInfo {
-                name: "fading ls".to_string(),
-                version: Some(env!("CARGO_PKG_VERSION").to_string()),
-            }),
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::INCREMENTAL),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
-                        ..Default::default()
-                    },
-                )),
-                code_action_provider: Some(CodeActionProviderCapability::Options(
-                    CodeActionOptions {
-                        code_action_kinds: Some(vec![CodeActionKind::new(
-                            CODE_ACTION_UPDATE_METADATA,
-                        )]),
-                        ..Default::default()
-                    },
-                )),
-                document_formatting_provider: Some(OneOf::Left(true)),
-                ..Default::default()
-            },
-        })
+    async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        if params.workspace_folders.is_some_and(|folders| {
+            folders.iter().any(|folder| {
+                folder
+                    .uri
+                    .as_str()
+                    .rsplit_once('/')
+                    .is_some_and(|(_, name)| name == "fading")
+            })
+        }) {
+            Ok(InitializeResult {
+                server_info: Some(ServerInfo {
+                    name: "fading ls".to_string(),
+                    version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                }),
+                capabilities: ServerCapabilities {
+                    text_document_sync: Some(TextDocumentSyncCapability::Options(
+                        TextDocumentSyncOptions {
+                            open_close: Some(true),
+                            change: Some(TextDocumentSyncKind::INCREMENTAL),
+                            save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                            ..Default::default()
+                        },
+                    )),
+                    code_action_provider: Some(CodeActionProviderCapability::Options(
+                        CodeActionOptions {
+                            code_action_kinds: Some(vec![CodeActionKind::new(
+                                CODE_ACTION_UPDATE_METADATA,
+                            )]),
+                            ..Default::default()
+                        },
+                    )),
+                    document_formatting_provider: Some(OneOf::Left(true)),
+                    ..Default::default()
+                },
+            })
+        } else {
+            Ok(Default::default())
+        }
     }
 
     #[instrument(skip_all)]
@@ -146,13 +157,11 @@ impl LanguageServer for Backend {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Metadata {
     id: String,
-    #[serde(default)]
-    created: NaiveDate,
-    #[serde(default)]
-    modified: NaiveDate,
+    created: toml::value::Date,
+    modified: toml::value::Date,
 }
 
 impl Backend {
@@ -178,6 +187,12 @@ impl Backend {
 
                 let s = rope.line_slice(1..4).to_string();
                 let today = Local::now().date_naive();
+                let today = toml::value::Date {
+                    year: today.year() as u16,
+                    month: today.month() as u8,
+                    day: today.day() as u8,
+                };
+
                 if let Ok(mut metadata) = toml::from_str::<Metadata>(&s)
                     && metadata.modified != today
                 {

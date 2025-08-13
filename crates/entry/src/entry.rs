@@ -35,8 +35,8 @@ impl Entry {
         format!(
             r#"+++
 id = "{id}"
-created = "{today}"
-modified = "{today}"
+created = {today}
+modified = {today}
 +++
 "#
         )
