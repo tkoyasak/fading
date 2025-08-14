@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{Datelike, Duration, Local, NaiveDate};
 
 #[derive(Debug)]
@@ -11,21 +11,12 @@ pub struct Entry {
 }
 
 impl Entry {
-    fn new(arg: Option<String>) -> Result<Self> {
-        let id = if let Some(arg) = arg {
-            let s = format!("{arg}-01");
-            NaiveDate::parse_from_str(&s, "%Y-%m-%d").with_context(|| {
-                format!("failed to parse '{arg}', date format should be '%Y-%m'")
-            })?
-        } else {
-            Local::now().date_naive().with_day(1).unwrap()
-        };
-
+    fn new() -> Self {
+        let id = Local::now().date_naive().with_day(1).unwrap();
         let path = format!("entries/{}.md", id.format("%Y-%m"));
-
         let content = String::with_capacity(1_000);
 
-        Ok(Self { id, path, content })
+        Self { id, path, content }
     }
 
     fn metadata_block(&self) -> String {
@@ -60,8 +51,8 @@ modified = {today}
     }
 }
 
-pub fn generate_entry(arg: Option<String>) -> Result<Entry> {
-    let mut entry = Entry::new(arg)?;
+pub fn generate_entry() -> Result<Entry> {
+    let mut entry = Entry::new();
     entry.generate()?;
     Ok(entry)
 }

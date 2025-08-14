@@ -1,4 +1,4 @@
-use std::{env, process};
+use std::process;
 
 use anyhow::Result;
 
@@ -19,8 +19,7 @@ async fn main() {
 }
 
 async fn try_main() -> Result<()> {
-    let arg = env::args().nth(1);
-    let entry = generate_entry(arg)?;
+    let entry = generate_entry()?;
     update_entry(entry).await?;
 
     Ok(())
