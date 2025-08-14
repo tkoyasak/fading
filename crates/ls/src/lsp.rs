@@ -128,10 +128,7 @@ impl LanguageServer for Backend {
         let code_action_kind = CodeActionKind::new(CODE_ACTION_UPDATE_METADATA);
         let uri = params.text_document.uri;
 
-        if let Some(kinds) = params.context.only
-            && kinds.contains(&code_action_kind)
-            && let Some(update) = self.on_update(&uri)
-        {
+        if let Some(update) = self.on_update(&uri) {
             #[allow(clippy::mutable_key_type)]
             let changes = HashMap::from([(uri, update)]);
 
