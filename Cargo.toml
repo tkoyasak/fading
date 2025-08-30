@@ -18,5 +18,5 @@ tokio = { version = "1.47.1", features = ["full"] }
 toml = { version = "0.9.5" }
 tower-lsp-server = { version = "0.22.1" }
 tracing = { version = "0.1.41" }
-tracing-subscriber = { version = "0.3.19" }
+tracing-subscriber = { version = "0.3.20" }
 zed_extension_api = { version = "0.6.0" }
