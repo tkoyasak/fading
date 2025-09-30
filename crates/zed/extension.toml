@@ -1,7 +1,7 @@
 id = "fading"
 name = "fading"
 description = "`fading` support."
-version = "0.0.1"
+version = "0.0.0"
 schema_version = 1
 authors = ["tkoyasak"]
 repository = "https://github.com/tkoyasak/fading-crates/crates/zed"
