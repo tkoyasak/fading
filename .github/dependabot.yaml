@@ -16,5 +16,7 @@ updates:
 
     groups:
       dependencies:
-        patterns:
-          - "*"
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
