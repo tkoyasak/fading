@@ -9,7 +9,7 @@
 use std::env;
 
 use anyhow::{Result, bail};
-use octocrab::{Octocrab, params::repos::Reference};
+use octocrab::{Octocrab, params::repos::Reference::Branch};
 
 use crate::entry::Entry;
 
@@ -40,7 +40,10 @@ impl GitHubClient {
     }
 
     pub async fn create_commit(&self, entry: Entry) -> Result<()> {
-        let branch_name = entry.id.format("%Y-%m").to_string();
+        let id = entry.id.format("%Y-%m");
+        let message = format!("cron: generated entry for {id}");
+        let branch_name = format!("entry/{id}");
+        let branch = Branch(branch_name.clone());
 
         if self
             .octocrab
@@ -56,27 +59,19 @@ impl GitHubClient {
 
         self.octocrab
             .repos(&self.owner, &self.repo)
-            .create_ref(&Reference::Branch(branch_name.clone()), &self.main_sha)
+            .create_ref(&branch, &self.main_sha)
             .await?;
 
         self.octocrab
             .repos(&self.owner, &self.repo)
-            .create_file(
-                &entry.path,
-                format!("generated entry for {branch_name}"),
-                &entry.content,
-            )
+            .create_file(&entry.path, &message, &entry.content)
             .branch(&branch_name)
             .send()
             .await?;
 
         self.octocrab
             .pulls(&self.owner, &self.repo)
-            .create(
-                format!("cron: generated entry for {branch_name}"),
-                &branch_name,
-                "main",
-            )
+            .create(&message, &branch_name, "main")
             .send()
             .await?;
 
