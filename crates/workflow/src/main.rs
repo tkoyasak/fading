@@ -5,7 +5,7 @@ use anyhow::Result;
 mod commit;
 mod entry;
 
-use crate::{commit::update_entry, entry::generate_entry};
+use crate::{commit::create_commit, entry::generate_entry};
 
 #[tokio::main]
 async fn main() {
@@ -20,7 +20,7 @@ async fn main() {
 
 async fn try_main() -> Result<()> {
     let entry = generate_entry()?;
-    update_entry(entry).await?;
+    create_commit(entry).await?;
 
     Ok(())
 }

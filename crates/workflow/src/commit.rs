@@ -39,7 +39,7 @@ impl GitHubClient {
         })
     }
 
-    pub async fn commit_changes(&self, entry: Entry) -> Result<()> {
+    pub async fn create_commit(&self, entry: Entry) -> Result<()> {
         let branch_name = entry.id.format("%Y-%m").to_string();
 
         if self
@@ -84,6 +84,6 @@ impl GitHubClient {
     }
 }
 
-pub async fn update_entry(entry: Entry) -> Result<()> {
-    GitHubClient::new()?.commit_changes(entry).await
+pub async fn create_commit(entry: Entry) -> Result<()> {
+    GitHubClient::new()?.create_commit(entry).await
 }
