@@ -1,6 +1,6 @@
 use tower_lsp_server::{LspService, Server};
 
-mod lsp;
+mod backend;
 mod utils;
 
 #[tokio::main]
@@ -9,7 +9,8 @@ async fn main() {
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(lsp::Backend::new);
+
+    let (service, socket) = LspService::new(backend::Backend::new);
 
     Server::new(stdin, stdout, socket).serve(service).await;
 }
