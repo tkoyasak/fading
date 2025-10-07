@@ -11,7 +11,8 @@ use tracing::instrument;
 
 use crate::utils::lsp_range_to_rope_range;
 
-const CODE_ACTION_UPDATE_METADATA: &str = "source.updateMetadata.fading";
+const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
+    CodeActionKind::new("source.updateMetadata.fading");
 
 #[derive(Debug)]
 pub struct Backend {
@@ -47,9 +48,7 @@ impl LanguageServer for Backend {
                     )),
                     code_action_provider: Some(CodeActionProviderCapability::Options(
                         CodeActionOptions {
-                            code_action_kinds: Some(vec![CodeActionKind::new(
-                                CODE_ACTION_UPDATE_METADATA,
-                            )]),
+                            code_action_kinds: Some(vec![CODE_ACTION_UPDATE_METADATA]),
                             ..Default::default()
                         },
                     )),
@@ -125,16 +124,15 @@ impl LanguageServer for Backend {
         &self,
         params: CodeActionParams,
     ) -> jsonrpc::Result<Option<CodeActionResponse>> {
-        let code_action_kind = CodeActionKind::new(CODE_ACTION_UPDATE_METADATA);
         let uri = params.text_document.uri;
 
         if let Some(update) = self.on_update(&uri) {
-            #[allow(clippy::mutable_key_type)]
+            #[expect(clippy::mutable_key_type)]
             let changes = HashMap::from([(uri, update)]);
 
             let code_action = CodeAction {
                 title: "Update Metadata".to_string(),
-                kind: Some(code_action_kind),
+                kind: Some(CODE_ACTION_UPDATE_METADATA),
                 edit: Some(WorkspaceEdit::new(changes)),
                 ..Default::default()
             };
