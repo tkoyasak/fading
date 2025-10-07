@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use chrono::{Datelike, Local};
 use crop::Rope;
 use dashmap::DashMap;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
 use tower_lsp_server::{Client, LanguageServer};
-use tracing::instrument;
 
 use crate::utils::lsp_range_to_rope_range;
 
@@ -21,8 +21,8 @@ pub struct Backend {
 }
 
 impl LanguageServer for Backend {
-    #[instrument(skip_all)]
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        debug!("fading-ls initialize.");
         if params.workspace_folders.is_some_and(|folders| {
             folders.iter().any(|folder| {
                 folder
@@ -61,30 +61,31 @@ impl LanguageServer for Backend {
         }
     }
 
-    #[instrument(skip_all)]
-    async fn initialized(&self, _params: InitializedParams) {}
+    async fn initialized(&self, _params: InitializedParams) {
+        debug!("fading-ls initialized.");
+    }
 
-    #[instrument(skip_all)]
     async fn shutdown(&self) -> jsonrpc::Result<()> {
+        debug!("fading-ls shutdown.");
         Ok(())
     }
 
-    #[instrument(skip_all)]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        debug!("fading-ls did open.");
         let uri = params.text_document.uri.to_string();
         let version = params.text_document.version;
         let rope = Rope::from(params.text_document.text);
         self.documents.insert(uri, (Some(version), false, rope));
     }
 
-    #[instrument(skip_all)]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        debug!("fading-ls did close.");
         let uri = params.text_document.uri.as_str();
         self.documents.remove(uri);
     }
 
-    #[instrument(skip_all)]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        debug!("fading-ls did change.");
         let new_version = params.text_document.version;
         let uri = params.text_document.uri.as_str();
 
@@ -109,8 +110,8 @@ impl LanguageServer for Backend {
         });
     }
 
-    #[instrument(skip_all)]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        debug!("fading-ls did save.");
         if let Some(text) = params.text {
             let uri = params.text_document.uri.as_str();
             let rope = Rope::from(text);
@@ -119,11 +120,11 @@ impl LanguageServer for Backend {
         }
     }
 
-    #[instrument(skip_all)]
     async fn code_action(
         &self,
         params: CodeActionParams,
     ) -> jsonrpc::Result<Option<CodeActionResponse>> {
+        debug!("fading-ls code action.");
         let uri = params.text_document.uri;
 
         if let Some(update) = self.on_update(&uri) {
@@ -143,11 +144,11 @@ impl LanguageServer for Backend {
         }
     }
 
-    #[instrument(skip_all)]
     async fn formatting(
         &self,
         _params: DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<TextEdit>>> {
+        debug!("fading-ls formatting.");
         Ok(None)
     }
 }

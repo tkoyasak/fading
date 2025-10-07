@@ -5,7 +5,7 @@ mod utils;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().init();
+    env_logger::init();
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
