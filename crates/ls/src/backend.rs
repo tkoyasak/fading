@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use chrono::{Datelike, Local};
 use crop::Rope;
 use dashmap::DashMap;
@@ -67,6 +65,7 @@ impl LanguageServer for Backend {
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         debug!("fading-ls shutdown.");
+        self.documents.clear();
         Ok(())
     }
 
@@ -129,7 +128,7 @@ impl LanguageServer for Backend {
 
         if let Some(update) = self.on_update(&uri) {
             #[expect(clippy::mutable_key_type)]
-            let changes = HashMap::from([(uri, update)]);
+            let changes = std::collections::HashMap::from([(uri, update)]);
 
             let code_action = CodeAction {
                 title: "Update Metadata".to_string(),
