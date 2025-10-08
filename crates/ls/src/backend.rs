@@ -15,7 +15,7 @@ const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
 #[derive(Debug)]
 pub struct Backend {
     _client: Client,
-    documents: DashMap<String, (Option<i32>, bool, Rope)>,
+    documents: DashMap<Uri, (Option<i32>, bool, Rope)>,
 }
 
 impl LanguageServer for Backend {
@@ -71,7 +71,7 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         debug!("fading-ls did open.");
-        let uri = params.text_document.uri.to_string();
+        let uri = params.text_document.uri;
         let version = params.text_document.version;
         let rope = Rope::from(params.text_document.text);
         self.documents.insert(uri, (Some(version), false, rope));
@@ -79,16 +79,16 @@ impl LanguageServer for Backend {
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
-        let uri = params.text_document.uri.as_str();
-        self.documents.remove(uri);
+        let uri = params.text_document.uri;
+        self.documents.remove(&uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         debug!("fading-ls did change.");
         let new_version = params.text_document.version;
-        let uri = params.text_document.uri.as_str();
+        let uri = params.text_document.uri;
 
-        self.documents.alter(uri, |_, (mut version, _, mut rope)| {
+        self.documents.alter(&uri, |_, (mut version, _, mut rope)| {
             if version.is_none_or(|old_version| old_version <= new_version) {
                 version = Some(new_version);
 
@@ -112,10 +112,10 @@ impl LanguageServer for Backend {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         debug!("fading-ls did save.");
         if let Some(text) = params.text {
-            let uri = params.text_document.uri.as_str();
+            let uri = params.text_document.uri;
             let rope = Rope::from(text);
             self.documents
-                .alter(uri, |_, (_, changed, _)| (None, changed, rope));
+                .alter(&uri, |_, (_, changed, _)| (None, changed, rope));
         }
     }
 
@@ -168,7 +168,7 @@ impl Backend {
     }
 
     fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
-        match self.documents.get(uri.as_str()) {
+        match self.documents.get(uri) {
             Some(v) => {
                 let (_, changed, rope) = v.value();
 
