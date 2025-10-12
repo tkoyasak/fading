@@ -36,8 +36,10 @@ impl LanguageServer for Backend {
                     text_document_sync: Some(TextDocumentSyncCapability::Options(
                         TextDocumentSyncOptions {
                             open_close: Some(true),
-                            change: Some(TextDocumentSyncKind::INCREMENTAL),
-                            save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                            change: Some(TextDocumentSyncKind::FULL),
+                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                                include_text: Some(true),
+                            })),
                             ..Default::default()
                         },
                     )),
@@ -54,10 +56,6 @@ impl LanguageServer for Backend {
         } else {
             Ok(Default::default())
         }
-    }
-
-    async fn initialized(&self, _params: InitializedParams) {
-        debug!("fading-ls initialized.");
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
@@ -85,23 +83,15 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents
-            .alter(&uri, |_, (mut version, _, mut content)| {
-                if version.is_none_or(|old_version| old_version <= new_version) {
-                    version = Some(new_version);
-
-                    for change in params.content_changes {
-                        if change.range.is_none() {
-                            content = change.text;
-                        }
-                    }
-
-                    (version, true, content)
-                } else {
-                    let old_version = version.unwrap();
-                    panic!("Out-of-sync: currently at {old_version}, got {new_version}");
-                }
-            });
+        self.documents.alter(&uri, |_, (version, _, _)| {
+            if version.is_none_or(|old_version| old_version <= new_version) {
+                let content = params.content_changes[0].text.clone();
+                (Some(new_version), true, content)
+            } else {
+                let old_version = version.unwrap();
+                panic!("Out-of-sync: currently at {old_version}, got {new_version}");
+            }
+        });
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -171,13 +161,13 @@ impl Backend {
                 }
 
                 let mut lines = content.lines();
-                
+
                 if lines.next() != Some("+++") {
                     return None;
                 }
-                
+
                 let s = format!("{}\n{}\n{}\n", lines.next()?, lines.next()?, lines.next()?);
-                
+
                 if lines.next() != Some("+++") {
                     return None;
                 }
