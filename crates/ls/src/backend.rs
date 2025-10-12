@@ -1,5 +1,4 @@
 use chrono::{Datelike, Local};
-use crop::Rope;
 use dashmap::DashMap;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -7,15 +6,13 @@ use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
 use tower_lsp_server::{Client, LanguageServer};
 
-use crate::utils::lsp_range_to_rope_range;
-
 const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
     CodeActionKind::new("source.updateMetadata.fading");
 
 #[derive(Debug)]
 pub struct Backend {
     _client: Client,
-    documents: DashMap<Uri, (Option<i32>, bool, Rope)>,
+    documents: DashMap<Uri, (Option<i32>, bool, String)>,
 }
 
 impl LanguageServer for Backend {
@@ -73,8 +70,8 @@ impl LanguageServer for Backend {
         debug!("fading-ls did open.");
         let uri = params.text_document.uri;
         let version = params.text_document.version;
-        let rope = Rope::from(params.text_document.text);
-        self.documents.insert(uri, (Some(version), false, rope));
+        let content = params.text_document.text;
+        self.documents.insert(uri, (Some(version), false, content));
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -88,34 +85,31 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents.alter(&uri, |_, (mut version, _, mut rope)| {
-            if version.is_none_or(|old_version| old_version <= new_version) {
-                version = Some(new_version);
+        self.documents
+            .alter(&uri, |_, (mut version, _, mut content)| {
+                if version.is_none_or(|old_version| old_version <= new_version) {
+                    version = Some(new_version);
 
-                for change in params.content_changes {
-                    if let Some(range) = change.range {
-                        let range = lsp_range_to_rope_range(&rope, &range);
-                        rope.replace(range, &change.text);
-                    } else {
-                        rope = Rope::from(change.text);
+                    for change in params.content_changes {
+                        if change.range.is_none() {
+                            content = change.text;
+                        }
                     }
-                }
 
-                (version, true, rope)
-            } else {
-                let old_version = version.unwrap();
-                panic!("Out-of-sync: currently at {old_version}, got {new_version}");
-            }
-        });
+                    (version, true, content)
+                } else {
+                    let old_version = version.unwrap();
+                    panic!("Out-of-sync: currently at {old_version}, got {new_version}");
+                }
+            });
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         debug!("fading-ls did save.");
-        if let Some(text) = params.text {
+        if let Some(content) = params.text {
             let uri = params.text_document.uri;
-            let rope = Rope::from(text);
             self.documents
-                .alter(&uri, |_, (_, changed, _)| (None, changed, rope));
+                .alter(&uri, |_, (_, changed, _)| (None, changed, content));
         }
     }
 
@@ -170,17 +164,24 @@ impl Backend {
     fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
         match self.documents.get(uri) {
             Some(v) => {
-                let (_, changed, rope) = v.value();
+                let (_, changed, content) = v.value();
 
-                if !(*changed)
-                    || rope.line_len() <= 5
-                    || rope.line_slice(0..1) != "+++\n"
-                    || rope.line_slice(4..5) != "+++\n"
-                {
+                if !(*changed) {
                     return None;
                 }
 
-                let s = rope.line_slice(1..4).to_string();
+                let mut lines = content.lines();
+                
+                if lines.next() != Some("+++") {
+                    return None;
+                }
+                
+                let s = format!("{}\n{}\n{}\n", lines.next()?, lines.next()?, lines.next()?);
+                
+                if lines.next() != Some("+++") {
+                    return None;
+                }
+
                 let today = Local::now().date_naive();
                 let today = toml::value::Date {
                     year: today.year() as u16,
