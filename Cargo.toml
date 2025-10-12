@@ -10,10 +10,10 @@ rust-version = "1.89.0" # https://github.com/actions/runner-images
 [workspace.dependencies]
 anyhow = { version = "1.0.100" }
 chrono = { version = "0.4.42" }
-dashmap = { version = "6.1.0" }
 env_logger = { version = "0.11.8" }
 log = { version = "0.4.28" }
 octocrab = { version = "0.46.0" }
+papaya = { version = "0.2.3" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "io-std"] }
 toml = { version = "0.9.7" }

@@ -5,9 +5,9 @@ edition.workspace = true
 
 [dependencies]
 chrono.workspace = true
-dashmap.workspace = true
 env_logger.workspace = true
 log.workspace = true
+papaya.workspace = true
 serde.workspace = true
 tokio.workspace = true
 toml.workspace = true

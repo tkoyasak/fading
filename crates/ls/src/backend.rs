@@ -1,6 +1,6 @@
 use chrono::{Datelike, Local};
-use dashmap::DashMap;
 use log::debug;
+use papaya::HashMap;
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::lsp_types::*;
@@ -12,7 +12,7 @@ const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
 #[derive(Debug)]
 pub struct Backend {
     _client: Client,
-    documents: DashMap<Uri, (Option<i32>, bool, String)>,
+    documents: HashMap<Uri, (Option<i32>, bool, String)>,
 }
 
 impl LanguageServer for Backend {
@@ -60,7 +60,7 @@ impl LanguageServer for Backend {
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         debug!("fading-ls shutdown.");
-        self.documents.clear();
+        self.documents.pin().clear();
         Ok(())
     }
 
@@ -69,13 +69,15 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
         let content = params.text_document.text;
-        self.documents.insert(uri, (Some(version), false, content));
+        self.documents
+            .pin()
+            .insert(uri, (Some(version), false, content));
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
         let uri = params.text_document.uri;
-        self.documents.remove(&uri);
+        self.documents.pin().remove(&uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -83,7 +85,7 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents.alter(&uri, |_, (version, _, _)| {
+        self.documents.pin().update(uri, |(version, _, _)| {
             if version.is_none_or(|old_version| old_version <= new_version) {
                 let content = params.content_changes[0].text.clone();
                 (Some(new_version), true, content)
@@ -99,7 +101,8 @@ impl LanguageServer for Backend {
         if let Some(content) = params.text {
             let uri = params.text_document.uri;
             self.documents
-                .alter(&uri, |_, (_, changed, _)| (None, changed, content));
+                .pin()
+                .update(uri, |(_, changed, _)| (None, *changed, content.clone()));
         }
     }
 
@@ -147,15 +150,13 @@ impl Backend {
     pub fn new(_client: Client) -> Self {
         Self {
             _client,
-            documents: DashMap::new(),
+            documents: HashMap::new(),
         }
     }
 
     fn on_update(&self, uri: &Uri) -> Option<Vec<TextEdit>> {
-        match self.documents.get(uri) {
-            Some(v) => {
-                let (_, changed, content) = v.value();
-
+        match self.documents.pin().get(uri) {
+            Some((_, changed, content)) => {
                 if !(*changed) {
                     return None;
                 }
