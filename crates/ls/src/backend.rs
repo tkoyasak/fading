@@ -18,18 +18,13 @@ pub struct Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         debug!("fading-ls initialize.");
-        if params.workspace_folders.is_some_and(|folders| {
-            folders.iter().any(|folder| {
-                folder
-                    .uri
-                    .as_str()
-                    .rsplit_once('/')
-                    .is_some_and(|(_, name)| name == "fading")
-            })
-        }) {
+        if params
+            .workspace_folders
+            .is_some_and(|folders| folders.iter().any(|f| f.name == "fading"))
+        {
             Ok(InitializeResult {
                 server_info: Some(ServerInfo {
-                    name: "fading ls".to_string(),
+                    name: "fading".to_string(),
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 }),
                 capabilities: ServerCapabilities {
@@ -113,13 +108,19 @@ impl LanguageServer for Backend {
         debug!("fading-ls code action.");
         let uri = params.text_document.uri;
 
-        if let Some(update) = self.on_update(&uri) {
+        if params
+            .context
+            .only
+            .is_none_or(|only| only.contains(&CODE_ACTION_UPDATE_METADATA))
+            && let Some(update) = self.on_update(&uri)
+        {
             #[expect(clippy::mutable_key_type)]
             let changes = std::collections::HashMap::from([(uri, update)]);
 
             let code_action = CodeAction {
-                title: "Update Metadata".to_string(),
+                title: "update metadata".to_string(),
                 kind: Some(CODE_ACTION_UPDATE_METADATA),
+                is_preferred: Some(true),
                 edit: Some(WorkspaceEdit::new(changes)),
                 ..Default::default()
             };
