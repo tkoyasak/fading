@@ -1,6 +1,11 @@
 [workspace]
-members = ["crates/ls", "crates/workflow", "crates/zed"]
 resolver = "3"
+members = [
+  "crates/cli",
+  "crates/ls",
+  "crates/workflow",
+  "crates/zed"
+]
 
 [workspace.package]
 version = "0.0.0"
@@ -18,4 +23,5 @@ serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["io-std", "macros", "rt-multi-thread"] }
 toml = { version = "0.9.7" }
 tower-lsp-server = { version = "0.22.1" }
+xflags = { version = "0.4.0-pre.2" }
 zed_extension_api = { version = "0.7.0" }
