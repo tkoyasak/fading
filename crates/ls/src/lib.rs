@@ -2,8 +2,7 @@ use tower_lsp_server::{LspService, Server};
 
 mod backend;
 
-#[tokio::main]
-async fn main() {
+pub async fn start() {
     env_logger::init();
 
     let stdin = tokio::io::stdin();
