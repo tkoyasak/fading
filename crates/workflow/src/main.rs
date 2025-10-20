@@ -1,11 +1,9 @@
-use std::process;
-
 use anyhow::Result;
 
-mod commit;
 mod entry;
+mod github;
 
-use crate::{commit::create_content, entry::generate_entry};
+use crate::{entry::generate_entry, github::create_pull_request};
 
 fn main() {
     match try_main() {
@@ -14,14 +12,14 @@ fn main() {
             for cause in err.chain() {
                 println!("::error::{cause:#?}");
             }
-            process::exit(1);
+            std::process::exit(1);
         }
     };
 }
 
 fn try_main() -> Result<()> {
     let entry = generate_entry()?;
-    create_content(entry)?;
+    create_pull_request(entry)?;
 
     Ok(())
 }

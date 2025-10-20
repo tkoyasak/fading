@@ -6,16 +6,14 @@
 //! https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps/
 //! https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots
 
-use std::env;
-
-use anyhow::{Context, Result};
+use anyhow::{Context as _, Result};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use xshell::{Shell, cmd};
 
 use crate::entry::Entry;
 
 #[derive(Debug)]
-struct GitHubContext {
+struct Context {
     repo: String,
     sha: String,
     path: String,
@@ -24,17 +22,18 @@ struct GitHubContext {
     encoded: String,
 }
 
-impl GitHubContext {
+impl Context {
     fn new(entry: Entry) -> Result<Self> {
-        let repo = env::var("GITHUB_REPOSITORY")?;
-        let sha = env::var("GITHUB_SHA")?;
+        let repo = std::env::var("GITHUB_REPOSITORY")?;
+        let sha = std::env::var("GITHUB_SHA")?;
 
         let id = entry.id.format("%Y-%m");
         let branch = format!("entry/{id}");
         let message = format!("cron: generated entry for {id}");
+
         let encoded = STANDARD.encode(entry.content.as_bytes());
 
-        Ok(GitHubContext {
+        Ok(Context {
             repo: repo.to_string(),
             sha: sha.to_string(),
             path: entry.path,
@@ -92,6 +91,6 @@ impl GitHubContext {
     }
 }
 
-pub fn create_content(entry: Entry) -> Result<()> {
-    GitHubContext::new(entry)?.create_pull_request()
+pub fn create_pull_request(entry: Entry) -> Result<()> {
+    Context::new(entry)?.create_pull_request()
 }
