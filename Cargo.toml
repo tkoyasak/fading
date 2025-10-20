@@ -17,11 +17,11 @@ anyhow = { version = "1.0.100" }
 chrono = { version = "0.4.42" }
 env_logger = { version = "0.11.8" }
 log = { version = "0.4.28" }
-octocrab = { version = "0.46.0" }
+octocrab = { version = "0.47.0" }
 papaya = { version = "0.2.3" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["io-std", "macros", "rt-multi-thread"] }
-toml = { version = "0.9.7" }
+toml = { version = "0.9.8" }
 tower-lsp-server = { version = "0.22.1" }
 xflags = { version = "0.4.0-pre.2" }
 zed_extension_api = { version = "0.7.0" }
