@@ -5,22 +5,23 @@ use anyhow::Result;
 mod commit;
 mod entry;
 
-use crate::{commit::create_commit, entry::generate_entry};
+use crate::{commit::create_content, entry::generate_entry};
 
-#[tokio::main]
-async fn main() {
-    match try_main().await {
+fn main() {
+    match try_main() {
         Ok(..) => {}
         Err(err) => {
-            println!("::error::{err:#?}");
+            for cause in err.chain() {
+                println!("::error::{cause:#?}");
+            }
             process::exit(1);
         }
     };
 }
 
-async fn try_main() -> Result<()> {
+fn try_main() -> Result<()> {
     let entry = generate_entry()?;
-    create_commit(entry).await?;
+    create_content(entry)?;
 
     Ok(())
 }

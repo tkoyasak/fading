@@ -8,77 +8,90 @@
 
 use std::env;
 
-use anyhow::{Result, bail};
-use octocrab::{Octocrab, params::repos::Reference::Branch};
+use anyhow::{Context, Result};
+use base64::{Engine, engine::general_purpose::STANDARD};
+use xshell::{Shell, cmd};
 
 use crate::entry::Entry;
 
 #[derive(Debug)]
-struct GitHubClient {
-    octocrab: Octocrab,
-    owner: String,
+struct GitHubContext {
     repo: String,
-    main_sha: String,
+    sha: String,
+    path: String,
+    branch: String,
+    message: String,
+    encoded: String,
 }
 
-impl GitHubClient {
-    fn new() -> Result<Self> {
-        let token = env::var("GH_TOKEN")?;
-        let octocrab = Octocrab::builder().personal_token(token).build()?;
+impl GitHubContext {
+    fn new(entry: Entry) -> Result<Self> {
+        let repo = env::var("GITHUB_REPOSITORY")?;
+        let sha = env::var("GITHUB_SHA")?;
 
-        let repositry = env::var("GITHUB_REPOSITORY")?;
-        let (owner, repo) = repositry.split_once('/').unwrap();
+        let id = entry.id.format("%Y-%m");
+        let branch = format!("entry/{id}");
+        let message = format!("cron: generated entry for {id}");
+        let encoded = STANDARD.encode(entry.content.as_bytes());
 
-        let main_sha = env::var("GITHUB_SHA")?;
-
-        Ok(GitHubClient {
-            octocrab,
-            owner: owner.to_string(),
+        Ok(GitHubContext {
             repo: repo.to_string(),
-            main_sha: main_sha.to_string(),
+            sha: sha.to_string(),
+            path: entry.path,
+            branch,
+            message,
+            encoded,
         })
     }
 
-    pub async fn create_commit(&self, entry: Entry) -> Result<()> {
-        let id = entry.id.format("%Y-%m");
-        let message = format!("cron: generated entry for {id}");
-        let branch_name = format!("entry/{id}");
-        let branch = Branch(branch_name.clone());
+    pub fn create_pull_request(&self) -> Result<()> {
+        let sh = Shell::new()?;
 
-        if self
-            .octocrab
-            .repos(&self.owner, &self.repo)
-            .get_content()
-            .path(&entry.path)
-            .send()
-            .await
-            .is_ok()
+        // Create a new reference.
         {
-            bail!("'{}' already exists", &entry.path);
+            let repo = &self.repo;
+            let branch = &self.branch;
+            let sha = &self.sha;
+            cmd!(
+                sh,
+                "gh api repos/{repo}/git/refs -X POST -f ref=refs/heads/{branch} -f sha={sha}"
+            )
+            .run()
+            .context("Failed to create branch.")?;
         }
 
-        self.octocrab
-            .repos(&self.owner, &self.repo)
-            .create_ref(&branch, &self.main_sha)
-            .await?;
+        // Creates a new file.
+        {
+            let repo = &self.repo;
+            let path = &self.path;
+            let message = &self.message;
+            let encoded = &self.encoded;
+            let branch = &self.branch;
+            cmd!(
+                sh,
+                "gh api repos/{repo}/contents/{path} -X PUT -f content={encoded} -f branch={branch} -f message={message}"
+            )
+            .run()
+            .context("Failed to create file.")?;
+        }
 
-        self.octocrab
-            .repos(&self.owner, &self.repo)
-            .create_file(&entry.path, &message, &entry.content)
-            .branch(&branch_name)
-            .send()
-            .await?;
-
-        self.octocrab
-            .pulls(&self.owner, &self.repo)
-            .create(&message, &branch_name, "main")
-            .send()
-            .await?;
+        // Create a pull request on GitHub.
+        {
+            let repo = &self.repo;
+            let branch = &self.branch;
+            let message = &self.message;
+            cmd!(
+                sh,
+                "gh pr create --repo {repo} --base main --head {branch} --title {message} --body ''"
+            )
+            .run()
+            .context("Failed to create pull request.")?;
+        }
 
         Ok(())
     }
 }
 
-pub async fn create_commit(entry: Entry) -> Result<()> {
-    GitHubClient::new()?.create_commit(entry).await
+pub fn create_content(entry: Entry) -> Result<()> {
+    GitHubContext::new(entry)?.create_pull_request()
 }
