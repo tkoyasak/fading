@@ -21,7 +21,7 @@ log = { version = "0.4.28" }
 papaya = { version = "0.2.3" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["io-std", "rt-multi-thread"] }
-toml = { version = "0.9.7" }
+toml = { version = "0.9.8" }
 tower-lsp-server = { version = "0.22.1" }
 xflags = { version = "0.4.0-pre.2" }
 xshell = { version = "0.3.0-pre.2" }
