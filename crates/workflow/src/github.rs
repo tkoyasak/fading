@@ -6,7 +6,7 @@
 //! https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps/
 //! https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots
 
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use xshell::{Shell, cmd};
 
@@ -31,7 +31,7 @@ impl Context {
         let branch = format!("entry/{id}");
         let message = format!("cron: generated entry for {id}");
 
-        let encoded = STANDARD.encode(entry.content.as_bytes());
+        let encoded = STANDARD.encode(entry.content);
 
         Ok(Context {
             repo: repo.to_string(),
@@ -43,7 +43,7 @@ impl Context {
         })
     }
 
-    pub fn create_pull_request(&self) -> Result<()> {
+    fn create_pull_request(&self) -> Result<()> {
         let sh = Shell::new()?;
 
         // Create a new reference.
@@ -55,23 +55,21 @@ impl Context {
                 sh,
                 "gh api repos/{repo}/git/refs -X POST -f ref=refs/heads/{branch} -f sha={sha}"
             )
-            .run()
-            .context("Failed to create branch.")?;
+            .run()?;
         }
 
-        // Creates a new file.
+        // Create a new file.
         {
             let repo = &self.repo;
             let path = &self.path;
-            let message = &self.message;
             let encoded = &self.encoded;
             let branch = &self.branch;
+            let message = &self.message;
             cmd!(
                 sh,
                 "gh api repos/{repo}/contents/{path} -X PUT -f content={encoded} -f branch={branch} -f message={message}"
             )
-            .run()
-            .context("Failed to create file.")?;
+            .run()?;
         }
 
         // Create a pull request on GitHub.
@@ -83,8 +81,7 @@ impl Context {
                 sh,
                 "gh pr create --repo {repo} --base main --head {branch} --title {message} --body ''"
             )
-            .run()
-            .context("Failed to create pull request.")?;
+            .run()?;
         }
 
         Ok(())

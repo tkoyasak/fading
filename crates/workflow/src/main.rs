@@ -9,9 +9,7 @@ fn main() {
     match try_main() {
         Ok(..) => {}
         Err(err) => {
-            for cause in err.chain() {
-                println!("::error::{cause:#?}");
-            }
+            println!("::error::{err}");
             std::process::exit(1);
         }
     };
