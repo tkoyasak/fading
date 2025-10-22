@@ -17,5 +17,4 @@ target
 /crates/zed/extension.wasm
 
 # Tree-sitter parser
-/tree-sitter/*
-!/tree-sitter/queries/
+/tree-sitter/src/parser.c

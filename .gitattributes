@@ -1,0 +1,8 @@
+# Generated source files by Tree-sitter
+/tree-sitter/src/*.json linguist-generated
+/tree-sitter/src/parser.c* linguist-generated
+/tree-sitter/src/tree_sitter/* linguist-generated
+
+# Vendored from https://github.com/tree-sitter-grammars/tree-sitter-markdown
+/tree-sitter/LICENSE linguist-vendored
+/tree-sitter/test/corpus/ linguist-vendored
