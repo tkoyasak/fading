@@ -1,11 +1,11 @@
-id = "fading"
 name = "fading"
 description = "`fading` support."
+id = "fading"
 version = "0.0.0"
 schema_version = 1
 authors = ["tkoyasak"]
-repository = "https://github.com/tkoyasak/fading-crates/crates/zed"
+repository = "https://github.com/tkoyasak/fading-crates"
 
-[language_servers.fading-ls]
+[language_servers.fading]
 name = "fading ls"
 language = "Markdown"
