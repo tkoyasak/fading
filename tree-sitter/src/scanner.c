@@ -1562,7 +1562,7 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid_symbols) {
     return false;
 }
 
-void *tree_sitter_markdown_external_scanner_create(void) {
+void *tree_sitter_fading_external_scanner_create(void) {
     Scanner *s = (Scanner *)malloc(sizeof(Scanner));
     s->open_blocks.items = (Block *)calloc(1, sizeof(Block));
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
@@ -1575,27 +1575,27 @@ void *tree_sitter_markdown_external_scanner_create(void) {
     return s;
 }
 
-bool tree_sitter_markdown_external_scanner_scan(void *payload, TSLexer *lexer,
+bool tree_sitter_fading_external_scanner_scan(void *payload, TSLexer *lexer,
                                                 const bool *valid_symbols) {
     Scanner *scanner = (Scanner *)payload;
     scanner->simulate = false;
     return scan(scanner, lexer, valid_symbols);
 }
 
-unsigned tree_sitter_markdown_external_scanner_serialize(void *payload,
+unsigned tree_sitter_fading_external_scanner_serialize(void *payload,
                                                          char *buffer) {
     Scanner *scanner = (Scanner *)payload;
     return serialize(scanner, buffer);
 }
 
-void tree_sitter_markdown_external_scanner_deserialize(void *payload,
+void tree_sitter_fading_external_scanner_deserialize(void *payload,
                                                        const char *buffer,
                                                        unsigned length) {
     Scanner *scanner = (Scanner *)payload;
     deserialize(scanner, buffer, length);
 }
 
-void tree_sitter_markdown_external_scanner_destroy(void *payload) {
+void tree_sitter_fading_external_scanner_destroy(void *payload) {
     Scanner *scanner = (Scanner *)payload;
     free(scanner->open_blocks.items);
     free(scanner);

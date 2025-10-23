@@ -4,14 +4,14 @@
 
 /// <reference types="tree-sitter-cli/dsl" />
 
-const common = require('../common/common');
+const common = require('./common');
 
 const PRECEDENCE_LEVEL_LINK = common.PRECEDENCE_LEVEL_LINK;
 
 const PUNCTUATION_CHARACTERS_REGEX = '!-/:-@\\[-`\\{-~';
 
 module.exports = grammar({
-    name: 'markdown',
+    name: 'fading',
 
     rules: {
         document: $ => seq(
