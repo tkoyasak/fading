@@ -4,7 +4,8 @@ members = [
   "crates/cli",
   "crates/ls",
   "crates/workflow",
-  "crates/zed"
+  "crates/zed",
+  "xtask",
 ]
 
 [workspace.package]
