@@ -3,8 +3,8 @@ resolver = "3"
 members = [
   "crates/cli",
   "crates/ls",
-  "crates/workflow",
   "crates/zed",
+  "tasks/entry",
   "tasks/tree-sitter",
 ]
 

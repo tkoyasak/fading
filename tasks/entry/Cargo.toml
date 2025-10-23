@@ -1,5 +1,5 @@
 [package]
-name = "fading-workflow"
+name = "task-entry"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
