@@ -4,4 +4,6 @@
 
 # Vendored from https://github.com/tree-sitter-grammars/tree-sitter-markdown
 /tree-sitter/LICENSE linguist-vendored
-/tree-sitter/test/corpus/ linguist-vendored
+/tree-sitter/grammar/* linguist-vendored
+/tree-sitter/src/scanner.c linguist-vendored
+/tree-sitter/test/corpus/* linguist-vendored
