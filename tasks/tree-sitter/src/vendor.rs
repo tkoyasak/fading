@@ -30,7 +30,7 @@ impl Vendor {
         cmd!(sh, "git checkout {rev}").run_echo()?;
 
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let ts_dir = manifest_dir.join("..").join("tree-sitter");
+        let ts_dir = manifest_dir.join("..").join("..").join("tree-sitter");
 
         sh.copy_file_to_dir("LICENSE", ts_dir.clone())?;
         sh.copy_file_to_dir("common/common.js", ts_dir.join("grammar"))?;
@@ -39,8 +39,9 @@ impl Vendor {
         sh.copy_file_to_dir("tree-sitter-markdown/src/scanner.c", ts_dir.join("src"))?;
 
         let paths = sh.read_dir("tree-sitter-markdown/test/corpus")?;
+        let test_dir = ts_dir.join("test").join("corpus");
         for path in paths {
-            sh.copy_file_to_dir(path, ts_dir.join("test").join("corpus"))?;
+            sh.copy_file_to_dir(path, test_dir.clone())?;
         }
 
         Ok(())
