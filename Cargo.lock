@@ -289,16 +289,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fading-workflow"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "base64",
- "chrono",
- "xshell",
-]
-
-[[package]]
 name = "fading-zed"
 version = "0.0.0"
 dependencies = [
@@ -1079,6 +1069,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "task-entry"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "chrono",
+ "xshell",
 ]
 
 [[package]]
