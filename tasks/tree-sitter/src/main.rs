@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::flags::{Xtask, XtaskCmd};
+use crate::flags::{TreeSitter, TreeSitterCmd};
 
 mod compress;
 mod flags;
@@ -17,10 +17,10 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    let flags = Xtask::from_env_or_exit();
+    let flags = TreeSitter::from_env_or_exit();
     match flags.subcommand {
-        XtaskCmd::Compress(compress) => compress.run(),
-        XtaskCmd::Generate(generate) => generate.run(),
-        XtaskCmd::Vendor(vendor) => vendor.run(),
+        TreeSitterCmd::Compress(compress) => compress.run(),
+        TreeSitterCmd::Generate(generate) => generate.run(),
+        TreeSitterCmd::Vendor(vendor) => vendor.run(),
     }
 }

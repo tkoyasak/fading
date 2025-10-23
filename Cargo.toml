@@ -5,7 +5,7 @@ members = [
   "crates/ls",
   "crates/workflow",
   "crates/zed",
-  "xtask",
+  "tasks/tree-sitter",
 ]
 
 [workspace.package]

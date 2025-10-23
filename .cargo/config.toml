@@ -1,5 +1,5 @@
 [alias]
-xtask = "run --package xtask --"
+tree-sitter = "run --package task-tree-sitter --"
 
 [env]
 TREE_SITTER_MARKDOWN_URL = "https://github.com/tree-sitter-grammars/tree-sitter-markdown.git"
