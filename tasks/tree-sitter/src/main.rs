@@ -1,11 +1,10 @@
 use anyhow::Result;
 
-use crate::flags::{TreeSitter, TreeSitterCmd};
-
 mod compress;
-mod flags;
 mod generate;
 mod vendor;
+
+use crate::{compress::compress_parser, generate::generate_parser, vendor::vendor_from_source};
 
 fn main() {
     if let Err(err) = try_main() {
@@ -17,10 +16,9 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    let flags = TreeSitter::from_env_or_exit();
-    match flags.subcommand {
-        TreeSitterCmd::Compress(compress) => compress.run(),
-        TreeSitterCmd::Generate(generate) => generate.run(),
-        TreeSitterCmd::Vendor(vendor) => vendor.run(),
-    }
+    vendor_from_source()?;
+    generate_parser()?;
+    compress_parser()?;
+
+    Ok(())
 }

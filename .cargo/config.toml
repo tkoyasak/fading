@@ -1,7 +1,3 @@
-[alias]
-entry = "run --package task-entry"
-tree-sitter = "run --package task-tree-sitter --"
-
 [env]
 TREE_SITTER_MARKDOWN_URL = "https://github.com/tree-sitter-grammars/tree-sitter-markdown.git"
 TREE_SITTER_MARKDOWN_REV = "2dfd57f547f06ca5631a80f601e129d73fc8e9f0"
