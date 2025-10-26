@@ -1,10 +1,12 @@
-//! NOTE: Using GitHub App tokens (like GITHUB_TOKEN in GitHub Actions)
-//! automatically creates verified commits when using the GitHub API.
-//! This is because GitHub can cryptographically verify that the commit
-//! originated from the authenticated GitHub App/bot.
-//!
-//! https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps/
-//! https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots
+// GitHub Apps can use bots to sign commits. If a commit has a bot signature that is
+// cryptographically verifiable, GitHub marks the commit as verified.
+//
+// Signature verification for bots will only work if the request is verified and authenticated as
+// the GitHub App or bot and contains no custom author information, custom committer information,
+// and no custom signature information, such as Commits API. [^1] [^2]
+//
+// [^1]: <https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots>
+// [^2]: <https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps>
 
 use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
