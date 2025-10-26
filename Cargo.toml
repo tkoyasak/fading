@@ -1,17 +1,11 @@
 [workspace]
 resolver = "3"
-members = [
-  "crates/cli",
-  "crates/ls",
-  "crates/zed",
-  "tasks/entry",
-  "tasks/tree-sitter",
-]
+members = ["crates/*", "tasks/*"]
 
 [workspace.package]
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.89.0" # https://github.com/actions/runner-images
+rust-version = "1.90.0" # https://github.com/actions/runner-images
 
 [workspace.dependencies]
 anyhow = { version = "1.0.100" }
@@ -27,3 +21,5 @@ tower-lsp-server = { version = "0.22.1" }
 xflags = { version = "0.4.0-pre.2" }
 xshell = { version = "0.3.0-pre.2" }
 zed_extension_api = { version = "0.7.0" }
+
+fading-ls = { path = "crates/ls" }
