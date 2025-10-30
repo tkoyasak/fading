@@ -1,11 +1,12 @@
+; See <https://docs.helix-editor.com/themes.html#scopes>.
 ; heading
 (atx_heading
   (atx_h6_marker) @markup.heading.marker) @markup.heading.6
 
 ; code block
 [
-  (fenced_code_block)
   (indented_code_block)
+  (fenced_code_block)
 ] @markup.raw.block
 
 (info_string) @label
