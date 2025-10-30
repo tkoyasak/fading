@@ -1016,14 +1016,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "task-tree-sitter"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "xshell",
-]
-
-[[package]]
 name = "tinystr"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
