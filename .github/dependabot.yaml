@@ -11,6 +11,9 @@ updates:
     cooldown:
       default-days: 7
 
+    allow:
+      - dependency-type: all
+
     groups:
       dependencies:
         applies-to: version-updates
