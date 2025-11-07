@@ -1006,12 +1006,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "task-entry"
+name = "task-entries"
 version = "0.0.0"
 dependencies = [
  "anyhow",
  "base64",
  "chrono",
+ "xflags",
  "xshell",
 ]
 
