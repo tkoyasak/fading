@@ -1,13 +1,13 @@
 xflags::xflags! {
     src "./src/flags.rs"
 
-    /// CLI for the task
+    /// CLI for the `fading` entries
     cmd task {
 
         /// Generate a monthly entry
         cmd generate {}
 
-        ///　Compile entries to HTML
+        /// Compile entries to HTML
         cmd compile {}
     }
 }
