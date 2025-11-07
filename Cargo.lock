@@ -1012,6 +1012,7 @@ dependencies = [
  "anyhow",
  "base64",
  "chrono",
+ "xflags",
  "xshell",
 ]
 
