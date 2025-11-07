@@ -1,5 +1,5 @@
 [package]
-name = "task-entry"
+name = "task-entries"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
