@@ -1,10 +1,8 @@
 use anyhow::Result;
 
 mod compile;
-mod entry;
 mod flags;
 mod generate;
-mod github;
 
 use crate::flags::{Cmd, Task, TaskCmd};
 
