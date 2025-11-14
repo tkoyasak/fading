@@ -6,6 +6,9 @@ xflags::xflags! {
 
         /// Start the language server
         cmd ls {}
+
+        /// Notify of the time
+        cmd notify {}
     }
 }
 
@@ -20,10 +23,14 @@ pub struct Fading {
 #[derive(Debug)]
 pub enum FadingCmd {
     Ls(Ls),
+    Notify(Notify),
 }
 
 #[derive(Debug)]
 pub struct Ls;
+
+#[derive(Debug)]
+pub struct Notify;
 
 impl Fading {
     #[allow(dead_code)]
@@ -42,3 +49,7 @@ impl Fading {
     }
 }
 // generated end
+
+pub trait Cmd {
+    fn run(self) -> anyhow::Result<()>;
+}
