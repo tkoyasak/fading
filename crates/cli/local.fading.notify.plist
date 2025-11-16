@@ -8,8 +8,9 @@
     <string>local.fading.notify</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$HOME/.cargo/bin/fading</string>
-        <string>notify</string>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>exec $HOME/.cargo/bin/fading notify</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
