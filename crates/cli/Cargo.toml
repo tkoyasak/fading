@@ -9,10 +9,10 @@ name = "fading"
 path = "src/main.rs"
 
 [dependencies]
+fading-ls.workspace = true
+
 anyhow.workspace = true
 chrono.workspace = true
 tokio.workspace = true
 xflags.workspace = true
 xshell.workspace = true
-
-fading-ls.workspace = true

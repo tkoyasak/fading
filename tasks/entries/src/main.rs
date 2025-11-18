@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    let flags = Task::from_env_or_exit();
+    let flags = Task::from_env()?;
     match flags.subcommand {
         TaskCmd::Compile(compile) => compile.run(),
         TaskCmd::Generate(generate) => generate.run(),

@@ -8,7 +8,7 @@ impl Cmd for Notify {
         let sh = Shell::new()?;
 
         let title = "\"fading\"";
-        let date = Local::now().format("%Y-%m-%d").to_string();
+        let date = Local::now().format("%Y-%m-%d");
         let body = format!("\"Time to be fading! {date}\"");
         cmd!(
             sh,

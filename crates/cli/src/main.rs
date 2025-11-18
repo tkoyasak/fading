@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    let flags = Fading::from_env_or_exit();
+    let flags = Fading::from_env()?;
     match flags.subcommand {
         FadingCmd::Ls(ls) => ls.run(),
         FadingCmd::Notify(notify) => notify.run(),
