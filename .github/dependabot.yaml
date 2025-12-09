@@ -8,8 +8,8 @@ updates:
     schedule:
       interval: weekly
 
-    cooldown:
-      default-days: 7
+    # cooldown:
+    #   default-days: 7
 
     allow:
       - dependency-type: all
