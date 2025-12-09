@@ -3,7 +3,7 @@ use log::debug;
 use papaya::HashMap;
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::jsonrpc;
-use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer};
 
 const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
@@ -30,8 +30,8 @@ impl LanguageServer for Backend {
                 capabilities: ServerCapabilities {
                     text_document_sync: Some(TextDocumentSyncCapability::Options(
                         TextDocumentSyncOptions {
-                            open_close: Some(true),
                             change: Some(TextDocumentSyncKind::FULL),
+                            open_close: Some(true),
                             save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
                                 include_text: Some(true),
                             })),
@@ -114,7 +114,6 @@ impl LanguageServer for Backend {
             .is_none_or(|only| only.contains(&CODE_ACTION_UPDATE_METADATA))
             && let Some(update) = self.on_update(&uri)
         {
-            #[expect(clippy::mutable_key_type)]
             let changes = std::collections::HashMap::from([(uri, update)]);
 
             let code_action = CodeAction {
