@@ -10,7 +10,7 @@ use crate::flags::{Cmd, Generate};
 impl Cmd for Generate {
     fn run(self) -> anyhow::Result<()> {
         let entry = Entry::new()?;
-        Context::new(entry)?.create_pull_request()
+        GitHub::new(entry)?.create_pull_request()
     }
 }
 
@@ -75,7 +75,7 @@ modified = {today}
 // [^2]: <https://github.blog/engineering/platform-security/commit-signing-support-for-bots-and-other-github-apps>
 
 #[derive(Debug)]
-struct Context {
+struct GitHub {
     repo: String,
     sha: String,
     path: String,
@@ -84,7 +84,7 @@ struct Context {
     encoded: String,
 }
 
-impl Context {
+impl GitHub {
     fn new(entry: Entry) -> Result<Self> {
         let repo = std::env::var("GITHUB_REPOSITORY")?;
         let sha = std::env::var("GITHUB_SHA")?;
