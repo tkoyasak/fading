@@ -1,6 +1,8 @@
 use tower_lsp_server::{LspService, Server};
 
 mod backend;
+mod document;
+mod metadata;
 
 pub async fn start() {
     env_logger::init();
