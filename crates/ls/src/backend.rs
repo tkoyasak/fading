@@ -155,3 +155,257 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use tower_lsp_server::LspService;
+
+    fn create_test_backend() -> &'static Backend {
+        let (service, _) = LspService::new(Backend::new);
+        // Leak the service to get a 'static reference for testing
+        Box::leak(Box::new(service)).inner()
+    }
+
+    fn make_uri(path: &str) -> Uri {
+        Uri::from_str(&format!("file://{path}")).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_initialize_with_fading_workspace() {
+        let backend = create_test_backend();
+        let params = InitializeParams {
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: make_uri("/workspace/fading"),
+                name: "fading".to_string(),
+            }]),
+            ..Default::default()
+        };
+
+        let result = backend.initialize(params).await.unwrap();
+        assert!(result.server_info.is_some());
+        assert_eq!(result.server_info.unwrap().name, "fading");
+        assert!(result.capabilities.text_document_sync.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_initialize_without_fading_workspace() {
+        let backend = create_test_backend();
+        let params = InitializeParams {
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: make_uri("/workspace/other"),
+                name: "other".to_string(),
+            }]),
+            ..Default::default()
+        };
+
+        let result = backend.initialize(params).await.unwrap();
+        assert!(result.server_info.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_did_open_and_close() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "hello".to_string(),
+                },
+            })
+            .await;
+
+        assert!(backend.documents.pin().get(&uri).is_some());
+
+        backend
+            .did_close(DidCloseTextDocumentParams {
+                text_document: TextDocumentIdentifier { uri: uri.clone() },
+            })
+            .await;
+
+        assert!(backend.documents.pin().get(&uri).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_did_change_incremental() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "hello world".to_string(),
+                },
+            })
+            .await;
+
+        backend
+            .did_change(DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: uri.clone(),
+                    version: 2,
+                },
+                content_changes: vec![TextDocumentContentChangeEvent {
+                    range: Some(Range::new(Position::new(0, 5), Position::new(0, 5))),
+                    range_length: None,
+                    text: ",".to_string(),
+                }],
+            })
+            .await;
+
+        let guard = backend.documents.pin();
+        let doc = guard.get(&uri).unwrap();
+        assert_eq!(doc.content, "hello, world");
+        assert_eq!(doc.version, Some(2));
+        assert!(doc.changed);
+    }
+
+    #[tokio::test]
+    async fn test_did_change_full() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "old".to_string(),
+                },
+            })
+            .await;
+
+        backend
+            .did_change(DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: uri.clone(),
+                    version: 2,
+                },
+                content_changes: vec![TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: "new content".to_string(),
+                }],
+            })
+            .await;
+
+        let guard = backend.documents.pin();
+        let doc = guard.get(&uri).unwrap();
+        assert_eq!(doc.content, "new content");
+    }
+
+    #[tokio::test]
+    async fn test_did_save() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "original".to_string(),
+                },
+            })
+            .await;
+
+        backend
+            .did_save(DidSaveTextDocumentParams {
+                text_document: TextDocumentIdentifier { uri: uri.clone() },
+                text: Some("saved content".to_string()),
+            })
+            .await;
+
+        let guard = backend.documents.pin();
+        let doc = guard.get(&uri).unwrap();
+        assert_eq!(doc.content, "saved content");
+        assert_eq!(doc.version, None);
+    }
+
+    #[tokio::test]
+    async fn test_code_action_returns_update_metadata() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        let content =
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\n+++\n\nContent";
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: content.to_string(),
+                },
+            })
+            .await;
+
+        // Mark as changed
+        backend
+            .did_change(DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: uri.clone(),
+                    version: 2,
+                },
+                content_changes: vec![TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: content.to_string(),
+                }],
+            })
+            .await;
+
+        let result = backend
+            .code_action(CodeActionParams {
+                text_document: TextDocumentIdentifier { uri },
+                range: Range::new(Position::new(0, 0), Position::new(0, 0)),
+                context: CodeActionContext {
+                    diagnostics: vec![],
+                    only: None,
+                    trigger_kind: None,
+                },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.is_some());
+        let actions = result.unwrap();
+        assert_eq!(actions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_shutdown() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "hello".to_string(),
+                },
+            })
+            .await;
+
+        assert!(backend.documents.pin().get(&uri).is_some());
+
+        backend.shutdown().await.unwrap();
+
+        assert!(backend.documents.pin().get(&uri).is_none());
+    }
+}

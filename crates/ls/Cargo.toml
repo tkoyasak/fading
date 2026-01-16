@@ -15,3 +15,6 @@ toml.workspace = true
 tower-lsp-server.workspace = true
 tree-sitter.workspace = true
 tree-sitter-md.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

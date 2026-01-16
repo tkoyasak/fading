@@ -142,3 +142,141 @@ fn compute_end_position(start: Position, text: &str) -> tree_sitter::Point {
 fn parse(content: &str, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
     PARSER.with(|parser| parser.borrow_mut().parse(content.as_bytes(), old_tree))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tower_lsp_server::ls_types::Range;
+
+    #[test]
+    fn test_compute_line_offsets_empty() {
+        assert_eq!(compute_line_offsets(""), vec![0]);
+    }
+
+    #[test]
+    fn test_compute_line_offsets_single_line() {
+        assert_eq!(compute_line_offsets("hello"), vec![0]);
+    }
+
+    #[test]
+    fn test_compute_line_offsets_multiple_lines() {
+        assert_eq!(compute_line_offsets("hello\nworld\n"), vec![0, 6, 12]);
+    }
+
+    #[test]
+    fn test_compute_end_position_single_line() {
+        let start = Position::new(0, 0);
+        let point = compute_end_position(start, "hello");
+        assert_eq!(point.row, 0);
+        assert_eq!(point.column, 5);
+    }
+
+    #[test]
+    fn test_compute_end_position_with_newline() {
+        let start = Position::new(0, 0);
+        let point = compute_end_position(start, "hello\nworld");
+        assert_eq!(point.row, 1);
+        assert_eq!(point.column, 5);
+    }
+
+    #[test]
+    fn test_compute_end_position_from_middle() {
+        let start = Position::new(2, 5);
+        let point = compute_end_position(start, "ab\ncd");
+        assert_eq!(point.row, 3);
+        assert_eq!(point.column, 2);
+    }
+
+    #[test]
+    fn test_document_new() {
+        let doc = Document::new(Some(1), "hello\nworld".to_string());
+        assert_eq!(doc.version, Some(1));
+        assert!(!doc.changed);
+        assert_eq!(doc.content, "hello\nworld");
+    }
+
+    #[test]
+    fn test_document_position_to_byte_offset_ascii() {
+        let doc = Document::new(None, "hello\nworld".to_string());
+        // line 0, char 0 -> byte 0
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 0)), 0);
+        // line 0, char 5 -> byte 5
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 5)), 5);
+        // line 1, char 0 -> byte 6
+        assert_eq!(doc.position_to_byte_offset(Position::new(1, 0)), 6);
+        // line 1, char 3 -> byte 9
+        assert_eq!(doc.position_to_byte_offset(Position::new(1, 3)), 9);
+    }
+
+    #[test]
+    fn test_document_position_to_byte_offset_utf16() {
+        // "あ" is 3 bytes in UTF-8, 1 code unit in UTF-16
+        // "𠮷" (U+20BB7) is 4 bytes in UTF-8, 2 code units in UTF-16 (surrogate pair)
+        let doc = Document::new(None, "aあb𠮷c".to_string());
+        // 'a' at char 0 -> byte 0
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 0)), 0);
+        // 'あ' at char 1 -> byte 1
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 1)), 1);
+        // 'b' at char 2 -> byte 4 (1 + 3)
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 2)), 4);
+        // '𠮷' at char 3 -> byte 5 (1 + 3 + 1)
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 3)), 5);
+        // 'c' at char 5 (surrogate pair = 2 code units) -> byte 9 (1 + 3 + 1 + 4)
+        assert_eq!(doc.position_to_byte_offset(Position::new(0, 5)), 9);
+    }
+
+    #[test]
+    fn test_document_position_to_byte_offset_out_of_bounds() {
+        let doc = Document::new(None, "hello".to_string());
+        // line out of bounds -> content.len()
+        assert_eq!(doc.position_to_byte_offset(Position::new(10, 0)), 5);
+    }
+
+    #[test]
+    fn test_document_apply_change_insert() {
+        let mut doc = Document::new(None, "hello world".to_string());
+        let range = Range::new(Position::new(0, 5), Position::new(0, 5));
+        doc.apply_change(Some(range), ",");
+        assert_eq!(doc.content, "hello, world");
+    }
+
+    #[test]
+    fn test_document_apply_change_delete() {
+        let mut doc = Document::new(None, "hello world".to_string());
+        let range = Range::new(Position::new(0, 5), Position::new(0, 6));
+        doc.apply_change(Some(range), "");
+        assert_eq!(doc.content, "helloworld");
+    }
+
+    #[test]
+    fn test_document_apply_change_replace() {
+        let mut doc = Document::new(None, "hello world".to_string());
+        let range = Range::new(Position::new(0, 0), Position::new(0, 5));
+        doc.apply_change(Some(range), "hi");
+        assert_eq!(doc.content, "hi world");
+    }
+
+    #[test]
+    fn test_document_apply_change_multiline() {
+        let mut doc = Document::new(None, "line1\nline2\nline3".to_string());
+        let range = Range::new(Position::new(0, 5), Position::new(2, 0));
+        doc.apply_change(Some(range), "\n");
+        assert_eq!(doc.content, "line1\nline3");
+    }
+
+    #[test]
+    fn test_document_apply_change_full_update() {
+        let mut doc = Document::new(None, "old content".to_string());
+        doc.apply_change(None, "new content");
+        assert_eq!(doc.content, "new content");
+    }
+
+    #[test]
+    fn test_document_reset_content() {
+        let mut doc = Document::new(Some(5), "old".to_string());
+        doc.changed = true;
+        doc.reset_content("new".to_string());
+        assert_eq!(doc.version, None);
+        assert_eq!(doc.content, "new");
+    }
+}
