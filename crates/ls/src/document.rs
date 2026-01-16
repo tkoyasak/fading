@@ -86,6 +86,21 @@ impl Document {
         self.tree = parse(&self.content, None);
     }
 
+    pub fn frontmatter(&self) -> Option<&str> {
+        let tree = self.tree.as_ref()?;
+        let root = tree.block_tree().root_node();
+
+        let first_child = root.child(0)?;
+        if first_child.kind() != "plus_metadata" {
+            return None;
+        }
+
+        let text = first_child.utf8_text(self.content.as_bytes()).ok()?;
+        // text format: "+++\n...content...\n+++\n"
+        let content = text.strip_prefix("+++\n")?.strip_suffix("\n+++\n")?;
+        Some(content)
+    }
+
     fn position_to_byte_offset(&self, position: Position) -> usize {
         let line = position.line as usize;
         if line >= self.line_offsets.len() {
@@ -278,5 +293,30 @@ mod tests {
         doc.reset_content("new".to_string());
         assert_eq!(doc.version, None);
         assert_eq!(doc.content, "new");
+    }
+
+    #[test]
+    fn test_document_frontmatter() {
+        let doc = Document::new(
+            None,
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\nContent"
+                .to_string(),
+        );
+        let fm = doc.frontmatter().unwrap();
+        assert!(fm.contains("id = \"2026-01\""));
+        assert!(fm.contains("created = 2026-01-01"));
+        assert!(fm.contains("modified = 2026-01-15"));
+    }
+
+    #[test]
+    fn test_document_frontmatter_none_without_plus_metadata() {
+        let doc = Document::new(None, "# Hello\n\nNo frontmatter.".to_string());
+        assert!(doc.frontmatter().is_none());
+    }
+
+    #[test]
+    fn test_document_frontmatter_none_unclosed() {
+        let doc = Document::new(None, "+++\nid = \"test\"\n# No closing".to_string());
+        assert!(doc.frontmatter().is_none());
     }
 }
