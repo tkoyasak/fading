@@ -15,12 +15,12 @@ struct Metadata {
 }
 
 pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
-    if !doc.changed {
+    if !doc.modified {
         return None;
     }
 
-    let frontmatter = doc.frontmatter()?;
-    let mut metadata: Metadata = toml::from_str(frontmatter).ok()?;
+    let fm = doc.frontmatter()?;
+    let mut metadata = toml::from_str::<Metadata>(fm).ok()?;
 
     let today = Local::now().date_naive();
     let today = toml::value::Date {
@@ -36,8 +36,9 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
     metadata.modified = today;
     let new_text = toml::to_string(&metadata).unwrap();
 
+    let line_count = fm.bytes().filter(|&b| b == b'\n').count();
     let start = Position::new(1, 0);
-    let end = Position::new(4, 0);
+    let end = Position::new(1 + line_count as u32, 0);
 
     Some(vec![TextEdit::new(Range::new(start, end), new_text)])
 }
@@ -48,7 +49,7 @@ mod tests {
 
     fn make_doc(content: &str, changed: bool) -> Document {
         let mut doc = Document::new(None, content.to_string());
-        doc.changed = changed;
+        doc.modified = changed;
         doc
     }
 
@@ -83,6 +84,12 @@ mod tests {
     }
 
     #[test]
+    fn test_update_metadata_missing_modified() {
+        let doc = make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\n+++\n", true);
+        assert!(update_metadata(&doc).is_none());
+    }
+
+    #[test]
     fn test_update_metadata_updates_modified_date() {
         let doc = make_doc(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\n+++\n\nContent",
@@ -100,14 +107,14 @@ mod tests {
         assert_eq!(edit.range.end, Position::new(4, 0));
 
         // Check that the new text contains today's date
-        let today = chrono::Local::now().date_naive();
+        let today = Local::now().date_naive();
         let expected_date = format!("{}-{:02}-{:02}", today.year(), today.month(), today.day());
         assert!(edit.new_text.contains(&expected_date));
     }
 
     #[test]
     fn test_update_metadata_already_today() {
-        let today = chrono::Local::now().date_naive();
+        let today = Local::now().date_naive();
         let content = format!(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = {}-{:02}-{:02}\n+++\n",
             today.year(),
@@ -118,5 +125,21 @@ mod tests {
 
         // Should return None because modified is already today
         assert!(update_metadata(&doc).is_none());
+    }
+
+    #[test]
+    fn test_update_metadata_strips_extra_fields() {
+        let doc = make_doc(
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\ntags = [\"rust\", \"lsp\"]\n+++\n",
+            true,
+        );
+
+        let result = update_metadata(&doc);
+        assert!(result.is_some());
+
+        let edit = &result.unwrap()[0];
+        // Extra fields should be stripped
+        assert!(!edit.new_text.contains("tags"));
+        assert!(edit.new_text.contains("id = \"2026-01\""));
     }
 }

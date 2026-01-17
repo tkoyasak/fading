@@ -51,7 +51,6 @@ impl LanguageServer for Backend {
                             ..Default::default()
                         },
                     )),
-                    document_formatting_provider: Some(OneOf::Left(true)),
                     ..Default::default()
                 },
             })
@@ -90,17 +89,19 @@ impl LanguageServer for Backend {
             let mut doc = doc.clone();
 
             if doc.version.is_some_and(|v| v > new_version) {
-                let old_version = doc.version.unwrap();
-                panic!("Out-of-sync: currently at {old_version}, got {new_version}");
+                log::warn!(
+                    "Out-of-sync: currently at {}, got {}",
+                    doc.version.unwrap(),
+                    new_version
+                );
+                return doc;
             }
 
             for change in &params.content_changes {
                 doc.apply_change(change.range, &change.text);
             }
 
-            doc.reparse();
-            doc.version = Some(new_version);
-            doc.changed = true;
+            doc.update(Some(new_version));
             doc
         });
     }
@@ -145,14 +146,6 @@ impl LanguageServer for Backend {
         } else {
             Ok(None)
         }
-    }
-
-    async fn formatting(
-        &self,
-        _params: DocumentFormattingParams,
-    ) -> jsonrpc::Result<Option<Vec<TextEdit>>> {
-        debug!("fading-ls formatting.");
-        Ok(None)
     }
 }
 
@@ -265,7 +258,7 @@ mod tests {
         let doc = guard.get(&uri).unwrap();
         assert_eq!(doc.content, "hello, world");
         assert_eq!(doc.version, Some(2));
-        assert!(doc.changed);
+        assert!(doc.modified);
     }
 
     #[tokio::test]
