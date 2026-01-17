@@ -1,3 +1,7 @@
+//! Document representation with tree-sitter parsing.
+//!
+//! Manages document content, line offsets, and syntax tree for incremental updates.
+
 use std::cell::RefCell;
 
 use tower_lsp_server::ls_types::{Position, Range};
@@ -5,19 +9,27 @@ use tree_sitter::{InputEdit, Point};
 use tree_sitter_md::{MarkdownParser, MarkdownTree};
 
 thread_local! {
+    /// Thread-local markdown parser instance for reuse.
     static PARSER: RefCell<MarkdownParser> = RefCell::new(MarkdownParser::default());
 }
 
+/// A text document with associated metadata and syntax tree.
 #[derive(Debug, Clone)]
 pub struct Document {
+    /// LSP document version, `None` after save.
     pub version: Option<i32>,
+    /// Whether the document has been modified during this session.
     pub modified: bool,
+    /// The document content.
     pub content: String,
+    /// Byte offsets for the start of each line.
     line_offsets: Vec<usize>,
+    /// Parsed tree-sitter syntax tree.
     tree: Option<MarkdownTree>,
 }
 
 impl Document {
+    /// Creates a new document with the given version and content.
     pub fn new(version: Option<i32>, content: String) -> Self {
         let line_offsets = compute_line_offsets(&content);
         let tree = parse(&content, None);
@@ -30,6 +42,10 @@ impl Document {
         }
     }
 
+    /// Applies a text change to the document.
+    ///
+    /// If `range` is `Some`, performs an incremental update and edits the syntax tree.
+    /// If `range` is `None`, replaces the entire content (full sync fallback).
     pub fn apply_change(&mut self, range: Option<Range>, text: &str) {
         if let Some(range) = range {
             let (start_position, start_byte) = self.find_canonical_position(&range.start);
@@ -69,12 +85,18 @@ impl Document {
         }
     }
 
+    /// Re-parses the syntax tree and updates the version.
+    ///
+    /// Call this after applying changes to finalize the document state.
     pub fn update(&mut self, version: Option<i32>) {
         self.tree = parse(&self.content, self.tree.as_ref());
         self.version = version;
         self.modified = true;
     }
 
+    /// Resets the document content, typically after a save.
+    ///
+    /// Clears the version and re-parses from scratch.
     pub fn reset_content(&mut self, content: String) {
         self.version = None;
         self.content = content;
@@ -82,6 +104,9 @@ impl Document {
         self.tree = parse(&self.content, None);
     }
 
+    /// Extracts the TOML frontmatter content (without the `+++` delimiters).
+    ///
+    /// Returns `None` if the document doesn't start with a `plus_metadata` node.
     pub fn frontmatter(&self) -> Option<&str> {
         let tree = self.tree.as_ref()?;
         let root = tree.block_tree().root_node();
@@ -130,6 +155,7 @@ impl Document {
     }
 }
 
+/// Computes byte offsets for the start of each line.
 fn compute_line_offsets(content: &str) -> Vec<usize> {
     let mut offsets = vec![0];
     for (i, byte) in content.bytes().enumerate() {
@@ -140,6 +166,7 @@ fn compute_line_offsets(content: &str) -> Vec<usize> {
     offsets
 }
 
+/// Computes the end position after inserting text at a given start position.
 fn compute_end_position(start: Point, text: &str) -> Point {
     let mut row = start.row;
     let mut col = start.column;
@@ -156,6 +183,7 @@ fn compute_end_position(start: Point, text: &str) -> Point {
     Point::new(row, col)
 }
 
+/// Parses content into a markdown syntax tree, optionally reusing an old tree.
 fn parse(content: &str, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
     PARSER.with(|parser| parser.borrow_mut().parse(content.as_bytes(), old_tree))
 }

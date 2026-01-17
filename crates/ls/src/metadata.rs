@@ -1,19 +1,36 @@
+//! Frontmatter metadata handling.
+//!
+//! Provides code actions to automatically update the `modified` date in TOML frontmatter.
+
 use chrono::{Datelike, Local};
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::ls_types::{CodeActionKind, Position, Range, TextEdit};
 
 use crate::document::Document;
 
+/// Code action kind for updating metadata.
 pub const CODE_ACTION_UPDATE_METADATA: CodeActionKind =
     CodeActionKind::new("source.updateMetadata.fading");
 
+/// TOML frontmatter structure.
+///
+/// Only these three fields are recognized; any extra fields are stripped on update.
 #[derive(Debug, Serialize, Deserialize)]
 struct Metadata {
+    /// Entry identifier (e.g., "2026-01").
     id: String,
+    /// Date when the entry was created.
     created: toml::value::Date,
+    /// Date when the entry was last modified.
     modified: toml::value::Date,
 }
 
+/// Generates text edits to update the `modified` date to today.
+///
+/// Returns `None` if:
+/// - The document hasn't been modified this session
+/// - The document has no valid frontmatter
+/// - The `modified` date is already today
 pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
     if !doc.modified {
         return None;
