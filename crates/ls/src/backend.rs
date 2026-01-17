@@ -15,7 +15,7 @@ use crate::metadata::{CODE_ACTION_UPDATE_METADATA, update_metadata};
 #[derive(Debug)]
 pub struct Backend {
     /// LSP client for sending notifications.
-    client: Client,
+    _client: Client,
     /// Open documents indexed by URI.
     documents: papaya::HashMap<Uri, Document>,
 }
@@ -24,20 +24,9 @@ impl Backend {
     /// Creates a new backend instance.
     pub fn new(client: Client) -> Self {
         Self {
-            client,
+            _client: client,
             documents: papaya::HashMap::new(),
         }
-    }
-
-    /// Runs diagnostics on a document and publishes results to the client.
-    async fn publish_diagnostics(&self, uri: Uri) {
-        let diagnostics = {
-            let guard = self.documents.pin();
-            guard.get(&uri).map(diagnose).unwrap_or_default()
-        };
-        self.client
-            .publish_diagnostics(uri, diagnostics, None)
-            .await;
     }
 }
 
@@ -70,6 +59,14 @@ impl LanguageServer for Backend {
                             ..Default::default()
                         },
                     )),
+                    diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
+                        DiagnosticOptions {
+                            identifier: Some("fading".to_string()),
+                            inter_file_dependencies: false,
+                            workspace_diagnostics: false,
+                            ..Default::default()
+                        },
+                    )),
                     ..Default::default()
                 },
             })
@@ -90,15 +87,13 @@ impl LanguageServer for Backend {
         let version = params.text_document.version;
         let content = params.text_document.text;
         let doc = Document::new(Some(version), content);
-        self.documents.pin().insert(uri.clone(), doc);
-        self.publish_diagnostics(uri).await;
+        self.documents.pin().insert(uri, doc);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
         let uri = params.text_document.uri;
         self.documents.pin().remove(&uri);
-        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -106,7 +101,7 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents.pin().update(uri.clone(), |doc| {
+        self.documents.pin().update(uri, |doc| {
             let mut doc = doc.clone();
 
             if doc.version.is_some_and(|v| v > new_version) {
@@ -125,8 +120,6 @@ impl LanguageServer for Backend {
             doc.update(Some(new_version));
             doc
         });
-
-        self.publish_diagnostics(uri).await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -139,6 +132,29 @@ impl LanguageServer for Backend {
                 doc
             });
         }
+    }
+
+    async fn diagnostic(
+        &self,
+        params: DocumentDiagnosticParams,
+    ) -> jsonrpc::Result<DocumentDiagnosticReportResult> {
+        debug!("fading-ls diagnostic.");
+        let uri = params.text_document.uri;
+
+        let items = {
+            let guard = self.documents.pin();
+            guard.get(&uri).map(diagnose).unwrap_or_default()
+        };
+
+        Ok(DocumentDiagnosticReportResult::Report(
+            DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
+                full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                    result_id: None,
+                    items,
+                },
+                related_documents: None,
+            }),
+        ))
     }
 
     async fn code_action(
@@ -423,5 +439,83 @@ mod tests {
         backend.shutdown().await.unwrap();
 
         assert!(backend.documents.pin().get(&uri).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_diagnostic_returns_errors() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        // Document without frontmatter
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "# No frontmatter".to_string(),
+                },
+            })
+            .await;
+
+        let result = backend
+            .diagnostic(DocumentDiagnosticParams {
+                text_document: TextDocumentIdentifier { uri },
+                identifier: None,
+                previous_result_id: None,
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap();
+
+        match result {
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(report)) => {
+                assert_eq!(report.full_document_diagnostic_report.items.len(), 1);
+                assert_eq!(
+                    report.full_document_diagnostic_report.items[0]
+                        .code
+                        .as_ref()
+                        .unwrap(),
+                    &NumberOrString::String("missing-frontmatter".to_string())
+                );
+            }
+            _ => panic!("Expected full diagnostic report"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_diagnostic_valid_document() {
+        let backend = create_test_backend();
+        let uri = make_uri("/test.md");
+
+        backend
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\nContent".to_string(),
+                },
+            })
+            .await;
+
+        let result = backend
+            .diagnostic(DocumentDiagnosticParams {
+                text_document: TextDocumentIdentifier { uri },
+                identifier: None,
+                previous_result_id: None,
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap();
+
+        match result {
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(report)) => {
+                assert!(report.full_document_diagnostic_report.items.is_empty());
+            }
+            _ => panic!("Expected full diagnostic report"),
+        }
     }
 }
