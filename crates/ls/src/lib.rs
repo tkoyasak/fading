@@ -3,10 +3,12 @@
 //! This crate provides an LSP implementation that supports:
 //! - Incremental document synchronization with tree-sitter parsing
 //! - Automatic metadata (modified date) updates via code actions
+//! - Real-time diagnostics for frontmatter validation
 
 use tower_lsp_server::{LspService, Server};
 
 mod backend;
+mod diagnostics;
 mod document;
 mod metadata;
 

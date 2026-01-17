@@ -2,31 +2,42 @@
 //!
 //! Handles the core LSP protocol: document synchronization, code actions, etc.
 
-use log::debug;
-use papaya::HashMap;
+use log::{debug, warn};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer};
 
+use crate::diagnostics::diagnose;
 use crate::document::Document;
 use crate::metadata::{CODE_ACTION_UPDATE_METADATA, update_metadata};
 
 /// The LSP backend that manages document state and handles requests.
 #[derive(Debug)]
 pub struct Backend {
-    /// LSP client for sending notifications (currently unused).
-    _client: Client,
+    /// LSP client for sending notifications.
+    client: Client,
     /// Open documents indexed by URI.
-    documents: HashMap<Uri, Document>,
+    documents: papaya::HashMap<Uri, Document>,
 }
 
 impl Backend {
     /// Creates a new backend instance.
-    pub fn new(_client: Client) -> Self {
+    pub fn new(client: Client) -> Self {
         Self {
-            _client,
-            documents: HashMap::new(),
+            client,
+            documents: papaya::HashMap::new(),
         }
+    }
+
+    /// Runs diagnostics on a document and publishes results to the client.
+    async fn publish_diagnostics(&self, uri: Uri) {
+        let diagnostics = {
+            let guard = self.documents.pin();
+            guard.get(&uri).map(diagnose).unwrap_or_default()
+        };
+        self.client
+            .publish_diagnostics(uri, diagnostics, None)
+            .await;
     }
 }
 
@@ -79,13 +90,15 @@ impl LanguageServer for Backend {
         let version = params.text_document.version;
         let content = params.text_document.text;
         let doc = Document::new(Some(version), content);
-        self.documents.pin().insert(uri, doc);
+        self.documents.pin().insert(uri.clone(), doc);
+        self.publish_diagnostics(uri).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
         let uri = params.text_document.uri;
         self.documents.pin().remove(&uri);
+        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -93,11 +106,11 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents.pin().update(uri, |doc| {
+        self.documents.pin().update(uri.clone(), |doc| {
             let mut doc = doc.clone();
 
             if doc.version.is_some_and(|v| v > new_version) {
-                log::warn!(
+                warn!(
                     "Out-of-sync: currently at {}, got {}",
                     doc.version.unwrap(),
                     new_version
@@ -112,6 +125,8 @@ impl LanguageServer for Backend {
             doc.update(Some(new_version));
             doc
         });
+
+        self.publish_diagnostics(uri).await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
