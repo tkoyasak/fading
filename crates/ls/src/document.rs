@@ -17,11 +17,11 @@ thread_local! {
 #[derive(Debug, Clone)]
 pub struct Document {
     /// LSP document version, `None` after save.
-    pub version: Option<i32>,
+    version: Option<i32>,
     /// Whether the document has been modified during this session.
-    pub modified: bool,
+    modified: bool,
     /// The document content.
-    pub content: String,
+    content: String,
     /// Byte offsets for the start of each line.
     line_offsets: Vec<usize>,
     /// Parsed tree-sitter syntax tree.
@@ -121,6 +121,21 @@ impl Document {
             .line_offsets
             .get(node.end_position().row.saturating_sub(1))?;
         self.content.get(start..end)
+    }
+
+    /// Returns the document version.
+    pub fn version(&self) -> Option<i32> {
+        self.version
+    }
+
+    /// Returns whether the document has been modified.
+    pub fn modified(&self) -> bool {
+        self.modified
+    }
+
+    /// Returns a reference to the document content.
+    pub fn content(&self) -> &str {
+        self.content.as_ref()
     }
 
     /// Returns a reference to the parsed syntax tree.
@@ -240,9 +255,9 @@ mod tests {
     #[test]
     fn test_document_new() {
         let doc = Document::new(Some(1), "hello\nworld".to_string());
-        assert_eq!(doc.version, Some(1));
-        assert!(!doc.modified);
-        assert_eq!(doc.content, "hello\nworld");
+        assert_eq!(doc.version(), Some(1));
+        assert!(!doc.modified());
+        assert_eq!(doc.content(), "hello\nworld");
     }
 
     #[test]
@@ -297,7 +312,7 @@ mod tests {
         let mut doc = Document::new(None, "hello world".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(0, 5));
         doc.apply_change(Some(range), ",");
-        assert_eq!(doc.content, "hello, world");
+        assert_eq!(doc.content(), "hello, world");
     }
 
     #[test]
@@ -305,7 +320,7 @@ mod tests {
         let mut doc = Document::new(None, "hello world".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(0, 6));
         doc.apply_change(Some(range), "");
-        assert_eq!(doc.content, "helloworld");
+        assert_eq!(doc.content(), "helloworld");
     }
 
     #[test]
@@ -313,7 +328,7 @@ mod tests {
         let mut doc = Document::new(None, "hello world".to_string());
         let range = Range::new(Position::new(0, 0), Position::new(0, 5));
         doc.apply_change(Some(range), "hi");
-        assert_eq!(doc.content, "hi world");
+        assert_eq!(doc.content(), "hi world");
     }
 
     #[test]
@@ -321,24 +336,25 @@ mod tests {
         let mut doc = Document::new(None, "line1\nline2\nline3".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(2, 0));
         doc.apply_change(Some(range), "\n");
-        assert_eq!(doc.content, "line1\nline3");
+        assert_eq!(doc.content(), "line1\nline3");
     }
 
     #[test]
     fn test_document_apply_change_full_update() {
         let mut doc = Document::new(None, "old content".to_string());
         doc.apply_change(None, "new content");
-        assert_eq!(doc.content, "new content");
+        assert_eq!(doc.content(), "new content");
     }
 
     #[test]
     fn test_document_reset_content() {
         let mut doc = Document::new(Some(5), "old".to_string());
-        doc.modified = true;
+        doc.apply_change(None, "old");
+        doc.update(Some(5)); // sets modified = true
         doc.reset_content("new".to_string());
-        assert_eq!(doc.version, None);
-        assert!(doc.modified); // changed is preserved
-        assert_eq!(doc.content, "new");
+        assert_eq!(doc.version(), None);
+        assert!(doc.modified()); // modified is preserved
+        assert_eq!(doc.content(), "new");
     }
 
     #[test]

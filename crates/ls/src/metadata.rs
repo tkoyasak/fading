@@ -32,7 +32,7 @@ struct Metadata {
 /// - The document has no valid frontmatter
 /// - The `modified` date is already today
 pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
-    if !doc.modified {
+    if !doc.modified() {
         return None;
     }
 
@@ -67,9 +67,12 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
 mod tests {
     use super::*;
 
-    fn make_doc(content: &str, changed: bool) -> Document {
+    fn make_doc(content: &str, modified: bool) -> Document {
         let mut doc = Document::new(None, content.to_string());
-        doc.modified = changed;
+        if modified {
+            doc.apply_change(None, content);
+            doc.update(None);
+        }
         doc
     }
 

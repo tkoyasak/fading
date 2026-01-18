@@ -280,7 +280,7 @@ fn parse_date(value: &Option<toml::Value>) -> Option<NaiveDate> {
 fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
     let Some(tree) = doc.tree() else { return };
     let root = tree.block_tree().root_node();
-    walk_headings(root, doc.content.as_bytes(), diagnostics);
+    walk_headings(root, doc.content().as_bytes(), diagnostics);
 }
 
 /// Recursively walks the tree to find and validate heading nodes.

@@ -117,7 +117,7 @@ impl LanguageServer for Backend {
         let Some(doc) = docs.get_mut(&uri) else {
             return;
         };
-        if let Some(version) = doc.version
+        if let Some(version) = doc.version()
             && version > new_version
         {
             warn!("Out-of-sync: currently at {version}, got {new_version}");
@@ -312,9 +312,9 @@ mod tests {
 
         let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
-        assert_eq!(doc.content, "hello, world");
-        assert_eq!(doc.version, Some(2));
-        assert!(doc.modified);
+        assert_eq!(doc.content(), "hello, world");
+        assert_eq!(doc.version(), Some(2));
+        assert!(doc.modified());
     }
 
     #[tokio::test]
@@ -349,7 +349,7 @@ mod tests {
 
         let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
-        assert_eq!(doc.content, "new content");
+        assert_eq!(doc.content(), "new content");
     }
 
     #[tokio::test]
@@ -377,8 +377,8 @@ mod tests {
 
         let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
-        assert_eq!(doc.content, "saved content");
-        assert_eq!(doc.version, None);
+        assert_eq!(doc.content(), "saved content");
+        assert_eq!(doc.version(), None);
     }
 
     #[tokio::test]
