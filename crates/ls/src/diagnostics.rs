@@ -207,14 +207,9 @@ fn check_id_format(id: &Option<toml::Value>, fm: &str, diagnostics: &mut Vec<Dia
         return;
     };
 
-    // Validate YYYY-MM format
-    let is_valid = id_str.len() == 7
-        && id_str.as_bytes().get(4) == Some(&b'-')
-        && id_str[0..4].parse::<u16>().is_ok()
-        && id_str[5..7]
-            .parse::<u8>()
-            .map(|m| (1..=12).contains(&m))
-            .unwrap_or(false);
+    // Validate YYYY-MM format by attempting to parse with a dummy day
+    let is_valid =
+        id_str.len() == 7 && NaiveDate::parse_from_str(&format!("{id_str}-01"), "%Y-%m-%d").is_ok();
 
     if !is_valid {
         diagnostics.push(make_diagnostic(
@@ -335,32 +330,10 @@ fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Ve
 }
 
 /// Checks if the heading text matches the `YYYY-MM-DD Day` format.
+///
+/// Uses chrono to parse and validate the date, including checking that the day of week matches.
 fn is_valid_heading_date(text: &str) -> bool {
-    // Format: "2026-01-18 Sat"
-    // Length: 14 chars (YYYY-MM-DD + space + Day)
-    if text.len() != 14 {
-        return false;
-    }
-
-    let bytes = text.as_bytes();
-
-    // YYYY-MM-DD Day
-    bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && bytes[10] == b' '
-        && text[0..4].parse::<u16>().is_ok()
-        && text[5..7]
-            .parse::<u8>()
-            .map(|m| (1..=12).contains(&m))
-            .unwrap_or(false)
-        && text[8..10]
-            .parse::<u8>()
-            .map(|d| (1..=31).contains(&d))
-            .unwrap_or(false)
-        && matches!(
-            &text[11..14],
-            "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
-        )
+    NaiveDate::parse_from_str(text, "%Y-%m-%d %a").is_ok()
 }
 
 #[cfg(test)]
@@ -443,7 +416,7 @@ mod tests {
     #[test]
     fn test_invalid_heading_level_h1() {
         let doc = make_doc(
-            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n# 2026-01-18 Sat\n",
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n# 2026-01-18 Sun\n",
         );
         let diags = diagnose(&doc);
         assert!(
@@ -470,7 +443,7 @@ mod tests {
     #[test]
     fn test_valid_heading() {
         let doc = make_doc(
-            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sat\n",
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sun\n",
         );
         let diags = diagnose(&doc);
         assert!(diags.is_empty());
@@ -479,7 +452,7 @@ mod tests {
     #[test]
     fn test_multiple_headings() {
         let doc = make_doc(
-            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sat\n\nSome content\n\n###### 2026-01-19 Sun\n",
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sun\n\nSome content\n\n###### 2026-01-19 Mon\n",
         );
         let diags = diagnose(&doc);
         assert!(diags.is_empty());
@@ -487,10 +460,10 @@ mod tests {
 
     #[test]
     fn test_is_valid_heading_date() {
-        assert!(is_valid_heading_date("2026-01-18 Sat"));
-        assert!(is_valid_heading_date("2026-12-31 Wed"));
+        assert!(is_valid_heading_date("2026-01-18 Sun"));
+        assert!(is_valid_heading_date("2026-12-31 Thu"));
         assert!(!is_valid_heading_date("2026-01-18"));
-        assert!(!is_valid_heading_date("2026-01-18 Saturday"));
+        assert!(!is_valid_heading_date("2026-01-18 Sunurday"));
         assert!(!is_valid_heading_date("Invalid"));
         assert!(!is_valid_heading_date("2026-13-01 Mon")); // Invalid month
         assert!(!is_valid_heading_date("2026-01-32 Mon")); // Invalid day
