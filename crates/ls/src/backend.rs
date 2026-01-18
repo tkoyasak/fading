@@ -104,17 +104,17 @@ impl LanguageServer for Backend {
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
-        let uri = params.text_document.uri;
-        self.documents.write().unwrap().remove(&uri);
+        let uri = &params.text_document.uri;
+        self.documents.write().unwrap().remove(uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         debug!("fading-ls did change.");
         let new_version = params.text_document.version;
-        let uri = params.text_document.uri;
+        let uri = &params.text_document.uri;
 
         let mut docs = self.documents.write().unwrap();
-        let Some(doc) = docs.get_mut(&uri) else {
+        let Some(doc) = docs.get_mut(uri) else {
             return;
         };
         if let Some(version) = doc.version()
@@ -133,8 +133,8 @@ impl LanguageServer for Backend {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         debug!("fading-ls did save.");
         if let Some(content) = params.text {
-            let uri = params.text_document.uri;
-            if let Some(doc) = self.documents.write().unwrap().get_mut(&uri) {
+            let uri = &params.text_document.uri;
+            if let Some(doc) = self.documents.write().unwrap().get_mut(uri) {
                 doc.reset_content(content);
             }
         }
@@ -145,13 +145,13 @@ impl LanguageServer for Backend {
         params: DocumentDiagnosticParams,
     ) -> jsonrpc::Result<DocumentDiagnosticReportResult> {
         debug!("fading-ls diagnostic.");
-        let uri = params.text_document.uri;
+        let uri = &params.text_document.uri;
 
         let items = self
             .documents
             .read()
             .unwrap()
-            .get(&uri)
+            .get(uri)
             .map(diagnose)
             .unwrap_or_default();
 
