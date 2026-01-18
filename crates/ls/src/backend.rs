@@ -4,10 +4,19 @@
 
 use log::{debug, warn};
 use tower_lsp_server::jsonrpc;
-use tower_lsp_server::ls_types::*;
+use tower_lsp_server::ls_types::{
+    CodeAction, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
+    CodeActionResponse, DiagnosticOptions, DiagnosticServerCapabilities,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
+    DocumentDiagnosticReportResult, FullDocumentDiagnosticReport, InitializeParams,
+    InitializeResult, RelatedFullDocumentDiagnosticReport, SaveOptions, ServerCapabilities,
+    ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, Uri, WorkspaceEdit,
+};
 use tower_lsp_server::{Client, LanguageServer};
 
-use crate::diagnostics::diagnose;
+use crate::diagnostics::{DIAGNOSTC_SOURCE, diagnose};
 use crate::document::Document;
 use crate::metadata::{CODE_ACTION_UPDATE_METADATA, update_metadata};
 
@@ -43,16 +52,6 @@ impl LanguageServer for Backend {
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 }),
                 capabilities: ServerCapabilities {
-                    text_document_sync: Some(TextDocumentSyncCapability::Options(
-                        TextDocumentSyncOptions {
-                            change: Some(TextDocumentSyncKind::INCREMENTAL),
-                            open_close: Some(true),
-                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                                include_text: Some(true),
-                            })),
-                            ..Default::default()
-                        },
-                    )),
                     code_action_provider: Some(CodeActionProviderCapability::Options(
                         CodeActionOptions {
                             code_action_kinds: Some(vec![CODE_ACTION_UPDATE_METADATA]),
@@ -61,9 +60,19 @@ impl LanguageServer for Backend {
                     )),
                     diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
                         DiagnosticOptions {
-                            identifier: Some("fading".to_string()),
+                            identifier: Some(DIAGNOSTC_SOURCE.to_string()),
                             inter_file_dependencies: false,
                             workspace_diagnostics: false,
+                            ..Default::default()
+                        },
+                    )),
+                    text_document_sync: Some(TextDocumentSyncCapability::Options(
+                        TextDocumentSyncOptions {
+                            open_close: Some(true),
+                            change: Some(TextDocumentSyncKind::INCREMENTAL),
+                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                                include_text: Some(true),
+                            })),
                             ..Default::default()
                         },
                     )),
@@ -174,7 +183,7 @@ impl LanguageServer for Backend {
             let changes = std::collections::HashMap::from([(uri, edits)]);
 
             let code_action = CodeAction {
-                title: "update metadata".to_string(),
+                title: "Update metadata".to_string(),
                 kind: Some(CODE_ACTION_UPDATE_METADATA),
                 is_preferred: Some(true),
                 edit: Some(WorkspaceEdit::new(changes)),
@@ -193,6 +202,10 @@ mod tests {
     use super::*;
     use std::str::FromStr;
     use tower_lsp_server::LspService;
+    use tower_lsp_server::ls_types::{
+        CodeActionContext, NumberOrString, Position, Range, TextDocumentContentChangeEvent,
+        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier, WorkspaceFolder,
+    };
 
     fn create_test_backend() -> &'static Backend {
         let (service, _) = LspService::new(Backend::new);

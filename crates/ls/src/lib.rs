@@ -12,11 +12,11 @@ mod diagnostics;
 mod document;
 mod metadata;
 
-/// Starts the language server.
+/// Runs the language server.
 ///
 /// Initializes logging, creates the LSP service, and begins serving
 /// requests over stdin/stdout.
-pub async fn start() {
+pub async fn run() {
     env_logger::init();
 
     let stdin = tokio::io::stdin();

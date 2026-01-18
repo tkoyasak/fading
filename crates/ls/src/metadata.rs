@@ -52,12 +52,15 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
 
     metadata.modified = today;
     let new_text = toml::to_string(&metadata).unwrap();
+    let range = {
+        let line_count = fm.bytes().filter(|&b| b == b'\n').count() as u32;
+        Range {
+            start: Position::new(1, 0),
+            end: Position::new(1 + line_count, 0),
+        }
+    };
 
-    let line_count = fm.bytes().filter(|&b| b == b'\n').count();
-    let start = Position::new(1, 0);
-    let end = Position::new(1 + line_count as u32, 0);
-
-    Some(vec![TextEdit::new(Range::new(start, end), new_text)])
+    Some(vec![TextEdit::new(range, new_text)])
 }
 
 #[cfg(test)]

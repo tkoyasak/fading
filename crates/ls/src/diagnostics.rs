@@ -9,7 +9,7 @@ use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, NumberOrString,
 use crate::document::Document;
 
 /// Diagnostic source identifier.
-const SOURCE: &str = "fading";
+pub const DIAGNOSTC_SOURCE: &str = "fading";
 
 /// Diagnostic codes for different error types.
 #[derive(Debug, Clone, Copy)]
@@ -105,7 +105,7 @@ fn make_diagnostic(
         range,
         severity: Some(severity),
         code: Some(NumberOrString::String(code.as_str().to_string())),
-        source: Some(SOURCE.to_string()),
+        source: Some(DIAGNOSTC_SOURCE.to_string()),
         message: message.to_string(),
         ..Default::default()
     }
@@ -447,9 +447,9 @@ mod tests {
         );
         let diags = diagnose(&doc);
         assert!(
-            diags
-                .iter()
-                .any(|d| d.code == Some(NumberOrString::String("invalid-heading-level".to_string())))
+            diags.iter().any(
+                |d| d.code == Some(NumberOrString::String("invalid-heading-level".to_string()))
+            )
         );
     }
 
@@ -462,7 +462,8 @@ mod tests {
         assert!(
             diags
                 .iter()
-                .any(|d| d.code == Some(NumberOrString::String("invalid-heading-format".to_string())))
+                .any(|d| d.code
+                    == Some(NumberOrString::String("invalid-heading-format".to_string())))
         );
     }
 
