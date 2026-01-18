@@ -2,6 +2,9 @@
 //!
 //! Handles the core LSP protocol: document synchronization, code actions, etc.
 
+use std::collections::HashMap;
+use std::sync::RwLock;
+
 use log::{debug, warn};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::ls_types::{
@@ -26,7 +29,7 @@ pub struct Backend {
     /// LSP client for sending notifications.
     _client: Client,
     /// Open documents indexed by URI.
-    documents: papaya::HashMap<Uri, Document>,
+    documents: RwLock<HashMap<Uri, Document>>,
 }
 
 impl Backend {
@@ -34,7 +37,7 @@ impl Backend {
     pub fn new(client: Client) -> Self {
         Self {
             _client: client,
-            documents: papaya::HashMap::new(),
+            documents: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -86,7 +89,7 @@ impl LanguageServer for Backend {
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         debug!("fading-ls shutdown.");
-        self.documents.pin().clear();
+        self.documents.write().unwrap().clear();
         Ok(())
     }
 
@@ -96,13 +99,13 @@ impl LanguageServer for Backend {
         let version = params.text_document.version;
         let content = params.text_document.text;
         let doc = Document::new(Some(version), content);
-        self.documents.pin().insert(uri, doc);
+        self.documents.write().unwrap().insert(uri, doc);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         debug!("fading-ls did close.");
         let uri = params.text_document.uri;
-        self.documents.pin().remove(&uri);
+        self.documents.write().unwrap().remove(&uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -110,36 +113,34 @@ impl LanguageServer for Backend {
         let new_version = params.text_document.version;
         let uri = params.text_document.uri;
 
-        self.documents.pin().update(uri, |doc| {
-            let mut doc = doc.clone();
+        let mut docs = self.documents.write().unwrap();
+        let Some(doc) = docs.get_mut(&uri) else {
+            return;
+        };
 
-            if doc.version.is_some_and(|v| v > new_version) {
-                warn!(
-                    "Out-of-sync: currently at {}, got {}",
-                    doc.version.unwrap(),
-                    new_version
-                );
-                return doc;
-            }
+        if doc.version.is_some_and(|v| v > new_version) {
+            warn!(
+                "Out-of-sync: currently at {}, got {}",
+                doc.version.unwrap(),
+                new_version
+            );
+            return;
+        }
 
-            for change in &params.content_changes {
-                doc.apply_change(change.range, &change.text);
-            }
+        for change in &params.content_changes {
+            doc.apply_change(change.range, &change.text);
+        }
 
-            doc.update(Some(new_version));
-            doc
-        });
+        doc.update(Some(new_version));
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         debug!("fading-ls did save.");
         if let Some(content) = params.text {
             let uri = params.text_document.uri;
-            self.documents.pin().update(uri, |doc| {
-                let mut doc = doc.clone();
-                doc.reset_content(content.clone());
-                doc
-            });
+            if let Some(doc) = self.documents.write().unwrap().get_mut(&uri) {
+                doc.reset_content(content);
+            }
         }
     }
 
@@ -150,10 +151,13 @@ impl LanguageServer for Backend {
         debug!("fading-ls diagnostic.");
         let uri = params.text_document.uri;
 
-        let items = {
-            let guard = self.documents.pin();
-            guard.get(&uri).map(diagnose).unwrap_or_default()
-        };
+        let items = self
+            .documents
+            .read()
+            .unwrap()
+            .get(&uri)
+            .map(diagnose)
+            .unwrap_or_default();
 
         Ok(DocumentDiagnosticReportResult::Report(
             DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
@@ -177,10 +181,14 @@ impl LanguageServer for Backend {
             .context
             .only
             .is_none_or(|only| only.contains(&CODE_ACTION_UPDATE_METADATA))
-            && let Some(doc) = self.documents.pin().get(&uri)
-            && let Some(edits) = update_metadata(doc)
+            && let Some(edits) = self
+                .documents
+                .read()
+                .unwrap()
+                .get(&uri)
+                .and_then(update_metadata)
         {
-            let changes = std::collections::HashMap::from([(uri, edits)]);
+            let changes = HashMap::from([(uri, edits)]);
 
             let code_action = CodeAction {
                 title: "Update metadata".to_string(),
@@ -265,7 +273,7 @@ mod tests {
             })
             .await;
 
-        assert!(backend.documents.pin().get(&uri).is_some());
+        assert!(backend.documents.read().unwrap().get(&uri).is_some());
 
         backend
             .did_close(DidCloseTextDocumentParams {
@@ -273,7 +281,7 @@ mod tests {
             })
             .await;
 
-        assert!(backend.documents.pin().get(&uri).is_none());
+        assert!(backend.documents.read().unwrap().get(&uri).is_none());
     }
 
     #[tokio::test]
@@ -306,7 +314,7 @@ mod tests {
             })
             .await;
 
-        let guard = backend.documents.pin();
+        let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
         assert_eq!(doc.content, "hello, world");
         assert_eq!(doc.version, Some(2));
@@ -343,7 +351,7 @@ mod tests {
             })
             .await;
 
-        let guard = backend.documents.pin();
+        let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
         assert_eq!(doc.content, "new content");
     }
@@ -371,7 +379,7 @@ mod tests {
             })
             .await;
 
-        let guard = backend.documents.pin();
+        let guard = backend.documents.read().unwrap();
         let doc = guard.get(&uri).unwrap();
         assert_eq!(doc.content, "saved content");
         assert_eq!(doc.version, None);
@@ -447,11 +455,11 @@ mod tests {
             })
             .await;
 
-        assert!(backend.documents.pin().get(&uri).is_some());
+        assert!(backend.documents.read().unwrap().get(&uri).is_some());
 
         backend.shutdown().await.unwrap();
 
-        assert!(backend.documents.pin().get(&uri).is_none());
+        assert!(backend.documents.read().unwrap().get(&uri).is_none());
     }
 
     #[tokio::test]
