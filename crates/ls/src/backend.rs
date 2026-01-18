@@ -117,20 +117,16 @@ impl LanguageServer for Backend {
         let Some(doc) = docs.get_mut(&uri) else {
             return;
         };
-
-        if doc.version.is_some_and(|v| v > new_version) {
-            warn!(
-                "Out-of-sync: currently at {}, got {}",
-                doc.version.unwrap(),
-                new_version
-            );
+        if let Some(version) = doc.version
+            && version > new_version
+        {
+            warn!("Out-of-sync: currently at {version}, got {new_version}");
             return;
         }
 
         for change in &params.content_changes {
             doc.apply_change(change.range, &change.text);
         }
-
         doc.update(Some(new_version));
     }
 
