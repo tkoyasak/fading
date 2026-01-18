@@ -20,6 +20,8 @@ enum Code {
     InvalidIdFormat,
     InvalidDate,
     CreatedAfterModified,
+    InvalidHeadingLevel,
+    InvalidHeadingFormat,
 }
 
 impl Code {
@@ -31,6 +33,8 @@ impl Code {
             Self::InvalidIdFormat => "invalid-id-format",
             Self::InvalidDate => "invalid-date",
             Self::CreatedAfterModified => "created-after-modified",
+            Self::InvalidHeadingLevel => "invalid-heading-level",
+            Self::InvalidHeadingFormat => "invalid-heading-format",
         }
     }
 }
@@ -83,6 +87,9 @@ pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
 
     // Check 5-6: Date validation
     check_dates(&raw, fm, &mut diagnostics);
+
+    // Check 7-8: Heading validation
+    check_headings(doc, &mut diagnostics);
 
     diagnostics
 }
@@ -269,6 +276,93 @@ fn parse_date(value: &Option<toml::Value>) -> Option<NaiveDate> {
     NaiveDate::from_ymd_opt(d.year as i32, d.month as u32, d.day as u32)
 }
 
+/// Validates all headings in the document.
+fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
+    let Some(tree) = doc.tree() else { return };
+    let root = tree.block_tree().root_node();
+    walk_headings(root, doc.content.as_bytes(), diagnostics);
+}
+
+/// Recursively walks the tree to find and validate heading nodes.
+fn walk_headings(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Vec<Diagnostic>) {
+    if node.kind() == "atx_heading" {
+        validate_heading(node, source, diagnostics);
+    }
+
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i as u32) {
+            walk_headings(child, source, diagnostics);
+        }
+    }
+}
+
+/// Validates a single heading node.
+fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Vec<Diagnostic>) {
+    let line = node.start_position().row as u32;
+    let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
+
+    // Check 1: Must be h6
+    let is_h6 = (0..node.child_count())
+        .filter_map(|i| node.child(i as u32))
+        .any(|child| child.kind() == "atx_h6_marker");
+
+    if !is_h6 {
+        diagnostics.push(make_diagnostic(
+            Code::InvalidHeadingLevel,
+            range,
+            DiagnosticSeverity::ERROR,
+            "Only h6 headings (######) are allowed",
+        ));
+        return;
+    }
+
+    // Check 2: Format must be YYYY-MM-DD Day
+    let text = (0..node.child_count())
+        .filter_map(|i| node.child(i as u32))
+        .find(|child| child.kind() == "inline")
+        .and_then(|inline| inline.utf8_text(source).ok());
+
+    if let Some(text) = text
+        && !is_valid_heading_date(text)
+    {
+        diagnostics.push(make_diagnostic(
+            Code::InvalidHeadingFormat,
+            range,
+            DiagnosticSeverity::ERROR,
+            &format!("Invalid heading format: expected `YYYY-MM-DD Day`, got `{text}`"),
+        ));
+    }
+}
+
+/// Checks if the heading text matches the `YYYY-MM-DD Day` format.
+fn is_valid_heading_date(text: &str) -> bool {
+    // Format: "2026-01-18 Sat"
+    // Length: 14 chars (YYYY-MM-DD + space + Day)
+    if text.len() != 14 {
+        return false;
+    }
+
+    let bytes = text.as_bytes();
+
+    // YYYY-MM-DD Day
+    bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b' '
+        && text[0..4].parse::<u16>().is_ok()
+        && text[5..7]
+            .parse::<u8>()
+            .map(|m| (1..=12).contains(&m))
+            .unwrap_or(false)
+        && text[8..10]
+            .parse::<u8>()
+            .map(|d| (1..=31).contains(&d))
+            .unwrap_or(false)
+        && matches!(
+            &text[11..14],
+            "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+        )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,5 +438,60 @@ mod tests {
         );
         let diags = diagnose(&doc);
         assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn test_invalid_heading_level_h1() {
+        let doc = make_doc(
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n# 2026-01-18 Sat\n",
+        );
+        let diags = diagnose(&doc);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == Some(NumberOrString::String("invalid-heading-level".to_string())))
+        );
+    }
+
+    #[test]
+    fn test_invalid_heading_format() {
+        let doc = make_doc(
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### Invalid heading\n",
+        );
+        let diags = diagnose(&doc);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == Some(NumberOrString::String("invalid-heading-format".to_string())))
+        );
+    }
+
+    #[test]
+    fn test_valid_heading() {
+        let doc = make_doc(
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sat\n",
+        );
+        let diags = diagnose(&doc);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_headings() {
+        let doc = make_doc(
+            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sat\n\nSome content\n\n###### 2026-01-19 Sun\n",
+        );
+        let diags = diagnose(&doc);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn test_is_valid_heading_date() {
+        assert!(is_valid_heading_date("2026-01-18 Sat"));
+        assert!(is_valid_heading_date("2026-12-31 Wed"));
+        assert!(!is_valid_heading_date("2026-01-18"));
+        assert!(!is_valid_heading_date("2026-01-18 Saturday"));
+        assert!(!is_valid_heading_date("Invalid"));
+        assert!(!is_valid_heading_date("2026-13-01 Mon")); // Invalid month
+        assert!(!is_valid_heading_date("2026-01-32 Mon")); // Invalid day
     }
 }

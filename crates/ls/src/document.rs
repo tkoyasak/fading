@@ -123,6 +123,11 @@ impl Document {
         self.content.get(start..end)
     }
 
+    /// Returns a reference to the parsed syntax tree.
+    pub fn tree(&self) -> Option<&MarkdownTree> {
+        self.tree.as_ref()
+    }
+
     /// Convert LSP Position (line, UTF-16 character) to tree-sitter Point and byte offset.
     fn find_canonical_position(&self, position: &Position) -> (Point, usize) {
         let line = position.line as usize;
