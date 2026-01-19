@@ -3,6 +3,7 @@
 //! Manages document content, line offsets, and syntax tree for incremental updates.
 
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use tower_lsp_server::ls_types::{Position, Range};
 use tree_sitter::{InputEdit, Point};
@@ -14,6 +15,9 @@ thread_local! {
 }
 
 /// A text document with associated metadata and syntax tree.
+///
+/// The syntax tree is wrapped in `Arc` to make cloning cheap (pointer copy only).
+/// This is important for concurrent access patterns like `papaya::HashMap::update()`.
 #[derive(Debug, Clone)]
 pub struct Document {
     /// LSP document version, `None` after save.
@@ -24,15 +28,15 @@ pub struct Document {
     content: String,
     /// Byte offsets for the start of each line.
     line_offsets: Vec<usize>,
-    /// Parsed tree-sitter syntax tree.
-    tree: Option<MarkdownTree>,
+    /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
+    tree: Option<Arc<MarkdownTree>>,
 }
 
 impl Document {
     /// Creates a new document with the given version and content.
     pub fn new(version: Option<i32>, content: String) -> Self {
         let line_offsets = compute_line_offsets(&content);
-        let tree = parse(&content, None);
+        let tree = parse(&content, None).map(Arc::new);
         Self {
             version,
             modified: false,
@@ -46,6 +50,9 @@ impl Document {
     ///
     /// If `range` is `Some`, performs an incremental update and edits the syntax tree.
     /// If `range` is `None`, replaces the entire content (full sync fallback).
+    ///
+    /// Uses `Arc::make_mut()` to edit the tree in-place when possible (single reference),
+    /// or clone it when other references exist. This enables tree-sitter's incremental parsing.
     pub fn apply_change(&mut self, range: Option<Range>, text: &str) {
         if let Some(range) = range {
             let (start_position, start_byte) = self.find_canonical_position(&range.start);
@@ -53,7 +60,7 @@ impl Document {
             let new_end_byte = start_byte + text.len();
             let new_end_position = compute_end_position(start_position, text);
 
-            // Create InputEdit for tree-sitter
+            // Create InputEdit for tree-sitter incremental parsing
             let input_edit = InputEdit {
                 start_byte,
                 old_end_byte,
@@ -63,8 +70,9 @@ impl Document {
                 new_end_position,
             };
 
+            // Edit tree using Arc::make_mut (clones only if other refs exist)
             if let Some(ref mut tree) = self.tree {
-                tree.edit(&input_edit);
+                Arc::make_mut(tree).edit(&input_edit);
             }
 
             // Build new content
@@ -89,7 +97,7 @@ impl Document {
     ///
     /// Call this after applying changes to finalize the document state.
     pub fn update(&mut self, version: Option<i32>) {
-        self.tree = parse(&self.content, self.tree.as_ref());
+        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
         self.version = version;
         self.modified = true;
     }
@@ -101,7 +109,7 @@ impl Document {
         self.version = None;
         self.content = content;
         self.line_offsets = compute_line_offsets(&self.content);
-        self.tree = parse(&self.content, None);
+        self.tree = parse(&self.content, None).map(Arc::new);
     }
 
     /// Extracts the TOML frontmatter content (without the `+++` delimiters).
@@ -140,7 +148,7 @@ impl Document {
 
     /// Returns a reference to the parsed syntax tree.
     pub fn tree(&self) -> Option<&MarkdownTree> {
-        self.tree.as_ref()
+        self.tree.as_deref()
     }
 
     /// Convert LSP Position (line, UTF-16 character) to tree-sitter Point and byte offset.
@@ -175,17 +183,6 @@ impl Document {
     }
 }
 
-/// Computes byte offsets for the start of each line.
-fn compute_line_offsets(content: &str) -> Vec<usize> {
-    let mut offsets = vec![0];
-    for (i, byte) in content.bytes().enumerate() {
-        if byte == b'\n' {
-            offsets.push(i + 1);
-        }
-    }
-    offsets
-}
-
 /// Computes the end position after inserting text at a given start position.
 fn compute_end_position(start: Point, text: &str) -> Point {
     let mut row = start.row;
@@ -201,6 +198,17 @@ fn compute_end_position(start: Point, text: &str) -> Point {
     }
 
     Point::new(row, col)
+}
+
+/// Computes byte offsets for the start of each line.
+fn compute_line_offsets(content: &str) -> Vec<usize> {
+    let mut offsets = vec![0];
+    for (i, byte) in content.bytes().enumerate() {
+        if byte == b'\n' {
+            offsets.push(i + 1);
+        }
+    }
+    offsets
 }
 
 /// Parses content into a markdown syntax tree, optionally reusing an old tree.
