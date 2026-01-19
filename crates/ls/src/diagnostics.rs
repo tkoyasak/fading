@@ -2,9 +2,12 @@
 //!
 //! Validates TOML frontmatter structure, required fields, and semantic constraints.
 
+use std::sync::OnceLock;
+
 use chrono::NaiveDate;
 use serde::Deserialize;
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
+use tree_sitter::{Query, StreamingIterator};
 
 use crate::document::Document;
 
@@ -271,22 +274,30 @@ fn parse_date(value: &Option<toml::Value>) -> Option<NaiveDate> {
     NaiveDate::from_ymd_opt(d.year as i32, d.month as u32, d.day as u32)
 }
 
-/// Validates all headings in the document.
+/// Cached query for finding all headings (compiled once, reused across all documents).
+static HEADING_QUERY: OnceLock<Query> = OnceLock::new();
+
+/// Returns the cached heading query, compiling it on first access.
+fn heading_query() -> &'static Query {
+    HEADING_QUERY.get_or_init(|| {
+        let language = tree_sitter_md::LANGUAGE.into();
+        Query::new(&language, "(atx_heading) @heading").expect("Failed to compile heading query")
+    })
+}
+
+/// Validates all headings in the document using tree-sitter queries.
 fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
     let Some(tree) = doc.tree() else { return };
     let root = tree.block_tree().root_node();
-    walk_headings(root, doc.content().as_bytes(), diagnostics);
-}
+    let source = doc.content().as_bytes();
 
-/// Recursively walks the tree to find and validate heading nodes.
-fn walk_headings(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Vec<Diagnostic>) {
-    if node.kind() == "atx_heading" {
-        validate_heading(node, source, diagnostics);
-    }
+    let query = heading_query();
+    let mut cursor = tree_sitter::QueryCursor::new();
+    let mut captures = cursor.captures(query, root, source);
 
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i as u32) {
-            walk_headings(child, source, diagnostics);
+    while let Some((query_match, _)) = captures.next() {
+        for capture in query_match.captures {
+            validate_heading(capture.node, source, diagnostics);
         }
     }
 }

@@ -8,8 +8,8 @@
 use tower_lsp_server::{LspService, Server};
 
 mod backend;
-mod diagnostics;
-mod document;
+pub mod diagnostics;
+pub mod document;
 mod metadata;
 
 /// Runs the language server.

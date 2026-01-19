@@ -3,7 +3,7 @@
 //! Manages document content, line offsets, and syntax tree for incremental updates.
 
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use tower_lsp_server::ls_types::{Position, Range};
 use tree_sitter::{InputEdit, Point};
@@ -30,6 +30,10 @@ pub struct Document {
     line_offsets: Vec<usize>,
     /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
     tree: Option<Arc<MarkdownTree>>,
+    /// Cached frontmatter text (invalidated on content change).
+    ///
+    /// This avoids re-extracting frontmatter from the tree on every diagnostic run.
+    cached_frontmatter: OnceLock<Option<String>>,
 }
 
 impl Document {
@@ -43,6 +47,7 @@ impl Document {
             content,
             line_offsets,
             tree,
+            cached_frontmatter: OnceLock::new(),
         }
     }
 
@@ -91,6 +96,9 @@ impl Document {
             self.line_offsets = compute_line_offsets(&self.content);
             self.tree = None;
         }
+
+        // Invalidate frontmatter cache on content change
+        self.cached_frontmatter = OnceLock::new();
     }
 
     /// Re-parses the syntax tree and updates the version.
@@ -110,25 +118,32 @@ impl Document {
         self.content = content;
         self.line_offsets = compute_line_offsets(&self.content);
         self.tree = parse(&self.content, None).map(Arc::new);
+        self.cached_frontmatter = OnceLock::new();
     }
 
     /// Extracts the TOML frontmatter content (without the `+++` delimiters).
     ///
     /// Returns `None` if the document doesn't start with a `plus_metadata` node.
+    ///
+    /// The result is cached after first extraction to avoid repeated tree traversal.
     pub fn frontmatter(&self) -> Option<&str> {
-        let tree = self.tree.as_ref()?;
-        let root = tree.block_tree().root_node();
-        let node = root.child(0)?;
+        self.cached_frontmatter
+            .get_or_init(|| {
+                let tree = self.tree.as_ref()?;
+                let root = tree.block_tree().root_node();
+                let node = root.child(0)?;
 
-        if node.kind() != "plus_metadata" {
-            return None;
-        }
+                if node.kind() != "plus_metadata" {
+                    return None;
+                }
 
-        let start = *self.line_offsets.get(1)?;
-        let end = *self
-            .line_offsets
-            .get(node.end_position().row.saturating_sub(1))?;
-        self.content.get(start..end)
+                let start = *self.line_offsets.get(1)?;
+                let end = *self
+                    .line_offsets
+                    .get(node.end_position().row.saturating_sub(1))?;
+                self.content.get(start..end).map(|s| s.to_string())
+            })
+            .as_deref()
     }
 
     /// Returns the document version.
