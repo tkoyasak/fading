@@ -39,11 +39,11 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
     let (fm, range) = doc.frontmatter()?;
     let mut metadata = toml::from_str::<Metadata>(fm).ok()?;
 
-    let today = Local::now().date_naive();
+    let d = Local::now().date_naive();
     let today = toml::value::Date {
-        year: today.year() as u16,
-        month: today.month() as u8,
-        day: today.day() as u8,
+        year: d.year() as u16,
+        month: d.month() as u8,
+        day: d.day() as u8,
     };
 
     if metadata.modified == today {

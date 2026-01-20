@@ -132,11 +132,15 @@ impl LanguageServer for Backend {
         debug!("fading-ls did save.");
         if let Some(content) = params.text {
             let uri = params.text_document.uri;
-            self.documents.pin().update(uri, |doc| {
-                let mut new_doc = doc.clone();
-                new_doc.reset_content(content.clone());
-                new_doc
-            });
+            self.documents.pin().update_or_insert(
+                uri,
+                |doc| {
+                    let mut new_doc = doc.clone();
+                    new_doc.reset_content(content.clone());
+                    new_doc
+                },
+                Document::new(None, content.clone()),
+            );
         }
     }
 

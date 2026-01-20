@@ -128,15 +128,13 @@ impl Document {
                     return None;
                 }
 
+                let end_row = node.end_position().row.saturating_sub(1);
                 let start = *self.line_offsets.get(1)?;
-                let end = *self
-                    .line_offsets
-                    .get(node.end_position().row.saturating_sub(1))?;
+                let end = *self.line_offsets.get(end_row)?;
                 let text = self.content.get(start..end)?.to_string();
 
-                // Calculate range at the same time
-                let line_count = text.bytes().filter(|&b| b == b'\n').count() as u32 + 1;
-                let range = Range::new(Position::new(1, 0), Position::new(line_count, 0));
+                // Range from line 1 to the closing `+++` line (exclusive)
+                let range = Range::new(Position::new(1, 0), Position::new(end_row as u32, 0));
 
                 Some((text, range))
             })
