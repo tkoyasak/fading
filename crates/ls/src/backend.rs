@@ -16,7 +16,7 @@ use tower_lsp_server::ls_types::{
 };
 use tower_lsp_server::{Client, LanguageServer};
 
-use crate::diagnostics::{DIAGNOSTC_SOURCE, diagnose};
+use crate::diagnostics::{DIAGNOSTIC_SOURCE, diagnose};
 use crate::document::Document;
 use crate::metadata::{CODE_ACTION_UPDATE_METADATA, update_metadata};
 
@@ -60,7 +60,7 @@ impl LanguageServer for Backend {
                     )),
                     diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
                         DiagnosticOptions {
-                            identifier: Some(DIAGNOSTC_SOURCE.to_string()),
+                            identifier: Some(DIAGNOSTIC_SOURCE.to_string()),
                             inter_file_dependencies: false,
                             workspace_diagnostics: false,
                             ..Default::default()

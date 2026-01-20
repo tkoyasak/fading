@@ -12,7 +12,7 @@ use tree_sitter::{Query, StreamingIterator};
 use crate::document::Document;
 
 /// Diagnostic source identifier.
-pub const DIAGNOSTC_SOURCE: &str = "fading";
+pub const DIAGNOSTIC_SOURCE: &str = "fading";
 
 /// Diagnostic codes for different error types.
 #[derive(Debug, Clone, Copy)]
@@ -108,7 +108,7 @@ fn make_diagnostic(
         range,
         severity: Some(severity),
         code: Some(NumberOrString::String(code.as_str().to_string())),
-        source: Some(DIAGNOSTC_SOURCE.to_string()),
+        source: Some(DIAGNOSTIC_SOURCE.to_string()),
         message: message.to_string(),
         ..Default::default()
     }
