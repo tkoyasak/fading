@@ -179,7 +179,6 @@ impl LanguageServer for Backend {
             && let Some(edits) = self.documents.pin().get(&uri).and_then(update_metadata)
         {
             let changes = std::collections::HashMap::from([(uri, edits)]);
-
             let code_action = CodeAction {
                 title: "Update metadata".to_string(),
                 kind: Some(CODE_ACTION_UPDATE_METADATA),

@@ -31,8 +31,6 @@ pub struct Document {
     /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
     tree: Option<Arc<MarkdownTree>>,
     /// Cached frontmatter text (invalidated on content change).
-    ///
-    /// This avoids re-extracting frontmatter from the tree on every diagnostic run.
     cached_frontmatter: OnceLock<Option<String>>,
 }
 
@@ -80,15 +78,8 @@ impl Document {
                 Arc::make_mut(tree).edit(&input_edit);
             }
 
-            // Build new content
-            let mut new_content = String::with_capacity(
-                self.content.len() - (old_end_byte - start_byte) + text.len(),
-            );
-            new_content.push_str(&self.content[..start_byte]);
-            new_content.push_str(text);
-            new_content.push_str(&self.content[old_end_byte..]);
-
-            self.content = new_content;
+            // Replace content in-place (more efficient than creating new String)
+            self.content.replace_range(start_byte..old_end_byte, text);
             self.line_offsets = compute_line_offsets(&self.content);
         } else {
             // Full update (fallback)
@@ -105,9 +96,9 @@ impl Document {
     ///
     /// Call this after applying changes to finalize the document state.
     pub fn update(&mut self, version: Option<i32>) {
-        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
         self.version = version;
         self.modified = true;
+        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
     }
 
     /// Resets the document content, typically after a save.
