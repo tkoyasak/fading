@@ -4,7 +4,7 @@
 
 use chrono::{Datelike, Local};
 use serde::{Deserialize, Serialize};
-use tower_lsp_server::ls_types::{CodeActionKind, Position, Range, TextEdit};
+use tower_lsp_server::ls_types::{CodeActionKind, TextEdit};
 
 use crate::document::Document;
 
@@ -36,7 +36,7 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
         return None;
     }
 
-    let fm = doc.frontmatter()?;
+    let (fm, range) = doc.frontmatter()?;
     let mut metadata = toml::from_str::<Metadata>(fm).ok()?;
 
     let today = Local::now().date_naive();
@@ -52,13 +52,6 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
 
     metadata.modified = today;
     let new_text = toml::to_string(&metadata).unwrap();
-    let range = {
-        let line_count = fm.bytes().filter(|&b| b == b'\n').count() as u32;
-        Range {
-            start: Position::new(1, 0),
-            end: Position::new(1 + line_count, 0),
-        }
-    };
 
     Some(vec![TextEdit::new(range, new_text)])
 }
@@ -66,6 +59,7 @@ pub fn update_metadata(doc: &Document) -> Option<Vec<TextEdit>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tower_lsp_server::ls_types::Position;
 
     fn make_doc(content: &str, modified: bool) -> Document {
         let mut doc = Document::new(None, content.to_string());

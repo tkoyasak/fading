@@ -6,6 +6,7 @@ use std::sync::OnceLock;
 
 use chrono::NaiveDate;
 use serde::Deserialize;
+use toml::Spanned;
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
 use tree_sitter::{Query, StreamingIterator};
 
@@ -43,11 +44,13 @@ impl Code {
 }
 
 /// Lenient frontmatter structure for validation.
+///
+/// Uses `Spanned<T>` to track byte offsets of each field in the source.
 #[derive(Debug, Deserialize)]
 struct RawMetadata {
-    id: Option<toml::Value>,
-    created: Option<toml::Value>,
-    modified: Option<toml::Value>,
+    id: Option<Spanned<String>>,
+    created: Option<Spanned<toml::value::Datetime>>,
+    modified: Option<Spanned<toml::value::Datetime>>,
 }
 
 /// Runs all diagnostic checks on a document.
@@ -55,7 +58,7 @@ pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     // Check 1: Frontmatter exists
-    let Some(fm) = doc.frontmatter() else {
+    let Some((fm, fm_range)) = doc.frontmatter() else {
         diagnostics.push(make_diagnostic(
             Code::MissingFrontmatter,
             Range::new(Position::new(0, 0), Position::new(0, 0)),
@@ -69,7 +72,7 @@ pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
     let raw = match toml::from_str::<RawMetadata>(fm) {
         Ok(raw) => raw,
         Err(e) => {
-            let range = toml_error_range(&e, fm);
+            let range = toml_error_range(&e, fm).unwrap_or(fm_range);
             diagnostics.push(make_diagnostic(
                 Code::InvalidToml,
                 range,
@@ -79,8 +82,6 @@ pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
             return diagnostics;
         }
     };
-
-    let fm_range = frontmatter_range(fm);
 
     // Check 3: Required fields
     check_required_fields(&raw, fm_range, &mut diagnostics);
@@ -114,20 +115,16 @@ fn make_diagnostic(
     }
 }
 
-/// Returns the range covering the frontmatter content (lines 1 to N).
-fn frontmatter_range(fm: &str) -> Range {
-    let line_count = fm.lines().count() as u32;
-    Range::new(Position::new(1, 0), Position::new(1 + line_count, 0))
-}
-
 /// Converts a TOML parse error to a range.
-fn toml_error_range(error: &toml::de::Error, fm: &str) -> Range {
-    if let Some(span) = error.span() {
-        let (line, col) = offset_to_position(fm, span.start);
-        Range::new(Position::new(line, col), Position::new(line, col + 1))
-    } else {
-        frontmatter_range(fm)
-    }
+///
+/// Returns `None` if the error has no span information.
+fn toml_error_range(error: &toml::de::Error, fm: &str) -> Option<Range> {
+    let span = error.span()?;
+    let (line, col) = offset_to_position(fm, span.start);
+    Some(Range::new(
+        Position::new(line, col),
+        Position::new(line, col + 1),
+    ))
 }
 
 /// Converts byte offset to (line, column) in frontmatter.
@@ -150,19 +147,6 @@ fn offset_to_position(fm: &str, offset: usize) -> (u32, u32) {
     }
 
     (line, col)
-}
-
-/// Finds the line number for a field in frontmatter.
-fn find_field_line(field: &str, fm: &str) -> u32 {
-    for (idx, line) in fm.lines().enumerate() {
-        let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix(field)
-            && (rest.starts_with(" =") || rest.starts_with('='))
-        {
-            return (idx + 1) as u32; // +1 for 0-indexed to 1-indexed
-        }
-    }
-    1 // Fallback
 }
 
 /// Checks for missing required fields.
@@ -194,21 +178,14 @@ fn check_required_fields(raw: &RawMetadata, range: Range, diagnostics: &mut Vec<
 }
 
 /// Validates the id field format (YYYY-MM).
-fn check_id_format(id: &Option<toml::Value>, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
-    let Some(value) = id else { return };
+fn check_id_format(id: &Option<Spanned<String>>, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
+    let Some(spanned_id) = id else { return };
 
-    let line = find_field_line("id", fm);
+    // Get line number from byte offset (no need to search through frontmatter)
+    let (line, _) = offset_to_position(fm, spanned_id.span().start);
     let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
 
-    let Some(id_str) = value.as_str() else {
-        diagnostics.push(make_diagnostic(
-            Code::InvalidIdFormat,
-            range,
-            DiagnosticSeverity::ERROR,
-            "Field `id` must be a string",
-        ));
-        return;
-    };
+    let id_str = spanned_id.get_ref();
 
     // Validate YYYY-MM format by attempting to parse with a dummy day
     let is_valid =
@@ -226,36 +203,15 @@ fn check_id_format(id: &Option<toml::Value>, fm: &str, diagnostics: &mut Vec<Dia
 
 /// Validates date fields and checks created <= modified.
 fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
-    let created = parse_date(&raw.created);
-    let modified = parse_date(&raw.modified);
-
-    // Check created date format
-    if raw.created.is_some() && created.is_none() {
-        let line = find_field_line("created", fm);
-        diagnostics.push(make_diagnostic(
-            Code::InvalidDate,
-            Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
-            DiagnosticSeverity::ERROR,
-            "Invalid date format for `created`: expected YYYY-MM-DD",
-        ));
-    }
-
-    // Check modified date format
-    if raw.modified.is_some() && modified.is_none() {
-        let line = find_field_line("modified", fm);
-        diagnostics.push(make_diagnostic(
-            Code::InvalidDate,
-            Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
-            DiagnosticSeverity::ERROR,
-            "Invalid date format for `modified`: expected YYYY-MM-DD",
-        ));
-    }
+    let created = check_and_parse_date(&raw.created, "created", fm, diagnostics);
+    let modified = check_and_parse_date(&raw.modified, "modified", fm, diagnostics);
 
     // Check created <= modified
     if let (Some(c), Some(m)) = (created, modified)
         && c > m
+        && let Some(spanned_created) = &raw.created
     {
-        let line = find_field_line("created", fm);
+        let (line, _) = offset_to_position(fm, spanned_created.span().start);
         diagnostics.push(make_diagnostic(
             Code::CreatedAfterModified,
             Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
@@ -265,13 +221,34 @@ fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Parses a TOML value as a date.
-fn parse_date(value: &Option<toml::Value>) -> Option<NaiveDate> {
-    let toml::Value::Datetime(dt) = value.as_ref()? else {
-        return None;
-    };
-    let d = dt.date.as_ref()?;
+/// Parses a Spanned Datetime as a NaiveDate.
+fn parse_spanned_date(spanned: &Spanned<toml::value::Datetime>) -> Option<NaiveDate> {
+    let d = spanned.get_ref().date.as_ref()?;
     NaiveDate::from_ymd_opt(d.year as i32, d.month as u32, d.day as u32)
+}
+
+/// Parses and validates a date field, adding diagnostics if invalid.
+fn check_and_parse_date(
+    spanned: &Option<Spanned<toml::value::Datetime>>,
+    field_name: &str,
+    fm: &str,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<NaiveDate> {
+    let spanned = spanned.as_ref()?;
+
+    match parse_spanned_date(spanned) {
+        Some(date) => Some(date),
+        None => {
+            let (line, _) = offset_to_position(fm, spanned.span().start);
+            diagnostics.push(make_diagnostic(
+                Code::InvalidDate,
+                Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
+                DiagnosticSeverity::ERROR,
+                &format!("Invalid date format for `{field_name}`: expected YYYY-MM-DD"),
+            ));
+            None
+        }
+    }
 }
 
 /// Cached query for finding all headings (compiled once, reused across all documents).

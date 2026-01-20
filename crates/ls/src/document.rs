@@ -30,8 +30,8 @@ pub struct Document {
     line_offsets: Vec<usize>,
     /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
     tree: Option<Arc<MarkdownTree>>,
-    /// Cached frontmatter text (invalidated on content change).
-    cached_frontmatter: OnceLock<Option<String>>,
+    /// Cached frontmatter text and range (invalidated on content change).
+    cached_frontmatter: OnceLock<Option<(String, Range)>>,
 }
 
 impl Document {
@@ -112,12 +112,12 @@ impl Document {
         self.cached_frontmatter = OnceLock::new();
     }
 
-    /// Extracts the TOML frontmatter content (without the `+++` delimiters).
+    /// Extracts the TOML frontmatter content and its range.
     ///
     /// Returns `None` if the document doesn't start with a `plus_metadata` node.
     ///
     /// The result is cached after first extraction to avoid repeated tree traversal.
-    pub fn frontmatter(&self) -> Option<&str> {
+    pub fn frontmatter(&self) -> Option<(&str, Range)> {
         self.cached_frontmatter
             .get_or_init(|| {
                 let tree = self.tree.as_ref()?;
@@ -132,9 +132,16 @@ impl Document {
                 let end = *self
                     .line_offsets
                     .get(node.end_position().row.saturating_sub(1))?;
-                self.content.get(start..end).map(|s| s.to_string())
+                let text = self.content.get(start..end)?.to_string();
+
+                // Calculate range at the same time
+                let line_count = text.bytes().filter(|&b| b == b'\n').count() as u32 + 1;
+                let range = Range::new(Position::new(1, 0), Position::new(line_count, 0));
+
+                Some((text, range))
             })
-            .as_deref()
+            .as_ref()
+            .map(|(text, range)| (text.as_str(), *range))
     }
 
     /// Returns the document version.
@@ -378,7 +385,7 @@ mod tests {
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\nContent"
                 .to_string(),
         );
-        let fm = doc.frontmatter().unwrap();
+        let (fm, _) = doc.frontmatter().unwrap();
         assert!(fm.contains("id = \"2026-01\""));
         assert!(fm.contains("created = 2026-01-01"));
         assert!(fm.contains("modified = 2026-01-15"));
