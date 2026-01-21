@@ -14,7 +14,7 @@ fading-ls = { path = "crates/ls" }
 # non-local crates
 anyhow = { version = "1.0.100" }
 base64 = { version = "0.22.1" }
-chrono = { version = "0.4.42" }
+chrono = { version = "0.4.43" }
 criterion = { version = "0.8.1", features = ["html_reports"] }
 env_logger = { version = "0.11.8" }
 log = { version = "0.4.29" }
