@@ -5,13 +5,18 @@
 use std::cell::RefCell;
 use std::sync::{Arc, OnceLock};
 
-use tower_lsp_server::ls_types::{Position, Range};
+use tower_lsp_server::ls_types::{Position, Range, TextDocumentContentChangeEvent};
 use tree_sitter::{InputEdit, Point};
 use tree_sitter_md::{MarkdownParser, MarkdownTree};
 
 thread_local! {
     /// Thread-local markdown parser instance for reuse.
     static PARSER: RefCell<MarkdownParser> = RefCell::new(MarkdownParser::default());
+}
+
+/// Parses content into a markdown syntax tree, optionally reusing an old tree.
+fn parse(content: &str, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
+    PARSER.with(|parser| parser.borrow_mut().parse(content.as_bytes(), old_tree))
 }
 
 /// A text document with associated metadata and syntax tree.
@@ -36,8 +41,7 @@ pub struct Document {
 
 impl Document {
     /// Creates a new document with the given version and content.
-    pub fn new(version: Option<i32>, content: String) -> Self {
-        let modified = false;
+    pub fn new(version: Option<i32>, modified: bool, content: String) -> Self {
         let line_offsets = compute_line_offsets(&content);
         let tree = parse(&content, None).map(Arc::new);
         let frontmatter = OnceLock::new();
@@ -52,6 +56,20 @@ impl Document {
         }
     }
 
+    /// Applies a batch of text changes and updates the document version.
+    ///
+    /// This method applies all changes incrementally, then re-parses the syntax tree.
+    /// The document is marked as modified after this operation.
+    pub fn update(&mut self, version: i32, changes: &[TextDocumentContentChangeEvent]) {
+        for change in changes {
+            self.apply_change(change.range, &change.text);
+        }
+        self.version = Some(version);
+        self.modified = true;
+        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
+        self.frontmatter = OnceLock::new();
+    }
+
     /// Applies a text change to the document.
     ///
     /// If `range` is `Some`, performs an incremental update and edits the syntax tree.
@@ -59,7 +77,7 @@ impl Document {
     ///
     /// Uses `Arc::make_mut()` to edit the tree in-place when possible (single reference),
     /// or clone it when other references exist. This enables tree-sitter's incremental parsing.
-    pub fn apply_change(&mut self, range: Option<Range>, text: &str) {
+    fn apply_change(&mut self, range: Option<Range>, text: &str) {
         if let Some(range) = range {
             let (start_position, start_byte) = self.find_canonical_position(&range.start);
             let (old_end_position, old_end_byte) = self.find_canonical_position(&range.end);
@@ -90,79 +108,6 @@ impl Document {
             self.line_offsets = compute_line_offsets(&self.content);
             self.tree = None;
         }
-
-        // Invalidate frontmatter cache on content change
-        self.frontmatter = OnceLock::new();
-    }
-
-    /// Re-parses the syntax tree and updates the version.
-    ///
-    /// Call this after applying changes to finalize the document state.
-    pub fn update(&mut self, version: Option<i32>) {
-        self.version = version;
-        self.modified = true;
-        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
-    }
-
-    /// Resets the document content, typically after a save.
-    ///
-    /// Clears the version and re-parses from scratch.
-    pub fn reset_content(&mut self, content: String) {
-        self.version = None;
-        self.content = content;
-        self.line_offsets = compute_line_offsets(&self.content);
-        self.tree = parse(&self.content, None).map(Arc::new);
-        self.frontmatter = OnceLock::new();
-    }
-
-    /// Extracts the TOML frontmatter content and its range.
-    ///
-    /// Returns `None` if the document doesn't start with a `plus_metadata` node.
-    ///
-    /// The result is cached after first extraction to avoid repeated tree traversal.
-    pub fn frontmatter(&self) -> Option<(&str, Range)> {
-        self.frontmatter
-            .get_or_init(|| {
-                let tree = self.tree.as_ref()?;
-                let root = tree.block_tree().root_node();
-                let node = root.child(0)?;
-
-                if node.kind() != "plus_metadata" {
-                    return None;
-                }
-
-                let end_row = node.end_position().row.saturating_sub(1);
-                let start = *self.line_offsets.get(1)?;
-                let end = *self.line_offsets.get(end_row)?;
-                let text = self.content.get(start..end)?.to_string();
-
-                // Range from line 1 to the closing `+++` line (exclusive)
-                let range = Range::new(Position::new(1, 0), Position::new(end_row as u32, 0));
-
-                Some((text, range))
-            })
-            .as_ref()
-            .map(|(text, range)| (text.as_str(), *range))
-    }
-
-    /// Returns the document version.
-    pub fn version(&self) -> Option<i32> {
-        self.version
-    }
-
-    /// Returns whether the document has been modified.
-    pub fn modified(&self) -> bool {
-        self.modified
-    }
-
-    /// Returns a reference to the document content.
-    pub fn content(&self) -> &str {
-        self.content.as_ref()
-    }
-
-    /// Returns a reference to the parsed syntax tree.
-    pub fn tree(&self) -> Option<&MarkdownTree> {
-        self.tree.as_deref()
     }
 
     /// Convert LSP Position (line, UTF-16 character) to tree-sitter Point and byte offset.
@@ -195,6 +140,56 @@ impl Document {
         let absolute_byte_offset = line_start + byte_offset;
         (point, absolute_byte_offset)
     }
+
+    /// Returns the document version.
+    pub fn version(&self) -> Option<i32> {
+        self.version
+    }
+
+    /// Returns whether the document has been modified.
+    pub fn modified(&self) -> bool {
+        self.modified
+    }
+
+    /// Returns a reference to the document content.
+    pub fn content(&self) -> &str {
+        self.content.as_ref()
+    }
+
+    /// Returns a reference to the parsed syntax tree.
+    pub fn tree(&self) -> Option<&MarkdownTree> {
+        self.tree.as_deref()
+    }
+
+    /// Extracts the TOML frontmatter content and its range.
+    ///
+    /// Returns `None` if the document doesn't start with a `plus_metadata` node.
+    ///
+    /// The result is cached after first extraction to avoid repeated tree traversal.
+    pub fn frontmatter(&self) -> Option<(&str, Range)> {
+        self.frontmatter
+            .get_or_init(|| {
+                let tree = self.tree.as_ref()?;
+                let root = tree.block_tree().root_node();
+                let node = root.child(0)?;
+
+                if node.kind() != "plus_metadata" {
+                    return None;
+                }
+
+                let end_row = node.end_position().row.saturating_sub(1);
+                let start = *self.line_offsets.get(1)?;
+                let end = *self.line_offsets.get(end_row)?;
+                let text = self.content.get(start..end)?.to_string();
+
+                // Range from line 1 to the closing `+++` line (exclusive)
+                let range = Range::new(Position::new(1, 0), Position::new(end_row as u32, 0));
+
+                Some((text, range))
+            })
+            .as_ref()
+            .map(|(text, range)| (text.as_str(), *range))
+    }
 }
 
 /// Computes the end position after inserting text at a given start position.
@@ -223,11 +218,6 @@ fn compute_line_offsets(content: &str) -> Vec<usize> {
         }
     }
     offsets
-}
-
-/// Parses content into a markdown syntax tree, optionally reusing an old tree.
-fn parse(content: &str, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
-    PARSER.with(|parser| parser.borrow_mut().parse(content.as_bytes(), old_tree))
 }
 
 #[cfg(test)]
@@ -276,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_document_new() {
-        let doc = Document::new(Some(1), "hello\nworld".to_string());
+        let doc = Document::new(Some(1), false, "hello\nworld".to_string());
         assert_eq!(doc.version(), Some(1));
         assert!(!doc.modified());
         assert_eq!(doc.content(), "hello\nworld");
@@ -284,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_find_canonical_position_ascii() {
-        let doc = Document::new(None, "hello\nworld".to_string());
+        let doc = Document::new(None, false, "hello\nworld".to_string());
         // line 0, char 0 -> Point(0, 0), byte 0
         let (point, byte) = doc.find_canonical_position(&Position::new(0, 0));
         assert_eq!((point.row, point.column, byte), (0, 0, 0));
@@ -303,7 +293,7 @@ mod tests {
     fn test_find_canonical_position_utf16() {
         // "あ" is 3 bytes in UTF-8, 1 code unit in UTF-16
         // "𠮷" (U+20BB7) is 4 bytes in UTF-8, 2 code units in UTF-16 (surrogate pair)
-        let doc = Document::new(None, "aあb𠮷c".to_string());
+        let doc = Document::new(None, false, "aあb𠮷c".to_string());
         // 'a' at char 0 -> Point(0, 0), byte 0
         let (point, byte) = doc.find_canonical_position(&Position::new(0, 0));
         assert_eq!((point.row, point.column, byte), (0, 0, 0));
@@ -323,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_find_canonical_position_out_of_bounds() {
-        let doc = Document::new(None, "hello".to_string());
+        let doc = Document::new(None, false, "hello".to_string());
         // line out of bounds -> Point(10, 0), content.len()
         let (point, byte) = doc.find_canonical_position(&Position::new(10, 0));
         assert_eq!((point.row, point.column, byte), (10, 0, 5));
@@ -331,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_document_apply_change_insert() {
-        let mut doc = Document::new(None, "hello world".to_string());
+        let mut doc = Document::new(None, false, "hello world".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(0, 5));
         doc.apply_change(Some(range), ",");
         assert_eq!(doc.content(), "hello, world");
@@ -339,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_document_apply_change_delete() {
-        let mut doc = Document::new(None, "hello world".to_string());
+        let mut doc = Document::new(None, false, "hello world".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(0, 6));
         doc.apply_change(Some(range), "");
         assert_eq!(doc.content(), "helloworld");
@@ -347,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_document_apply_change_replace() {
-        let mut doc = Document::new(None, "hello world".to_string());
+        let mut doc = Document::new(None, false, "hello world".to_string());
         let range = Range::new(Position::new(0, 0), Position::new(0, 5));
         doc.apply_change(Some(range), "hi");
         assert_eq!(doc.content(), "hi world");
@@ -355,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_document_apply_change_multiline() {
-        let mut doc = Document::new(None, "line1\nline2\nline3".to_string());
+        let mut doc = Document::new(None, false, "line1\nline2\nline3".to_string());
         let range = Range::new(Position::new(0, 5), Position::new(2, 0));
         doc.apply_change(Some(range), "\n");
         assert_eq!(doc.content(), "line1\nline3");
@@ -363,26 +353,16 @@ mod tests {
 
     #[test]
     fn test_document_apply_change_full_update() {
-        let mut doc = Document::new(None, "old content".to_string());
+        let mut doc = Document::new(None, false, "old content".to_string());
         doc.apply_change(None, "new content");
         assert_eq!(doc.content(), "new content");
-    }
-
-    #[test]
-    fn test_document_reset_content() {
-        let mut doc = Document::new(Some(5), "old".to_string());
-        doc.apply_change(None, "old");
-        doc.update(Some(5)); // sets modified = true
-        doc.reset_content("new".to_string());
-        assert_eq!(doc.version(), None);
-        assert!(doc.modified()); // modified is preserved
-        assert_eq!(doc.content(), "new");
     }
 
     #[test]
     fn test_document_frontmatter() {
         let doc = Document::new(
             None,
+            false,
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\nContent"
                 .to_string(),
         );
@@ -394,13 +374,13 @@ mod tests {
 
     #[test]
     fn test_document_frontmatter_none_without_plus_metadata() {
-        let doc = Document::new(None, "# Hello\n\nNo frontmatter.".to_string());
+        let doc = Document::new(None, false, "# Hello\n\nNo frontmatter.".to_string());
         assert!(doc.frontmatter().is_none());
     }
 
     #[test]
     fn test_document_frontmatter_none_unclosed() {
-        let doc = Document::new(None, "+++\nid = \"test\"\n# No closing".to_string());
+        let doc = Document::new(None, false, "+++\nid = \"test\"\n# No closing".to_string());
         assert!(doc.frontmatter().is_none());
     }
 }

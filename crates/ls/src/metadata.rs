@@ -62,12 +62,7 @@ mod tests {
     use tower_lsp_server::ls_types::Position;
 
     fn make_doc(content: &str, modified: bool) -> Document {
-        let mut doc = Document::new(None, content.to_string());
-        if modified {
-            doc.apply_change(None, content);
-            doc.update(None);
-        }
-        doc
+        Document::new(None, modified, content.to_string())
     }
 
     #[test]

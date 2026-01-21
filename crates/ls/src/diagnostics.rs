@@ -329,7 +329,7 @@ mod tests {
     use super::*;
 
     fn make_doc(content: &str) -> Document {
-        Document::new(None, content.to_string())
+        Document::new(None, false, content.to_string())
     }
 
     #[test]

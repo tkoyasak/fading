@@ -95,7 +95,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
         let content = params.text_document.text;
-        let doc = Document::new(Some(version), content);
+        let doc = Document::new(Some(version), false, content);
         self.documents.pin().insert(uri, doc);
     }
 
@@ -120,10 +120,7 @@ impl LanguageServer for Backend {
             }
 
             let mut new_doc = doc.clone();
-            for change in &content_changes {
-                new_doc.apply_change(change.range, &change.text);
-            }
-            new_doc.update(Some(new_version));
+            new_doc.update(new_version, &content_changes);
             new_doc
         });
     }
@@ -134,12 +131,8 @@ impl LanguageServer for Backend {
             let uri = params.text_document.uri;
             self.documents.pin().update_or_insert(
                 uri,
-                |doc| {
-                    let mut new_doc = doc.clone();
-                    new_doc.reset_content(content.clone());
-                    new_doc
-                },
-                Document::new(None, content.clone()),
+                |doc| Document::new(None, doc.modified(), content.clone()),
+                Document::new(None, false, content.clone()),
             );
         }
     }
