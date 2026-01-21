@@ -31,21 +31,24 @@ pub struct Document {
     /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
     tree: Option<Arc<MarkdownTree>>,
     /// Cached frontmatter text and range (invalidated on content change).
-    cached_frontmatter: OnceLock<Option<(String, Range)>>,
+    frontmatter: OnceLock<Option<(String, Range)>>,
 }
 
 impl Document {
     /// Creates a new document with the given version and content.
     pub fn new(version: Option<i32>, content: String) -> Self {
+        let modified = false;
         let line_offsets = compute_line_offsets(&content);
         let tree = parse(&content, None).map(Arc::new);
+        let frontmatter = OnceLock::new();
+
         Self {
             version,
-            modified: false,
+            modified,
             content,
             line_offsets,
             tree,
-            cached_frontmatter: OnceLock::new(),
+            frontmatter,
         }
     }
 
@@ -89,7 +92,7 @@ impl Document {
         }
 
         // Invalidate frontmatter cache on content change
-        self.cached_frontmatter = OnceLock::new();
+        self.frontmatter = OnceLock::new();
     }
 
     /// Re-parses the syntax tree and updates the version.
@@ -109,7 +112,7 @@ impl Document {
         self.content = content;
         self.line_offsets = compute_line_offsets(&self.content);
         self.tree = parse(&self.content, None).map(Arc::new);
-        self.cached_frontmatter = OnceLock::new();
+        self.frontmatter = OnceLock::new();
     }
 
     /// Extracts the TOML frontmatter content and its range.
@@ -118,7 +121,7 @@ impl Document {
     ///
     /// The result is cached after first extraction to avoid repeated tree traversal.
     pub fn frontmatter(&self) -> Option<(&str, Range)> {
-        self.cached_frontmatter
+        self.frontmatter
             .get_or_init(|| {
                 let tree = self.tree.as_ref()?;
                 let root = tree.block_tree().root_node();
