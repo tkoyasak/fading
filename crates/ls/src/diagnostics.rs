@@ -266,7 +266,7 @@ fn heading_query() -> &'static Query {
 fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
     let Some(tree) = doc.tree() else { return };
     let root = tree.block_tree().root_node();
-    let source = doc.content().as_bytes();
+    let source = doc.source_bytes();
 
     let query = heading_query();
     let mut cursor = tree_sitter::QueryCursor::new();

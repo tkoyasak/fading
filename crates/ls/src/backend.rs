@@ -71,7 +71,7 @@ impl LanguageServer for Backend {
                             open_close: Some(true),
                             change: Some(TextDocumentSyncKind::INCREMENTAL),
                             save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                                include_text: Some(true),
+                                include_text: Some(false),
                             })),
                             ..Default::default()
                         },
@@ -125,16 +125,10 @@ impl LanguageServer for Backend {
         });
     }
 
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+    async fn did_save(&self, _params: DidSaveTextDocumentParams) {
         debug!("fading-ls did save.");
-        if let Some(content) = params.text {
-            let uri = params.text_document.uri;
-            self.documents.pin().update_or_insert(
-                uri,
-                |doc| Document::new(None, doc.modified(), content.clone()),
-                Document::new(None, false, content.clone()),
-            );
-        }
+        // Document is already synchronized via did_change events.
+        // No need to re-parse on save.
     }
 
     async fn diagnostic(
@@ -359,16 +353,31 @@ mod tests {
             .await;
 
         backend
+            .did_change(DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: uri.clone(),
+                    version: 2,
+                },
+                content_changes: vec![TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: "saved content".to_string(),
+                }],
+            })
+            .await;
+
+        backend
             .did_save(DidSaveTextDocumentParams {
                 text_document: TextDocumentIdentifier { uri: uri.clone() },
-                text: Some("saved content".to_string()),
+                text: None,
             })
             .await;
 
         let guard = backend.documents.pin();
         let doc = guard.get(&uri).unwrap();
-        assert_eq!(doc.content(), "saved content");
-        assert_eq!(doc.version(), None);
+        let content: String = doc.content().chunks().collect();
+        assert_eq!(content, "saved content");
+        assert_eq!(doc.version(), Some(2));
     }
 
     #[tokio::test]

@@ -5,6 +5,7 @@
 use std::cell::RefCell;
 use std::sync::{Arc, OnceLock};
 
+use crop::Rope;
 use tower_lsp_server::ls_types::{Position, Range, TextDocumentContentChangeEvent};
 use tree_sitter::{InputEdit, Point};
 use tree_sitter_md::{MarkdownParser, MarkdownTree};
@@ -14,9 +15,14 @@ thread_local! {
     static PARSER: RefCell<MarkdownParser> = RefCell::new(MarkdownParser::default());
 }
 
-/// Parses content into a markdown syntax tree, optionally reusing an old tree.
-fn parse(content: &str, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
-    PARSER.with(|parser| parser.borrow_mut().parse(content.as_bytes(), old_tree))
+/// Parses Rope content into a markdown syntax tree, optionally reusing an old tree.
+fn parse_rope(rope: &Rope, old_tree: Option<&MarkdownTree>) -> Option<MarkdownTree> {
+    // Pre-allocate with exact capacity to avoid reallocation
+    let mut bytes = Vec::with_capacity(rope.byte_len());
+    for chunk in rope.chunks() {
+        bytes.extend_from_slice(chunk.as_bytes());
+    }
+    PARSER.with(|parser| parser.borrow_mut().parse(&bytes, old_tree))
 }
 
 /// A text document with associated metadata and syntax tree.
@@ -30,29 +36,28 @@ pub struct Document {
     /// Whether the document has been modified during this session.
     modified: bool,
     /// The document content.
-    content: String,
-    /// Byte offsets for the start of each line.
-    line_offsets: Vec<usize>,
+    content: Rope,
     /// Parsed tree-sitter syntax tree (Arc-wrapped for cheap cloning).
     tree: Option<Arc<MarkdownTree>>,
     /// Cached frontmatter text and range (invalidated on content change).
     frontmatter: OnceLock<Option<(String, Range)>>,
+    /// Cached source bytes for tree-sitter queries (invalidated on content change).
+    source_cache: OnceLock<Vec<u8>>,
 }
 
 impl Document {
     /// Creates a new document with the given version and content.
     pub fn new(version: Option<i32>, modified: bool, content: String) -> Self {
-        let line_offsets = compute_line_offsets(&content);
-        let tree = parse(&content, None).map(Arc::new);
-        let frontmatter = OnceLock::new();
+        let rope = Rope::from(content);
+        let tree = parse_rope(&rope, None).map(Arc::new);
 
         Self {
             version,
             modified,
-            content,
-            line_offsets,
+            content: rope,
             tree,
-            frontmatter,
+            frontmatter: OnceLock::new(),
+            source_cache: OnceLock::new(),
         }
     }
 
@@ -66,8 +71,9 @@ impl Document {
         }
         self.version = Some(version);
         self.modified = true;
-        self.tree = parse(&self.content, self.tree.as_deref()).map(Arc::new);
+        self.tree = parse_rope(&self.content, self.tree.as_deref()).map(Arc::new);
         self.frontmatter = OnceLock::new();
+        self.source_cache = OnceLock::new();
     }
 
     /// Applies a text change to the document.
@@ -99,13 +105,11 @@ impl Document {
                 Arc::make_mut(tree).edit(&input_edit);
             }
 
-            // Replace content in-place (more efficient than creating new String)
-            self.content.replace_range(start_byte..old_end_byte, text);
-            self.line_offsets = compute_line_offsets(&self.content);
+            // Replace content using Rope::replace
+            self.content.replace(start_byte..old_end_byte, text);
         } else {
             // Full update (fallback)
-            self.content = text.to_string();
-            self.line_offsets = compute_line_offsets(&self.content);
+            self.content = Rope::from(text);
             self.tree = None;
         }
     }
@@ -113,31 +117,34 @@ impl Document {
     /// Convert LSP Position (line, UTF-16 character) to tree-sitter Point and byte offset.
     fn find_canonical_position(&self, position: &Position) -> (Point, usize) {
         let line = position.line as usize;
-        if line >= self.line_offsets.len() {
-            return (Point::new(line, 0), self.content.len());
+        let line_count = self.content.line_len();
+
+        if line >= line_count {
+            return (Point::new(line, 0), self.content.byte_len());
         }
 
-        let line_start = self.line_offsets[line];
-        let line_end = if line + 1 < self.line_offsets.len() {
-            self.line_offsets[line + 1].saturating_sub(1)
+        let line_start = self.content.byte_of_line(line);
+        let line_end = if line + 1 < line_count {
+            self.content.byte_of_line(line + 1).saturating_sub(1)
         } else {
-            self.content.len()
+            self.content.byte_len()
         };
-        let line_content = &self.content[line_start..line_end];
 
-        // LSP uses UTF-16 code units for character offset
-        let mut utf16_offset = 0u32;
-        let mut byte_offset = 0usize;
-        for ch in line_content.chars() {
-            if utf16_offset >= position.character {
-                break;
-            }
-            utf16_offset += ch.len_utf16() as u32;
-            byte_offset += ch.len_utf8();
-        }
+        // Use crop's utf16-metric to convert LSP position (UTF-16) to byte offset
+        let line_start_utf16 = self.content.utf16_code_unit_of_byte(line_start);
+        let target_utf16 = line_start_utf16 + position.character as usize;
 
-        let point = Point::new(line, byte_offset);
-        let absolute_byte_offset = line_start + byte_offset;
+        // Clamp to line end to handle out-of-bounds UTF-16 offsets
+        let absolute_byte_offset = if target_utf16 <= self.content.utf16_len() {
+            self.content
+                .byte_of_utf16_code_unit(target_utf16)
+                .min(line_end)
+        } else {
+            line_end
+        };
+
+        let relative_byte = absolute_byte_offset - line_start;
+        let point = Point::new(line, relative_byte);
         (point, absolute_byte_offset)
     }
 
@@ -152,8 +159,8 @@ impl Document {
     }
 
     /// Returns a reference to the document content.
-    pub fn content(&self) -> &str {
-        self.content.as_ref()
+    pub fn content(&self) -> &Rope {
+        &self.content
     }
 
     /// Returns a reference to the parsed syntax tree.
@@ -178,9 +185,10 @@ impl Document {
                 }
 
                 let end_row = node.end_position().row.saturating_sub(1);
-                let start = *self.line_offsets.get(1)?;
-                let end = *self.line_offsets.get(end_row)?;
-                let text = self.content.get(start..end)?.to_string();
+                let start = self.content.byte_of_line(1);
+                let end = self.content.byte_of_line(end_row);
+
+                let text: String = self.content.byte_slice(start..end).chunks().collect();
 
                 // Range from line 1 to the closing `+++` line (exclusive)
                 let range = Range::new(Position::new(1, 0), Position::new(end_row as u32, 0));
@@ -189,6 +197,19 @@ impl Document {
             })
             .as_ref()
             .map(|(text, range)| (text.as_str(), *range))
+    }
+
+    /// Returns cached source bytes for tree-sitter queries.
+    ///
+    /// The bytes are lazily computed and cached. The cache is invalidated on content change.
+    pub fn source_bytes(&self) -> &[u8] {
+        self.source_cache.get_or_init(|| {
+            let mut bytes = Vec::with_capacity(self.content.byte_len());
+            for chunk in self.content.chunks() {
+                bytes.extend_from_slice(chunk.as_bytes());
+            }
+            bytes
+        })
     }
 }
 
@@ -209,36 +230,10 @@ fn compute_end_position(start: Point, text: &str) -> Point {
     Point::new(row, col)
 }
 
-/// Computes byte offsets for the start of each line.
-fn compute_line_offsets(content: &str) -> Vec<usize> {
-    let mut offsets = vec![0];
-    for (i, byte) in content.bytes().enumerate() {
-        if byte == b'\n' {
-            offsets.push(i + 1);
-        }
-    }
-    offsets
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use tower_lsp_server::ls_types::Range;
-
-    #[test]
-    fn test_compute_line_offsets_empty() {
-        assert_eq!(compute_line_offsets(""), vec![0]);
-    }
-
-    #[test]
-    fn test_compute_line_offsets_single_line() {
-        assert_eq!(compute_line_offsets("hello"), vec![0]);
-    }
-
-    #[test]
-    fn test_compute_line_offsets_multiple_lines() {
-        assert_eq!(compute_line_offsets("hello\nworld\n"), vec![0, 6, 12]);
-    }
 
     #[test]
     fn test_compute_end_position_single_line() {
