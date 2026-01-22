@@ -2,7 +2,7 @@
 //!
 //! Handles the core LSP protocol: document synchronization, code actions, etc.
 
-use log::{debug, warn};
+use log::debug;
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::ls_types::{
     CodeAction, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
@@ -53,6 +53,16 @@ impl LanguageServer for Backend {
                 }),
                 capabilities: ServerCapabilities {
                     position_encoding: Some(PositionEncodingKind::UTF8),
+                    text_document_sync: Some(TextDocumentSyncCapability::Options(
+                        TextDocumentSyncOptions {
+                            open_close: Some(true),
+                            change: Some(TextDocumentSyncKind::INCREMENTAL),
+                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                                include_text: Some(false),
+                            })),
+                            ..Default::default()
+                        },
+                    )),
                     code_action_provider: Some(CodeActionProviderCapability::Options(
                         CodeActionOptions {
                             code_action_kinds: Some(vec![CODE_ACTION_UPDATE_METADATA]),
@@ -64,16 +74,6 @@ impl LanguageServer for Backend {
                             identifier: Some(DIAGNOSTIC_SOURCE.to_string()),
                             inter_file_dependencies: false,
                             workspace_diagnostics: false,
-                            ..Default::default()
-                        },
-                    )),
-                    text_document_sync: Some(TextDocumentSyncCapability::Options(
-                        TextDocumentSyncOptions {
-                            open_close: Some(true),
-                            change: Some(TextDocumentSyncKind::INCREMENTAL),
-                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                                include_text: Some(false),
-                            })),
                             ..Default::default()
                         },
                     )),
@@ -92,8 +92,8 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        debug!("fading-ls did open.");
         let uri = params.text_document.uri;
+        debug!("fading-ls did_open: {}", uri.path());
         let version = params.text_document.version;
         let content = params.text_document.text;
         let doc = Document::new(Some(version), false, content);
@@ -101,33 +101,27 @@ impl LanguageServer for Backend {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        debug!("fading-ls did close.");
         let uri = &params.text_document.uri;
+        debug!("fading-ls did_close: {}", uri.path());
         self.documents.pin().remove(uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        debug!("fading-ls did change.");
-        let new_version = params.text_document.version;
         let uri = params.text_document.uri;
+        debug!("fading-ls did_change: {}", uri.path());
+        let new_version = params.text_document.version;
         let content_changes = params.content_changes;
 
         self.documents.pin().update(uri, |doc| {
-            if let Some(version) = doc.version()
-                && version > new_version
-            {
-                warn!("Out-of-sync: currently at {version}, got {new_version}");
-                return doc.clone();
-            }
-
             let mut new_doc = doc.clone();
             new_doc.update(new_version, &content_changes);
             new_doc
         });
     }
 
-    async fn did_save(&self, _params: DidSaveTextDocumentParams) {
-        debug!("fading-ls did save.");
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let uri = &params.text_document.uri;
+        debug!("fading-ls did_save: {}", uri.path());
         // Document is already synchronized via did_change events.
         // No need to re-parse on save.
     }
@@ -136,8 +130,8 @@ impl LanguageServer for Backend {
         &self,
         params: DocumentDiagnosticParams,
     ) -> jsonrpc::Result<DocumentDiagnosticReportResult> {
-        debug!("fading-ls diagnostic.");
         let uri = &params.text_document.uri;
+        debug!("fading-ls diagnostic: {}", uri.path());
 
         let items = self
             .documents
@@ -161,8 +155,8 @@ impl LanguageServer for Backend {
         &self,
         params: CodeActionParams,
     ) -> jsonrpc::Result<Option<CodeActionResponse>> {
-        debug!("fading-ls code action.");
         let uri = params.text_document.uri;
+        debug!("fading-ls code_action: {}", uri.path());
 
         if params
             .context

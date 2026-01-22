@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::sync::{Arc, OnceLock};
 
 use crop::Rope;
+use log::warn;
 use tower_lsp_server::ls_types::{Position, Range, TextDocumentContentChangeEvent};
 use tree_sitter::{InputEdit, Point};
 use tree_sitter_md::{MarkdownParser, MarkdownTree};
@@ -65,11 +66,18 @@ impl Document {
     ///
     /// This method applies all changes incrementally, then re-parses the syntax tree.
     /// The document is marked as modified after this operation.
-    pub fn update(&mut self, version: i32, changes: &[TextDocumentContentChangeEvent]) {
+    pub fn update(&mut self, new_version: i32, changes: &[TextDocumentContentChangeEvent]) {
+        if let Some(version) = self.version
+            && version > new_version
+        {
+            warn!("Out-of-sync: currently at {version}, got {new_version}");
+            return;
+        }
+
         for change in changes {
             self.apply_change(change.range, &change.text);
         }
-        self.version = Some(version);
+        self.version = Some(new_version);
         self.modified = true;
         self.tree = parse_rope(&self.content, self.tree.as_deref()).map(Arc::new);
         self.frontmatter = OnceLock::new();
