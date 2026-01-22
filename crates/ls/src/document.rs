@@ -114,7 +114,7 @@ impl Document {
         }
     }
 
-    /// Convert LSP Position (line, UTF-16 character) to tree-sitter Point and byte offset.
+    /// Convert LSP Position (line, UTF-8 byte offset) to tree-sitter Point and byte offset.
     fn find_canonical_position(&self, position: &Position) -> (Point, usize) {
         let line = position.line as usize;
         let line_count = self.content.line_len();
@@ -130,19 +130,8 @@ impl Document {
             self.content.byte_len()
         };
 
-        // Use crop's utf16-metric to convert LSP position (UTF-16) to byte offset
-        let line_start_utf16 = self.content.utf16_code_unit_of_byte(line_start);
-        let target_utf16 = line_start_utf16 + position.character as usize;
-
-        // Clamp to line end to handle out-of-bounds UTF-16 offsets
-        let absolute_byte_offset = if target_utf16 <= self.content.utf16_len() {
-            self.content
-                .byte_of_utf16_code_unit(target_utf16)
-                .min(line_end)
-        } else {
-            line_end
-        };
-
+        // With UTF-8 encoding, position.character is a byte offset within the line
+        let absolute_byte_offset = (line_start + position.character as usize).min(line_end);
         let relative_byte = absolute_byte_offset - line_start;
         let point = Point::new(line, relative_byte);
         (point, absolute_byte_offset)
@@ -285,24 +274,25 @@ mod tests {
     }
 
     #[test]
-    fn test_find_canonical_position_utf16() {
-        // "あ" is 3 bytes in UTF-8, 1 code unit in UTF-16
-        // "𠮷" (U+20BB7) is 4 bytes in UTF-8, 2 code units in UTF-16 (surrogate pair)
+    fn test_find_canonical_position_utf8() {
+        // UTF-8 encoding: "aあb𠮷c"
+        // 'a' = 1 byte, 'あ' = 3 bytes, 'b' = 1 byte, '𠮷' = 4 bytes, 'c' = 1 byte
+        // Total: byte offsets 0, 1-3, 4, 5-8, 9
         let doc = Document::new(None, false, "aあb𠮷c".to_string());
-        // 'a' at char 0 -> Point(0, 0), byte 0
+        // Byte 0 -> 'a' -> Point(0, 0), byte 0
         let (point, byte) = doc.find_canonical_position(&Position::new(0, 0));
         assert_eq!((point.row, point.column, byte), (0, 0, 0));
-        // 'あ' at char 1 -> Point(0, 1), byte 1
+        // Byte 1 -> 'あ' start -> Point(0, 1), byte 1
         let (point, byte) = doc.find_canonical_position(&Position::new(0, 1));
         assert_eq!((point.row, point.column, byte), (0, 1, 1));
-        // 'b' at char 2 -> Point(0, 4), byte 4 (1 + 3)
-        let (point, byte) = doc.find_canonical_position(&Position::new(0, 2));
+        // Byte 4 -> 'b' -> Point(0, 4), byte 4
+        let (point, byte) = doc.find_canonical_position(&Position::new(0, 4));
         assert_eq!((point.row, point.column, byte), (0, 4, 4));
-        // '𠮷' at char 3 -> Point(0, 5), byte 5 (1 + 3 + 1)
-        let (point, byte) = doc.find_canonical_position(&Position::new(0, 3));
-        assert_eq!((point.row, point.column, byte), (0, 5, 5));
-        // 'c' at char 5 (surrogate pair = 2 code units) -> Point(0, 9), byte 9 (1 + 3 + 1 + 4)
+        // Byte 5 -> '𠮷' start -> Point(0, 5), byte 5
         let (point, byte) = doc.find_canonical_position(&Position::new(0, 5));
+        assert_eq!((point.row, point.column, byte), (0, 5, 5));
+        // Byte 9 -> 'c' -> Point(0, 9), byte 9
+        let (point, byte) = doc.find_canonical_position(&Position::new(0, 9));
         assert_eq!((point.row, point.column, byte), (0, 9, 9));
     }
 

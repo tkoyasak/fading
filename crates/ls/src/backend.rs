@@ -10,9 +10,9 @@ use tower_lsp_server::ls_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
     DocumentDiagnosticReportResult, FullDocumentDiagnosticReport, InitializeParams,
-    InitializeResult, RelatedFullDocumentDiagnosticReport, SaveOptions, ServerCapabilities,
-    ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, Uri, WorkspaceEdit,
+    InitializeResult, PositionEncodingKind, RelatedFullDocumentDiagnosticReport, SaveOptions,
+    ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Uri, WorkspaceEdit,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -52,6 +52,7 @@ impl LanguageServer for Backend {
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 }),
                 capabilities: ServerCapabilities {
+                    position_encoding: Some(PositionEncodingKind::UTF8),
                     code_action_provider: Some(CodeActionProviderCapability::Options(
                         CodeActionOptions {
                             code_action_kinds: Some(vec![CODE_ACTION_UPDATE_METADATA]),
