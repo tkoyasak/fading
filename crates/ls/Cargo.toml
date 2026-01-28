@@ -19,6 +19,7 @@ tree-sitter-md.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
+proptest.workspace = true
 tokio.workspace = true
 
 [[bench]]

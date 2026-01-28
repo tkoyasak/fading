@@ -20,6 +20,7 @@ crop = { version = "0.4.3" }
 env_logger = { version = "0.11.8" }
 log = { version = "0.4.29" }
 papaya = { version = "0.2.3" }
+proptest = { version = "1.9.0" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.49.0", features = ["io-std", "macros", "rt", "rt-multi-thread"] }
 toml = { version = "0.9.11" }

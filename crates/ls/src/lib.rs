@@ -8,9 +8,9 @@
 use tower_lsp_server::{LspService, Server};
 
 mod backend;
-pub mod diagnostics;
-pub mod document;
-mod metadata;
+mod code_actions;
+mod diagnostics;
+mod document;
 
 /// Runs the language server.
 ///
