@@ -422,7 +422,61 @@ mod tests {
 
     use proptest::prelude::*;
 
+    fn has_diagnostic_code(diags: &[Diagnostic], code: &str) -> bool {
+        diags
+            .iter()
+            .any(|d| d.code == Some(NumberOrString::String(code.to_string())))
+    }
+
     proptest! {
+        /// Property: Invalid TOML syntax produces invalid-toml diagnostic
+        #[test]
+        fn prop_invalid_toml_produces_diagnostic(
+            garbage in "[a-z]{1,20}"
+        ) {
+            let content = format!("+++\n{} {{ invalid\n+++\n", garbage);
+            let doc = make_doc(&content);
+            let diags = diagnose(&doc);
+
+            prop_assert!(has_diagnostic_code(&diags, "invalid-toml"));
+        }
+
+        /// Property: Missing required field produces missing-field diagnostic
+        #[test]
+        fn prop_missing_field_produces_diagnostic(
+            year in 2020u32..2030,
+            month in 1u32..=12,
+            day in 1u32..=28
+        ) {
+            // Missing id field
+            let content = format!(
+                "+++\ncreated = {}-{:02}-{:02}\nmodified = {}-{:02}-{:02}\n+++\n",
+                year, month, day, year, month, day
+            );
+            let doc = make_doc(&content);
+            let diags = diagnose(&doc);
+
+            prop_assert!(has_diagnostic_code(&diags, "missing-field"));
+        }
+
+        /// Property: Time-only value (no date) produces invalid-date diagnostic
+        #[test]
+        fn prop_time_only_produces_invalid_date(
+            id in "[0-9]{4}-[0-9]{2}",
+            hour in 0u32..24,
+            minute in 0u32..60,
+            second in 0u32..60
+        ) {
+            let content = format!(
+                "+++\nid = \"{}\"\ncreated = {:02}:{:02}:{:02}\nmodified = 2026-01-15\n+++\n",
+                id, hour, minute, second
+            );
+            let doc = make_doc(&content);
+            let diags = diagnose(&doc);
+
+            prop_assert!(has_diagnostic_code(&diags, "invalid-date"));
+        }
+
         /// Property: diagnose never panics on any input
         #[test]
         fn prop_diagnose_never_panics(

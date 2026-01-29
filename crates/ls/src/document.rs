@@ -355,6 +355,69 @@ mod tests {
     proptest! {
         #![proptest_config(proptest_config())]
 
+        /// Property: Clone preserves all document state
+        #[test]
+        fn prop_clone_preserves_state(
+            version in prop::option::of(0i32..1000),
+            modified in prop::bool::ANY,
+            content in ".{0,200}"
+        ) {
+            let doc = Document::new(version, modified, content.clone());
+            let cloned = doc.clone();
+
+            prop_assert_eq!(cloned.version(), doc.version());
+            prop_assert_eq!(cloned.modified(), doc.modified());
+
+            let cloned_content: String = cloned.rope().chunks().collect();
+            prop_assert_eq!(cloned_content, content);
+        }
+
+        /// Property: Updates with old or same version are rejected
+        #[test]
+        fn prop_update_rejects_stale_version(
+            current_version in 1i32..1000,
+            stale_offset in 0i32..100,
+            content in ".{1,100}",
+            new_content in ".{1,100}"
+        ) {
+            let stale_version = current_version - stale_offset.min(current_version);
+            let mut doc = Document::new(Some(current_version), false, content.clone());
+
+            doc.update(stale_version, &[TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: new_content,
+            }]);
+
+            // Content and version should remain unchanged
+            let actual_content: String = doc.rope().chunks().collect();
+            prop_assert_eq!(actual_content, content);
+            prop_assert_eq!(doc.version(), Some(current_version));
+        }
+
+        /// Property: Invalid byte range triggers fallback to full replacement
+        #[test]
+        fn prop_invalid_range_falls_back_to_full_sync(
+            content in "[a-z]{1,50}",
+            new_content in "[a-z]{1,50}",
+            start_line in 10u32..100,
+            start_char in 0u32..100
+        ) {
+            let mut doc = Document::new(None, false, content);
+
+            // Range where start is beyond document bounds, end is at beginning
+            // This creates start_byte > old_end_byte condition
+            let invalid_range = Range::new(
+                Position::new(start_line, start_char),
+                Position::new(0, 0)
+            );
+            doc.apply_change(Some(invalid_range), &new_content);
+
+            // Should fall back to full content replacement
+            let actual_content: String = doc.rope().chunks().collect();
+            prop_assert_eq!(actual_content, new_content);
+        }
+
         /// Property: compute_end_position correctly counts newlines and columns
         #[test]
         fn prop_compute_end_position_counts_newlines(
@@ -481,6 +544,106 @@ mod tests {
                 // Tree should remain valid or None
                 prop_assert!(doc.tree.is_some() || doc.tree.is_none());
             }
+        }
+
+        /// Property: modified flag lifecycle works correctly
+        ///
+        /// Tests the state transitions of the modified flag:
+        /// - Initial state (false on new document with modified=false)
+        /// - After update (true)
+        /// - After clear_modified (false)
+        #[test]
+        fn prop_modified_flag_lifecycle(
+            initial_content in ".{10,100}",
+            change_text in ".{1,50}"
+        ) {
+            // Initial state: not modified
+            let mut doc = Document::new(None, false, initial_content.clone());
+            prop_assert!(!doc.modified());
+
+            // After update: modified
+            doc.update(1, &[TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: change_text,
+            }]);
+            prop_assert!(doc.modified());
+
+            // After clear: not modified
+            doc.clear_modified();
+            prop_assert!(!doc.modified());
+
+            // Multiple updates preserve modified flag
+            doc.update(2, &[TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "another change".to_string(),
+            }]);
+            prop_assert!(doc.modified());
+        }
+
+        /// Property: version tracking is accurate
+        ///
+        /// Tests that version numbers are correctly updated and tracked:
+        /// - Initial version is preserved
+        /// - Each update with a higher version sets the new version
+        /// - Old version updates are rejected (early return behavior)
+        #[test]
+        fn prop_version_tracking(
+            initial_version in prop::option::of(0i32..1000),
+            version_increments in prop::collection::vec(1i32..100, 1..20)
+        ) {
+            let mut doc = Document::new(initial_version, false, "initial content".to_string());
+            prop_assert_eq!(doc.version(), initial_version);
+
+            let mut current_version = initial_version.unwrap_or(0);
+            for increment in version_increments {
+                current_version += increment;
+                doc.update(current_version, &[TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: "updated".to_string(),
+                }]);
+                prop_assert_eq!(doc.version(), Some(current_version));
+            }
+        }
+
+        /// Property: rope() returns consistent content
+        ///
+        /// Tests that rope() getter returns the current document state
+        #[test]
+        fn prop_rope_returns_current_content(
+            initial_content in ".{0,200}",
+            new_content in ".{0,200}"
+        ) {
+            let mut doc = Document::new(None, false, initial_content.clone());
+
+            // Initial content matches
+            let rope_content: String = doc.rope().chars().collect();
+            prop_assert_eq!(rope_content, initial_content);
+
+            // After update, content matches
+            doc.update(1, &[TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: new_content.clone(),
+            }]);
+            let rope_content: String = doc.rope().chars().collect();
+            prop_assert_eq!(rope_content, new_content);
+        }
+
+        /// Property: source_bytes() matches rope content
+        ///
+        /// Tests that source_bytes() returns the UTF-8 bytes of the current content
+        #[test]
+        fn prop_source_bytes_matches_rope(
+            content in ".{0,200}"
+        ) {
+            let doc = Document::new(None, false, content.clone());
+            let source_bytes = doc.source_bytes();
+            let expected_bytes = content.as_bytes();
+
+            prop_assert_eq!(source_bytes, expected_bytes);
         }
     }
 }

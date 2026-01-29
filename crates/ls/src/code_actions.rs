@@ -201,6 +201,7 @@ mod tests {
     use super::*;
     use chrono::Duration;
     use proptest::prelude::*;
+    use std::str::FromStr;
     use tower_lsp_server::ls_types::Position;
 
     // ===== Helper functions =====
@@ -213,63 +214,24 @@ mod tests {
         Document::new(None, true, content.to_string())
     }
 
-    fn valid_frontmatter_today() -> String {
-        let today = today();
-        format!(
-            "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = {}-{:02}-{:02}\n+++\n\nHello.",
-            today.year, today.month, today.day
-        )
-    }
-
-    fn valid_frontmatter_past() -> String {
-        "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\n+++\n\nHello."
-            .to_string()
-    }
-
     fn uri() -> Uri {
         "file:///test.md".parse().unwrap()
     }
 
-    // ===== code_actions() tests =====
-
-    #[test]
-    fn code_actions_returns_none_when_not_modified() {
-        let doc = make_doc(&valid_frontmatter_past());
-        assert!(code_actions(&doc, &uri()).is_none());
-    }
+    // ===== Edge case tests for code_actions() and should_clear_modified() =====
+    //
+    // These tests verify specific boundary conditions not fully covered by property tests:
+    // - Missing frontmatter (document structure validation)
+    // - Invalid TOML syntax (error handling)
+    //
+    // General cases (modified flag, date comparison) are covered by property tests:
+    // - prop_code_actions_respects_modified_flag
+    // - prop_should_clear_modified_consistency
 
     #[test]
     fn code_actions_returns_none_when_no_frontmatter() {
         let doc = make_modified_doc("No frontmatter here.");
         assert!(code_actions(&doc, &uri()).is_none());
-    }
-
-    #[test]
-    fn code_actions_returns_none_when_already_today() {
-        let doc = make_modified_doc(&valid_frontmatter_today());
-        assert!(code_actions(&doc, &uri()).is_none());
-    }
-
-    #[test]
-    fn code_actions_returns_some_when_modified_and_outdated() {
-        let doc = make_modified_doc(&valid_frontmatter_past());
-        let actions = code_actions(&doc, &uri());
-        assert!(actions.is_some());
-        assert_eq!(actions.unwrap().len(), 1);
-    }
-
-    // ===== should_clear_modified() tests =====
-
-    #[test]
-    fn should_clear_modified_true_when_today() {
-        let doc = make_doc(&valid_frontmatter_today());
-        assert!(should_clear_modified(&doc));
-    }
-
-    #[test]
-    fn should_clear_modified_false_when_not_today() {
-        let doc = make_doc(&valid_frontmatter_past());
-        assert!(!should_clear_modified(&doc));
     }
 
     #[test]
@@ -282,6 +244,28 @@ mod tests {
     fn should_clear_modified_false_when_invalid_toml() {
         let doc = make_doc("+++\ninvalid toml {{{\n+++\n");
         assert!(!should_clear_modified(&doc));
+    }
+
+    // ===== supported_action_kinds() tests =====
+
+    #[test]
+    fn supported_action_kinds_returns_all_providers() {
+        let kinds = supported_action_kinds();
+
+        // Should have at least one kind (MetadataProvider)
+        assert!(!kinds.is_empty());
+
+        // Should contain the metadata action kind
+        assert!(kinds.contains(&CodeActionKind::new("source.updateMetadata.fading")));
+    }
+
+    #[test]
+    fn supported_action_kinds_matches_provider_count() {
+        let kinds = supported_action_kinds();
+        let providers = get_providers();
+
+        // Number of kinds should match number of providers
+        assert_eq!(kinds.len(), providers.len());
     }
 
     // ===== Private function tests =====
@@ -490,6 +474,44 @@ mod tests {
 
             let result = update_metadata(&invalid, range);
             prop_assert!(result.is_none());
+        }
+
+        /// Property: code_actions respects modified flag
+        ///
+        /// code_actions should only return actions when document is modified
+        #[test]
+        fn prop_code_actions_respects_modified_flag(
+            metadata in strategies::metadata(Some(false))
+        ) {
+            let toml_str = toml::to_string(&metadata).unwrap();
+            let content = format!("+++\n{}\n+++\n\nContent", toml_str);
+            let uri = Uri::from_str("file:///test.md").unwrap();
+
+            // Not modified → no actions
+            let doc_not_modified = Document::new(None, false, content.clone());
+            prop_assert!(code_actions(&doc_not_modified, &uri).is_none());
+
+            // Modified → has actions (if metadata is outdated)
+            let doc_modified = Document::new(None, true, content);
+            let actions = code_actions(&doc_modified, &uri);
+            prop_assert!(actions.is_some());
+        }
+
+        /// Property: should_clear_modified is consistent
+        ///
+        /// should_clear_modified returns true iff frontmatter.modified == today
+        #[test]
+        fn prop_should_clear_modified_consistency(
+            metadata in strategies::metadata(None)
+        ) {
+            let toml_str = toml::to_string(&metadata).unwrap();
+            let content = format!("+++\n{}\n+++\n\nContent", toml_str);
+            let doc = Document::new(None, false, content);
+
+            let result = should_clear_modified(&doc);
+            let expected = metadata.modified == today();
+
+            prop_assert_eq!(result, expected);
         }
     }
 }
