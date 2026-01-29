@@ -14,7 +14,7 @@ fading-ls = { path = "crates/ls" }
 # non-local crates
 anyhow = { version = "1.0.100" }
 base64 = { version = "0.22.1" }
-chrono = { version = "0.4.42" }
+chrono = { version = "0.4.43" }
 criterion = { version = "0.8.1", features = ["html_reports"] }
 crop = { version = "0.4.3" }
 env_logger = { version = "0.11.8" }
@@ -22,8 +22,10 @@ log = { version = "0.4.29" }
 papaya = { version = "0.2.3" }
 proptest = { version = "1.9.0" }
 serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149" }
 tokio = { version = "1.49.0", features = ["io-std", "macros", "rt", "rt-multi-thread"] }
 toml = { version = "0.9.11" }
+tower = { version = "0.5.3" }
 tower-lsp-server = { version = "0.23.0" }
 tree-sitter = { version = "0.26.3" }
 tree-sitter-md = { version = "0.5.2", features = ["parser"] }

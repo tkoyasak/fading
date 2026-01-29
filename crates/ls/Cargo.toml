@@ -20,7 +20,9 @@ tree-sitter-md.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
+tower.workspace = true
 
 [[bench]]
 name = "diagnostics"
