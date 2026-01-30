@@ -4,7 +4,7 @@
 
 use std::sync::OnceLock;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Deserialize;
 use toml::Spanned;
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
@@ -194,8 +194,7 @@ fn check_id_format(id: &Option<Spanned<String>>, fm: &str, diagnostics: &mut Vec
     let id_str = spanned_id.get_ref();
 
     // Validate YYYY-MM format by attempting to parse with a dummy day
-    let is_valid =
-        id_str.len() == 7 && NaiveDate::parse_from_str(&format!("{id_str}-01"), "%Y-%m-%d").is_ok();
+    let is_valid = id_str.len() == 7 && format!("{id_str}-01").parse::<Date>().is_ok();
 
     if !is_valid {
         diagnostics.push(make_diagnostic(
@@ -227,10 +226,11 @@ fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Parses a Spanned Datetime as a NaiveDate.
-fn parse_date(spanned: &Spanned<toml::value::Datetime>) -> Option<NaiveDate> {
+/// Parses a Spanned Datetime as a Date.
+#[allow(clippy::cast_possible_wrap)]
+fn parse_date(spanned: &Spanned<toml::value::Datetime>) -> Option<Date> {
     let d = spanned.get_ref().date.as_ref()?;
-    NaiveDate::from_ymd_opt(d.year as i32, d.month as u32, d.day as u32)
+    Date::new(d.year as i16, d.month as i8, d.day as i8).ok()
 }
 
 /// Validates a date field and returns the parsed date, adding diagnostics if invalid.
@@ -239,7 +239,7 @@ fn validate_date_field(
     field_name: &str,
     fm: &str,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Option<NaiveDate> {
+) -> Option<Date> {
     let spanned = spanned.as_ref()?;
 
     match parse_date(spanned) {
@@ -325,9 +325,9 @@ fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Ve
 
 /// Checks if the heading text matches the `YYYY-MM-DD Day` format.
 ///
-/// Uses chrono to parse and validate the date, including checking that the day of week matches.
+/// Uses jiff to parse and validate the date, including checking that the day of week matches.
 fn is_valid_heading_date(text: &str) -> bool {
-    NaiveDate::parse_from_str(text, "%Y-%m-%d %a").is_ok()
+    Date::strptime("%Y-%m-%d %a", text).is_ok()
 }
 
 #[cfg(test)]

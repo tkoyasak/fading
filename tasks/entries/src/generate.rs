@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chrono::{Datelike, Duration, Local, NaiveDate};
+use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::{Shell, cmd};
 
 use crate::flags::{Cmd, Generate};
@@ -16,15 +16,16 @@ impl Cmd for Generate {
 
 #[derive(Debug)]
 struct Entry {
-    pub id: NaiveDate,
+    pub id: Date,
     pub path: String,
     pub content: String,
 }
 
 impl Entry {
     fn new() -> Result<Self> {
-        let id = Local::now().date_naive().with_day(1).unwrap();
-        let path = format!("entries/{}.md", id.format("%Y-%m"));
+        let today = Zoned::now().date();
+        let id = today.first_of_month();
+        let path = format!("entries/{}.md", id.strftime("%Y-%m"));
         let content = String::with_capacity(1_000);
 
         let mut entry = Self { id, path, content };
@@ -33,8 +34,8 @@ impl Entry {
     }
 
     fn metadata_block(&self) -> String {
-        let id = self.id.format("%Y-%m");
-        let today = Local::now().format("%Y-%m-%d");
+        let id = self.id.strftime("%Y-%m");
+        let today = Zoned::now().strftime("%Y-%m-%d");
 
         format!(
             r#"+++
@@ -50,14 +51,16 @@ modified = {today}
         let metadata = self.metadata_block();
         write!(&mut self.content, "{metadata}")?;
 
-        let n = self.id.num_days_in_month();
-        let mut cur = self.id;
-
-        for _ in 0..n {
-            let date = cur.format("%Y-%m-%d %a");
-            write!(&mut self.content, "\n###### {date}\n\n\n")?;
-
-            cur += Duration::days(1);
+        for date in self
+            .id
+            .series(1.days())
+            .take(self.id.days_in_month() as usize)
+        {
+            write!(
+                &mut self.content,
+                "\n###### {}\n\n\n",
+                date.strftime("%Y-%m-%d %a")
+            )?;
         }
 
         Ok(())
@@ -89,7 +92,7 @@ impl GitHub {
         let repo = std::env::var("GITHUB_REPOSITORY")?;
         let sha = std::env::var("GITHUB_SHA")?;
 
-        let id = entry.id.format("%Y-%m");
+        let id = entry.id.strftime("%Y-%m");
         let branch = format!("entry/{id}");
         let message = format!("cron: generated entry for {id}");
 

@@ -2,7 +2,7 @@
 //!
 //! Provides code actions to automatically update the `modified` date in TOML frontmatter.
 
-use chrono::{Datelike, Local, NaiveDate};
+use jiff::{Zoned, civil::Date};
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::ls_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Range, TextEdit, Uri, WorkspaceEdit,
@@ -125,7 +125,7 @@ struct Metadata {
     modified: toml::value::Date,
 }
 
-/// Converts `chrono::NaiveDate` to `toml::value::Date`.
+/// Converts `jiff::civil::Date` to `toml::value::Date`.
 ///
 /// # Panics
 ///
@@ -135,13 +135,13 @@ struct Metadata {
 /// # Examples
 ///
 /// ```ignore
-/// let date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
-/// let toml_date = naive_date_to_toml(date);
+/// let date = Date::new(2026, 1, 15).unwrap();
+/// let toml_date = date_to_toml(date);
 /// assert_eq!(toml_date.year, 2026);
 /// ```
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn naive_date_to_toml(date: NaiveDate) -> toml::value::Date {
-    // SAFETY: chrono guarantees month is 1-12 and day is 1-31
+fn date_to_toml(date: Date) -> toml::value::Date {
+    // SAFETY: jiff guarantees month is 1-12 and day is 1-31
     // year is truncated but should be in valid range for fading dates
     toml::value::Date {
         year: date.year() as u16,
@@ -150,7 +150,7 @@ fn naive_date_to_toml(date: NaiveDate) -> toml::value::Date {
     }
 }
 
-/// Converts `toml::value::Date` to `chrono::NaiveDate`.
+/// Converts `toml::value::Date` to `jiff::civil::Date`.
 ///
 /// Returns `None` if the date is invalid (e.g., Feb 30, month 13).
 ///
@@ -158,21 +158,16 @@ fn naive_date_to_toml(date: NaiveDate) -> toml::value::Date {
 ///
 /// ```ignore
 /// let toml_date = toml::value::Date { year: 2026, month: 2, day: 30 };
-/// assert!(toml_date_to_naive(toml_date).is_none()); // Feb 30 is invalid
+/// assert!(toml_to_date(toml_date).is_none()); // Feb 30 is invalid
 /// ```
-#[allow(
-    dead_code,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_lossless
-)]
-fn toml_date_to_naive(date: toml::value::Date) -> Option<NaiveDate> {
-    NaiveDate::from_ymd_opt(date.year as i32, date.month as u32, date.day as u32)
+#[allow(dead_code, clippy::cast_possible_wrap)]
+fn toml_to_date(date: toml::value::Date) -> Option<Date> {
+    Date::new(date.year as i16, date.month as i8, date.day as i8).ok()
 }
 
 /// Returns the current date as `toml::value::Date`.
 fn today() -> toml::value::Date {
-    naive_date_to_toml(Local::now().date_naive())
+    date_to_toml(Zoned::now().date())
 }
 
 /// Generates text edits to update the `modified` date to today.
@@ -199,7 +194,7 @@ fn update_metadata(fm: &str, range: Range) -> Option<Vec<TextEdit>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+    use jiff::{ToSpan, civil::date};
     use proptest::prelude::*;
     use std::str::FromStr;
     use tower_lsp_server::ls_types::Position;
@@ -289,14 +284,14 @@ mod tests {
         ///
         /// Produces dates from 2020-01-01 to ~2030 by adding day offsets.
         /// More efficient than regex-based approach (never generates invalid dates like Feb 30).
-        pub(super) fn naive_date() -> impl Strategy<Value = NaiveDate> {
-            let fixed = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
-            (0i64..=4000).prop_map(move |offset| fixed + Duration::days(offset))
+        pub(super) fn jiff_date() -> impl Strategy<Value = Date> {
+            let fixed = date(2020, 1, 1);
+            (0i64..=4000).prop_map(move |offset| fixed.checked_add(offset.days()).unwrap())
         }
 
-        /// Strategy: Generates toml::value::Date from NaiveDate
+        /// Strategy: Generates toml::value::Date from jiff::civil::Date
         pub(super) fn toml_date() -> impl Strategy<Value = toml::value::Date> {
-            naive_date().prop_map(naive_date_to_toml)
+            jiff_date().prop_map(date_to_toml)
         }
 
         /// Strategy: Generates dates that are NOT today
@@ -405,14 +400,14 @@ mod tests {
 
         /// Property: Date type conversion is lossless
         ///
-        /// For any valid date, converting `chrono::NaiveDate` → `toml::value::Date` → `chrono::NaiveDate`
+        /// For any valid date, converting `jiff::civil::Date` → `toml::value::Date` → `jiff::civil::Date`
         /// preserves the original value.
         #[test]
-        fn prop_date_type_conversion_is_lossless(naive_date in strategies::naive_date()) {
-            let toml_date = naive_date_to_toml(naive_date);
-            let converted_back = toml_date_to_naive(toml_date).unwrap();
+        fn prop_date_type_conversion_is_lossless(date in strategies::jiff_date()) {
+            let toml_date = date_to_toml(date);
+            let converted_back = toml_to_date(toml_date).unwrap();
 
-            prop_assert_eq!(naive_date, converted_back);
+            prop_assert_eq!(date, converted_back);
         }
 
         /// Property: Metadata TOML serialization is reversible

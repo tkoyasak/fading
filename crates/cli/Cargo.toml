@@ -12,7 +12,7 @@ path = "src/main.rs"
 fading-ls.workspace = true
 
 anyhow.workspace = true
-chrono.workspace = true
+jiff.workspace = true
 tokio.workspace = true
 xflags.workspace = true
 xshell.workspace = true

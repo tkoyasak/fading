@@ -1,4 +1,4 @@
-use chrono::Local;
+use jiff::Zoned;
 use xshell::{Shell, cmd};
 
 use crate::flags::{Cmd, Notify};
@@ -8,7 +8,7 @@ impl Cmd for Notify {
         let sh = Shell::new()?;
 
         let title = "\"fading\"";
-        let date = Local::now().format("%Y-%m-%d");
+        let date = Zoned::now().strftime("%Y-%m-%d");
         let body = format!("\"Time to be fading! {date}\"");
         cmd!(
             sh,

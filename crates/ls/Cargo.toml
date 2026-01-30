@@ -5,9 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-chrono.workspace = true
 crop.workspace = true
 env_logger.workspace = true
+jiff.workspace = true
 log.workspace = true
 papaya.workspace = true
 serde.workspace = true
