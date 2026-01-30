@@ -26,7 +26,7 @@ fn jst() -> Result<tz::TimeZone> {
         .with_context(|| format!("Failed to load {TIMEZONE} timezone"))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Entry {
     pub id: Date,
     pub path: String,
@@ -196,6 +196,7 @@ mod tests {
     use super::*;
     use jiff::{ToSpan, civil::date};
     use proptest::prelude::*;
+    use serial_test::serial;
 
     // ===== Helper functions =====
 
@@ -204,6 +205,22 @@ mod tests {
             id: Date::new(year, month, day).unwrap(),
             path: format!("{ENTRIES_DIR}{year:04}-{month:02}.md"),
             content: String::new(),
+        }
+    }
+
+    /// Set up test environment with GitHub credentials
+    fn setup_github_env(repo: &str, sha: &str) {
+        unsafe {
+            std::env::set_var("GITHUB_REPOSITORY", repo);
+            std::env::set_var("GITHUB_SHA", sha);
+        }
+    }
+
+    /// Clean up GitHub environment variables
+    fn cleanup_github_env() {
+        unsafe {
+            std::env::remove_var("GITHUB_REPOSITORY");
+            std::env::remove_var("GITHUB_SHA");
         }
     }
 
@@ -232,6 +249,35 @@ mod tests {
         /// monthly entry generation.
         pub(super) fn first_of_month() -> impl Strategy<Value = Date> {
             jiff_date().prop_map(|date| date.first_of_month())
+        }
+
+        /// Strategy: Generates valid GitHub repository names
+        ///
+        /// Format: owner/repo (e.g., "octocat/Hello-World")
+        pub(super) fn github_repo() -> impl Strategy<Value = String> {
+            (
+                "[a-z0-9-]{3,20}/[a-z0-9-]{3,30}",
+                "[A-Za-z0-9_.-]{3,20}/[A-Za-z0-9_.-]{3,30}",
+            )
+                .prop_map(|(_, repo)| repo)
+        }
+
+        /// Strategy: Generates valid git commit SHA (40 hex chars)
+        pub(super) fn commit_sha() -> impl Strategy<Value = String> {
+            "[0-9a-f]{40}".prop_map(|s| s)
+        }
+
+        /// Strategy: Generates Entry with valid content
+        pub(super) fn entry() -> impl Strategy<Value = Entry> {
+            first_of_month().prop_map(|date| {
+                let mut entry = Entry {
+                    id: date,
+                    path: format!("{ENTRIES_DIR}{:04}-{:02}.md", date.year(), date.month()),
+                    content: String::new(),
+                };
+                entry.generate().unwrap();
+                entry
+            })
         }
     }
 
@@ -308,6 +354,100 @@ mod tests {
             prop_assert!(entry.content.contains(&first_header));
             prop_assert!(entry.content.contains(&last_header));
         }
+
+        /// Property: GitHub struct fields have correct format
+        ///
+        /// For any valid entry with environment variables set, GitHub::new should produce
+        /// a struct with properly formatted fields.
+        #[test]
+        #[serial]
+        fn prop_github_fields_format(
+            entry in strategies::entry(),
+            repo in strategies::github_repo(),
+            sha in strategies::commit_sha()
+        ) {
+            // Set environment variables for this test
+            setup_github_env(&repo, &sha);
+
+            let github = GitHub::new(entry.clone()).unwrap();
+
+            // Verify all fields are populated correctly
+            prop_assert_eq!(&github.repo, &repo);
+            prop_assert_eq!(&github.sha, &sha);
+            prop_assert!(github.path.starts_with(ENTRIES_DIR));
+            prop_assert!(github.branch.starts_with(BRANCH_PREFIX));
+            prop_assert!(github.message.starts_with("cron: "));
+            prop_assert!(!github.encoded.is_empty());
+
+            // Verify encoded content is valid base64
+            prop_assert!(STANDARD.decode(&github.encoded).is_ok());
+
+            // Clean up environment variables
+            cleanup_github_env();
+        }
+
+        /// Property: GitHub::new fails gracefully without environment variables
+        ///
+        /// When required environment variables are missing, GitHub::new should return
+        /// a descriptive error rather than panicking.
+        #[test]
+        #[serial]
+        fn prop_github_new_fails_without_env(entry in strategies::entry()) {
+            // Ensure environment variables are not set
+            cleanup_github_env();
+
+            let result = GitHub::new(entry);
+            prop_assert!(result.is_err());
+            prop_assert!(result.unwrap_err().to_string().contains("env"));
+        }
+
+        /// Property: Entry path never contains dangerous patterns
+        ///
+        /// For any generated entry, the path should never contain path traversal
+        /// sequences or absolute paths.
+        #[test]
+        fn prop_entry_path_security(first_of_month in strategies::first_of_month()) {
+            let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
+            entry.generate().unwrap();
+
+            prop_assert!(!entry.path.contains(".."));
+            prop_assert!(!entry.path.contains("//"));
+            prop_assert!(!entry.path.starts_with('/'));
+            prop_assert!(entry.path.starts_with(ENTRIES_DIR));
+        }
+
+        /// Property: Generated content is valid UTF-8
+        ///
+        /// For any month, the generated content should always be valid UTF-8.
+        #[test]
+        fn prop_generate_valid_utf8(first_of_month in strategies::first_of_month()) {
+            let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
+            entry.generate().unwrap();
+
+            prop_assert!(std::str::from_utf8(entry.content.as_bytes()).is_ok());
+            prop_assert!(!entry.content.is_empty());
+        }
+
+        /// Property: Branch name format is consistent
+        ///
+        /// For any entry, the branch name should follow the format "entry/YYYY-MM".
+        #[test]
+        #[serial]
+        fn prop_branch_name_format(
+            entry in strategies::entry(),
+            repo in strategies::github_repo(),
+            sha in strategies::commit_sha()
+        ) {
+            setup_github_env(&repo, &sha);
+
+            let github = GitHub::new(entry.clone()).unwrap();
+            let expected_suffix = format!("{:04}-{:02}", entry.id.year(), entry.id.month());
+
+            prop_assert!(github.branch.starts_with(BRANCH_PREFIX));
+            prop_assert!(github.branch.ends_with(&expected_suffix));
+
+            cleanup_github_env();
+        }
     }
 
     // ===== Edge case tests =====
@@ -315,6 +455,8 @@ mod tests {
     // These tests verify specific boundary conditions not fully covered by property tests:
     // - Leap year February (29 days)
     // - Non-leap year February (28 days)
+    // - Timezone loading
+    // - Entry::new() runtime behavior
     //
     // General cases (day count, header format) are covered by property tests.
 
@@ -335,6 +477,74 @@ mod tests {
         assert_eq!(entry.content.matches("###### 2023-02-").count(), 28);
         assert!(entry.content.contains("###### 2023-02-28 "));
         assert!(!entry.content.contains("###### 2023-02-29 "));
+    }
+
+    #[test]
+    fn test_jst_timezone_loads() {
+        // jst() should successfully load Asia/Tokyo timezone
+        let tz = jst().unwrap();
+        assert_eq!(tz.iana_name(), Some(TIMEZONE));
+    }
+
+    #[test]
+    fn test_entry_new_creates_valid_structure() {
+        // Entry::new() should create a valid entry with current month
+        let entry = Entry::new().unwrap();
+
+        // Verify structure
+        assert!(entry.path.starts_with(ENTRIES_DIR));
+        assert!(!entry.path.contains(".."));
+        assert!(entry.content.starts_with("+++\n"));
+        assert!(entry.content.contains("id = "));
+        assert!(entry.content.contains("created = "));
+        assert!(entry.content.contains("modified = "));
+
+        // Verify it has at least 28 day headers (minimum for any month)
+        let day_headers = entry.content.matches("###### ").count();
+        assert!(day_headers >= 28);
+        assert!(day_headers <= 31);
+    }
+
+    #[test]
+    #[serial]
+    fn test_github_new_requires_env_vars() {
+        // Clean environment
+        cleanup_github_env();
+
+        let entry = Entry::new().unwrap();
+        let result = GitHub::new(entry);
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("GITHUB_REPOSITORY")
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_github_new_with_valid_env() {
+        // Set up environment
+        setup_github_env("owner/repo", "0123456789abcdef0123456789abcdef01234567");
+
+        let entry = Entry::new().unwrap();
+        let github = GitHub::new(entry.clone()).unwrap();
+
+        assert_eq!(github.repo, "owner/repo");
+        assert_eq!(github.sha, "0123456789abcdef0123456789abcdef01234567");
+        assert_eq!(github.path, entry.path);
+        assert!(github.branch.starts_with(BRANCH_PREFIX));
+        assert!(github.message.contains("generated entry"));
+        assert!(!github.encoded.is_empty());
+
+        // Verify encoded content is valid base64 and decodes to original content
+        let decoded = STANDARD.decode(&github.encoded).unwrap();
+        assert_eq!(decoded, entry.content.as_bytes());
+
+        // Clean up
+        cleanup_github_env();
     }
 
     #[test]
