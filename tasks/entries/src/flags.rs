@@ -6,9 +6,6 @@ xflags::xflags! {
 
         /// Generate a monthly entry
         cmd generate {}
-
-        /// Compile entries to HTML
-        cmd compile {}
     }
 }
 
@@ -23,14 +20,10 @@ pub struct Task {
 #[derive(Debug)]
 pub enum TaskCmd {
     Generate(Generate),
-    Compile(Compile),
 }
 
 #[derive(Debug)]
 pub struct Generate;
-
-#[derive(Debug)]
-pub struct Compile;
 
 impl Task {
     #[allow(dead_code)]

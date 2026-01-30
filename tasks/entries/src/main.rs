@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-mod compile;
 mod flags;
 mod generate;
 
@@ -8,14 +7,12 @@ use crate::flags::{Cmd, Task, TaskCmd};
 
 fn main() {
     if let Err(err) = try_main() {
-        let prefix = if let Ok(s) = std::env::var("GITHUB_ACTIONS")
-            && s == "true"
-        {
+        let prefix = if std::env::var("GITHUB_ACTIONS").is_ok_and(|s| s == "true") {
             "::error::"
         } else {
             ""
         };
-        println!("{prefix}{err}");
+        eprintln!("{prefix}{err:?}");
         std::process::exit(1);
     }
 }
@@ -23,7 +20,6 @@ fn main() {
 fn try_main() -> Result<()> {
     let flags = Task::from_env()?;
     match flags.subcommand {
-        TaskCmd::Compile(compile) => compile.run(),
         TaskCmd::Generate(generate) => generate.run(),
     }
 }
