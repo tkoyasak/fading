@@ -10,3 +10,6 @@ base64.workspace = true
 jiff.workspace = true
 xflags.workspace = true
 xshell.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
