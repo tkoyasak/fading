@@ -100,10 +100,9 @@ struct GitHub {
 
 impl GitHub {
     fn new(entry: Entry) -> Result<Self> {
-        let repo = std::env::var("GITHUB_REPOSITORY")
-            .context("GITHUB_REPOSITORY environment variable not found")?;
-        let sha =
-            std::env::var("GITHUB_SHA").context("GITHUB_SHA environment variable not found")?;
+        use std::env::var;
+        let repo = var("GITHUB_REPOSITORY").context("GITHUB_REPOSITORY env not found")?;
+        let sha = var("GITHUB_SHA").context("GITHUB_SHA env not found")?;
 
         let id = entry.id.strftime("%Y-%m");
         let branch = format!("{BRANCH_PREFIX}{id}");
