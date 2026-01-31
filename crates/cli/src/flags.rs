@@ -65,3 +65,108 @@ impl Fading {
 pub trait Cmd {
     fn run(self) -> anyhow::Result<()>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    mod strategies {
+        use super::*;
+
+        pub(super) fn valid_month() -> impl Strategy<Value = String> {
+            (2000u16..=2100, 1u8..=12).prop_map(|(y, m)| format!("{:04}-{:02}", y, m))
+        }
+    }
+
+    proptest! {
+        /// open with valid month should parse successfully
+        #[test]
+        fn prop_fading_from_vec_open_with_valid_month(month in strategies::valid_month()) {
+            let args = vec!["open".into(), month.clone().into()];
+            let result = Fading::from_vec(args);
+            prop_assert!(result.is_ok());
+            if let Ok(fading) = result {
+                if let FadingCmd::Open(open) = fading.subcommand {
+                    prop_assert_eq!(open.month, Some(month));
+                } else {
+                    prop_assert!(false, "Expected Open variant");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_fading_from_vec_ls() {
+        let args = vec!["ls".into()];
+        let result = Fading::from_vec(args);
+        assert!(
+            result.is_ok(),
+            "Failed to parse ls command: {:?}",
+            result.err()
+        );
+        let fading = result.unwrap();
+        assert!(matches!(fading.subcommand, FadingCmd::Ls(_)));
+    }
+
+    #[test]
+    fn test_fading_from_vec_notify() {
+        let args = vec!["notify".into()];
+        let result = Fading::from_vec(args);
+        assert!(
+            result.is_ok(),
+            "Failed to parse notify command: {:?}",
+            result.err()
+        );
+        let fading = result.unwrap();
+        assert!(matches!(fading.subcommand, FadingCmd::Notify(_)));
+    }
+
+    #[test]
+    fn test_fading_from_vec_open_no_arg() {
+        let args = vec!["open".into()];
+        let result = Fading::from_vec(args);
+        assert!(
+            result.is_ok(),
+            "Failed to parse open command: {:?}",
+            result.err()
+        );
+        let fading = result.unwrap();
+        if let FadingCmd::Open(open) = fading.subcommand {
+            assert!(open.month.is_none());
+        } else {
+            panic!("Expected Open variant");
+        }
+    }
+
+    #[test]
+    fn test_fading_from_vec_open_with_month() {
+        let args = vec!["open".into(), "2025-01".into()];
+        let result = Fading::from_vec(args);
+        assert!(
+            result.is_ok(),
+            "Failed to parse open with month: {:?}",
+            result.err()
+        );
+        let fading = result.unwrap();
+        if let FadingCmd::Open(open) = fading.subcommand {
+            assert_eq!(open.month, Some("2025-01".to_string()));
+        } else {
+            panic!("Expected Open variant");
+        }
+    }
+
+    #[test]
+    fn test_fading_from_vec_invalid() {
+        let args = vec!["invalid".into()];
+        let result = Fading::from_vec(args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fading_from_vec_no_subcommand() {
+        let args: Vec<std::ffi::OsString> = vec![];
+        let result = Fading::from_vec(args);
+        assert!(result.is_err());
+    }
+}

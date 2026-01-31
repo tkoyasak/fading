@@ -247,6 +247,7 @@ dependencies = [
  "anyhow",
  "fading-ls",
  "jiff",
+ "proptest",
  "tokio",
  "xflags",
  "xshell",
