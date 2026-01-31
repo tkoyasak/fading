@@ -3,6 +3,7 @@ use anyhow::Result;
 mod flags;
 mod ls;
 mod notify;
+mod open;
 
 use crate::flags::{Cmd, Fading, FadingCmd};
 
@@ -20,5 +21,6 @@ fn try_main() -> Result<()> {
     match flags.subcommand {
         FadingCmd::Ls(ls) => ls.run(),
         FadingCmd::Notify(notify) => notify.run(),
+        FadingCmd::Open(open) => open.run(),
     }
 }

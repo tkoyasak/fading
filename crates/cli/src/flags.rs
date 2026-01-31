@@ -9,6 +9,12 @@ xflags::xflags! {
 
         /// Notify of the time
         cmd notify {}
+
+        /// Open an entry in Helix (default: current month)
+        cmd open {
+            /// Month to open: empty/today (current), +N/-N (offset), or YYYY-MM (direct)
+            optional month: String
+        }
     }
 }
 
@@ -24,6 +30,7 @@ pub struct Fading {
 pub enum FadingCmd {
     Ls(Ls),
     Notify(Notify),
+    Open(Open),
 }
 
 #[derive(Debug)]
@@ -31,6 +38,11 @@ pub struct Ls;
 
 #[derive(Debug)]
 pub struct Notify;
+
+#[derive(Debug)]
+pub struct Open {
+    pub month: Option<String>,
+}
 
 impl Fading {
     #[allow(dead_code)]
