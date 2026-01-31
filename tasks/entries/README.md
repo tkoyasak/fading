@@ -18,6 +18,7 @@ This program is designed to run in GitHub Actions environments.
 - `GITHUB_REPOSITORY`: Repository name (e.g., `owner/repo`)
 - `GITHUB_SHA`: Commit SHA
 - `GITHUB_ACTIONS`: Flag indicating GitHub Actions environment (for error formatting)
+- `GH_TOKEN`: GitHub authentication token for `gh` CLI commands (requires repo scope)
 
 ### Timezone Handling
 
