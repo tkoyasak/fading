@@ -7,7 +7,9 @@ use std::sync::OnceLock;
 use jiff::civil::Date;
 use serde::Deserialize;
 use toml::Spanned;
-use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
+use tower_lsp_server::ls_types::{
+    Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Uri,
+};
 use tree_sitter::{Query, StreamingIterator};
 
 use crate::document::Document;
@@ -26,6 +28,7 @@ enum Code {
     CreatedAfterModified,
     InvalidHeadingLevel,
     InvalidHeadingFormat,
+    IdFilenameMismatch,
 }
 
 impl Code {
@@ -39,6 +42,7 @@ impl Code {
             Self::CreatedAfterModified => "created-after-modified",
             Self::InvalidHeadingLevel => "invalid-heading-level",
             Self::InvalidHeadingFormat => "invalid-heading-format",
+            Self::IdFilenameMismatch => "id-filename-mismatch",
         }
     }
 }
@@ -54,7 +58,7 @@ struct RawMetadata {
 }
 
 /// Runs all diagnostic checks on a document.
-pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
+pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     // Check 1: Frontmatter exists
@@ -89,10 +93,13 @@ pub fn diagnose(doc: &Document) -> Vec<Diagnostic> {
     // Check 4: id format (YYYY-MM)
     check_id_format(&raw.id, &fm, &mut diagnostics);
 
-    // Check 5-6: Date validation
+    // Check 5: id matches filename
+    check_id_filename_match(&raw.id, uri, &fm, &mut diagnostics);
+
+    // Check 6-7: Date validation
     check_dates(&raw, &fm, &mut diagnostics);
 
-    // Check 7-8: Heading validation
+    // Check 8-9: Heading validation
     check_headings(doc, &mut diagnostics);
 
     diagnostics
@@ -202,6 +209,46 @@ fn check_id_format(id: &Option<Spanned<String>>, fm: &str, diagnostics: &mut Vec
             range,
             DiagnosticSeverity::ERROR,
             &format!("Invalid id format: expected YYYY-MM, got `{id_str}`"),
+        ));
+    }
+}
+
+/// Validates that the id matches the filename.
+///
+/// Expects filename format: YYYY-MM.md
+/// Expects id format: "YYYY-MM"
+fn check_id_filename_match(
+    id: &Option<Spanned<String>>,
+    uri: &Uri,
+    fm: &str,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(spanned_id) = id else { return };
+
+    let id_str = spanned_id.get_ref();
+
+    // Extract filename from URI (e.g., "file:///path/to/2026-01.md" -> "2026-01.md")
+    let path_str = uri.path().as_str();
+    let Some(filename) = path_str.split('/').next_back() else {
+        return;
+    };
+
+    // Extract expected id from filename (e.g., "2026-01.md" -> "2026-01")
+    let expected_id = filename.strip_suffix(".md").unwrap_or(filename);
+
+    // Check if id matches filename (without .md extension)
+    if id_str != expected_id {
+        let (line, _) = offset_to_position(fm, spanned_id.span().start);
+        let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
+
+        diagnostics.push(make_diagnostic(
+            Code::IdFilenameMismatch,
+            range,
+            DiagnosticSeverity::ERROR,
+            &format!(
+                "ID `{}` does not match filename `{}` (expected `{}`)",
+                id_str, filename, expected_id
+            ),
         ));
     }
 }
@@ -338,13 +385,17 @@ mod tests {
         Document::new(None, false, content.to_string())
     }
 
+    fn test_uri(filename: &str) -> Uri {
+        format!("file:///test/{filename}").parse().unwrap()
+    }
+
     // ===== Unit tests for specific error conditions =====
 
     #[test]
     fn test_invalid_id_format() {
         let doc =
             make_doc("+++\nid = \"invalid\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
-        let diags = diagnose(&doc);
+        let diags = diagnose(&doc, &test_uri("test.md"));
         assert!(
             diags
                 .iter()
@@ -357,7 +408,7 @@ mod tests {
         let doc = make_doc(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n# 2026-01-18 Sun\n",
         );
-        let diags = diagnose(&doc);
+        let diags = diagnose(&doc, &test_uri("2026-01.md"));
         assert!(
             diags.iter().any(
                 |d| d.code == Some(NumberOrString::String("invalid-heading-level".to_string()))
@@ -370,7 +421,7 @@ mod tests {
         let doc = make_doc(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### Invalid heading\n",
         );
-        let diags = diagnose(&doc);
+        let diags = diagnose(&doc, &test_uri("2026-01.md"));
         assert!(
             diags
                 .iter()
@@ -384,7 +435,7 @@ mod tests {
         let doc = make_doc(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sun\n",
         );
-        let diags = diagnose(&doc);
+        let diags = diagnose(&doc, &test_uri("2026-01.md"));
         assert!(diags.is_empty());
     }
 
@@ -393,7 +444,7 @@ mod tests {
         let doc = make_doc(
             "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n\n###### 2026-01-18 Sun\n\nSome content\n\n###### 2026-01-19 Mon\n",
         );
-        let diags = diagnose(&doc);
+        let diags = diagnose(&doc, &test_uri("2026-01.md"));
         assert!(diags.is_empty());
     }
 
@@ -406,6 +457,32 @@ mod tests {
         assert!(!is_valid_heading_date("Invalid"));
         assert!(!is_valid_heading_date("2026-13-01 Mon")); // Invalid month
         assert!(!is_valid_heading_date("2026-01-32 Mon")); // Invalid day
+    }
+
+    #[test]
+    fn test_id_filename_match() {
+        let doc =
+            make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
+        let diags = diagnose(&doc, &test_uri("2026-01.md"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn test_id_filename_mismatch() {
+        let doc =
+            make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
+        let diags = diagnose(&doc, &test_uri("2026-02.md"));
+        assert!(has_diagnostic_code(&diags, "id-filename-mismatch"));
+    }
+
+    #[test]
+    fn test_id_filename_without_md_extension() {
+        // Test with filename without .md extension
+        let doc =
+            make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
+        let diags = diagnose(&doc, &test_uri("2026-01"));
+        // Should match because strip_suffix returns original if no .md
+        assert!(!has_diagnostic_code(&diags, "id-filename-mismatch"));
     }
 
     // ===== Property-based tests =====
@@ -436,7 +513,7 @@ mod tests {
         ) {
             let content = format!("+++\n{} {{ invalid\n+++\n", garbage);
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             prop_assert!(has_diagnostic_code(&diags, "invalid-toml"));
         }
@@ -454,7 +531,7 @@ mod tests {
                 year, month, day, year, month, day
             );
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             prop_assert!(has_diagnostic_code(&diags, "missing-field"));
         }
@@ -472,7 +549,7 @@ mod tests {
                 id, hour, minute, second
             );
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             prop_assert!(has_diagnostic_code(&diags, "invalid-date"));
         }
@@ -485,7 +562,7 @@ mod tests {
             let doc = make_doc(&content);
 
             // Should never panic, regardless of input
-            let _diags = diagnose(&doc);
+            let _diags = diagnose(&doc, &test_uri("test.md"));
 
             // Just completing without panic is success
             prop_assert!(true);
@@ -508,7 +585,7 @@ mod tests {
                 modified_year, modified_month, modified_day
             );
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             // Should not have missing-field errors
             let has_missing_field_error = diags.iter().any(|d| {
@@ -523,7 +600,7 @@ mod tests {
             content in "[^+]{1,200}"  // Content without +++ markers
         ) {
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             // Should have at least one diagnostic (missing frontmatter)
             prop_assert!(!diags.is_empty());
@@ -571,7 +648,7 @@ mod tests {
             content in ".{0,500}"
         ) {
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             // Diagnostic count should be reasonable (not thousands)
             prop_assert!(diags.len() < 100);
@@ -590,7 +667,7 @@ mod tests {
                 id, year, month, day, year, month, day
             );
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             // Should not have invalid-toml error
             let has_invalid_toml = diags.iter().any(|d| {
@@ -611,7 +688,7 @@ mod tests {
                 id, created_year, modified_year
             );
             let doc = make_doc(&content);
-            let diags = diagnose(&doc);
+            let diags = diagnose(&doc, &test_uri("test.md"));
 
             // Should have created-after-modified error when created > modified
             if created_year > modified_year {
@@ -619,6 +696,48 @@ mod tests {
                     d.code == Some(NumberOrString::String("created-after-modified".to_string()))
                 });
                 prop_assert!(has_error);
+            }
+        }
+
+        /// Property: id matching filename produces no mismatch error
+        #[test]
+        fn prop_id_filename_match_no_error(
+            year in 2020u32..2030,
+            month in 1u32..=12
+        ) {
+            let id = format!("{:04}-{:02}", year, month);
+            let filename = format!("{}.md", id);
+            let content = format!(
+                "+++\nid = \"{}\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n",
+                id
+            );
+            let doc = make_doc(&content);
+            let diags = diagnose(&doc, &test_uri(&filename));
+
+            // Should not have id-filename-mismatch error
+            prop_assert!(!has_diagnostic_code(&diags, "id-filename-mismatch"));
+        }
+
+        /// Property: id not matching filename produces mismatch error
+        #[test]
+        fn prop_id_filename_mismatch_error(
+            id_year in 2020u32..2030,
+            id_month in 1u32..=12,
+            file_year in 2020u32..2030,
+            file_month in 1u32..=12
+        ) {
+            let id = format!("{:04}-{:02}", id_year, id_month);
+            let filename = format!("{:04}-{:02}.md", file_year, file_month);
+            let content = format!(
+                "+++\nid = \"{}\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n",
+                id
+            );
+            let doc = make_doc(&content);
+            let diags = diagnose(&doc, &test_uri(&filename));
+
+            // Should have id-filename-mismatch error when id != filename
+            if id != format!("{:04}-{:02}", file_year, file_month) {
+                prop_assert!(has_diagnostic_code(&diags, "id-filename-mismatch"));
             }
         }
     }

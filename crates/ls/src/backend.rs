@@ -144,7 +144,7 @@ impl LanguageServer for Backend {
             .documents
             .pin()
             .get(uri)
-            .map(diagnose)
+            .map(|doc| diagnose(doc, uri))
             .unwrap_or_default();
 
         Ok(DocumentDiagnosticReportResult::Report(
