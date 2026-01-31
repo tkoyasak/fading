@@ -2,6 +2,10 @@
 
 Task runner for automating monthly entry generation. Designed to run in GitHub Actions cron jobs.
 
+## Prerequisites
+
+- [GitHub CLI (`gh`)](https://cli.github.com/) - Required for creating branches, commits, and pull requests
+
 ## Usage
 
 ```bash
@@ -15,10 +19,10 @@ This program is designed to run in GitHub Actions environments.
 
 ### Required Environment Variables
 
+- `GH_TOKEN`: GitHub authentication token for `gh` CLI commands (requires repo scope)
 - `GITHUB_REPOSITORY`: Repository name (e.g., `owner/repo`)
 - `GITHUB_SHA`: Commit SHA
 - `GITHUB_ACTIONS`: Flag indicating GitHub Actions environment (for error formatting)
-- `GH_TOKEN`: GitHub authentication token for `gh` CLI commands (requires repo scope)
 
 ### Timezone Handling
 
