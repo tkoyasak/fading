@@ -39,7 +39,7 @@ impl Cmd for Open {
         let sh = Shell::new()?;
 
         // Get repository path from environment variable or use current directory
-        let repo_dir = std::env::var("FADING_REPO").unwrap_or_else(|_| ".".to_string());
+        let repo_dir = std::env::var("FADING_DIR").unwrap_or_else(|_| ".".to_string());
 
         // Parse month argument
         let month_str = parse_month_arg(&self.month)?;
