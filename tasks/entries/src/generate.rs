@@ -135,9 +135,10 @@ impl GitHub {
         let branch = &self.branch;
         let sha = &self.sha;
 
-        let branch_exists = cmd!(sh, "gh api repos/{repo}/git/refs/heads/{branch}")
-            .ignore_status()
-            .run()
+        // Check if branch exists - gh api returns non-zero exit code for 404
+        // Note: Do NOT use ignore_status() here, as we need to detect 404 errors
+        let branch_exists = cmd!(sh, "gh api repos/{repo}/git/refs/heads/{branch} --jq .ref")
+            .read()
             .is_ok();
 
         if !branch_exists {
