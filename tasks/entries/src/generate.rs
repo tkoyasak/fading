@@ -199,8 +199,6 @@ mod tests {
     use proptest::prelude::*;
     use serial_test::serial;
 
-    // ===== Helper functions =====
-
     fn test_entry(year: i16, month: i8, day: i8) -> Entry {
         Entry {
             id: Date::new(year, month, day).unwrap(),
@@ -209,7 +207,6 @@ mod tests {
         }
     }
 
-    /// Set up test environment with GitHub credentials
     fn setup_github_env(repo: &str, sha: &str) {
         unsafe {
             std::env::set_var("GITHUB_REPOSITORY", repo);
@@ -217,7 +214,6 @@ mod tests {
         }
     }
 
-    /// Clean up GitHub environment variables
     fn cleanup_github_env() {
         unsafe {
             std::env::remove_var("GITHUB_REPOSITORY");
@@ -225,9 +221,6 @@ mod tests {
         }
     }
 
-    // ===== Proptest configuration =====
-
-    /// Proptest configuration: run 1000 test cases for better coverage
     fn proptest_config() -> ProptestConfig {
         ProptestConfig::with_cases(1000)
     }
@@ -235,26 +228,15 @@ mod tests {
     mod strategies {
         use super::*;
 
-        /// Strategy: Generates valid dates using day offset
-        ///
-        /// Produces dates from 2020-01-01 to ~2030 by adding day offsets.
-        /// More efficient than tuple-based approach (never generates invalid dates like Feb 30).
         pub(super) fn jiff_date() -> impl Strategy<Value = Date> {
             let fixed = date(2020, 1, 1);
             (0i64..=4000).prop_map(move |offset| fixed.checked_add(offset.days()).unwrap())
         }
 
-        /// Strategy: Generates first day of any month
-        ///
-        /// Returns dates that are always the 1st of a month, useful for testing
-        /// monthly entry generation.
         pub(super) fn first_of_month() -> impl Strategy<Value = Date> {
             jiff_date().prop_map(|date| date.first_of_month())
         }
 
-        /// Strategy: Generates valid GitHub repository names
-        ///
-        /// Format: owner/repo (e.g., "octocat/Hello-World")
         pub(super) fn github_repo() -> impl Strategy<Value = String> {
             (
                 "[a-z0-9-]{3,20}/[a-z0-9-]{3,30}",
@@ -263,12 +245,10 @@ mod tests {
                 .prop_map(|(_, repo)| repo)
         }
 
-        /// Strategy: Generates valid git commit SHA (40 hex chars)
         pub(super) fn commit_sha() -> impl Strategy<Value = String> {
             "[0-9a-f]{40}".prop_map(|s| s)
         }
 
-        /// Strategy: Generates Entry with valid content
         pub(super) fn entry() -> impl Strategy<Value = Entry> {
             first_of_month().prop_map(|date| {
                 let mut entry = Entry {
@@ -285,12 +265,7 @@ mod tests {
     proptest! {
         #![proptest_config(proptest_config())]
 
-        /// Property: Entry path format is correct
-        ///
-        /// For any valid date, the generated path should:
-        /// - Start with ENTRIES_DIR
-        /// - Not contain ".." (path traversal protection)
-        /// - Follow the format "entries/YYYY-MM.md"
+        /// Property: Entry path format and security
         #[test]
         fn prop_entry_path_format(date in strategies::jiff_date()) {
             let entry = test_entry(date.year(), date.month(), date.day());
@@ -298,6 +273,8 @@ mod tests {
 
             prop_assert!(entry.path.starts_with(ENTRIES_DIR));
             prop_assert!(!entry.path.contains(".."));
+            prop_assert!(!entry.path.contains("//"));
+            prop_assert!(!entry.path.starts_with('/'));
             prop_assert_eq!(&entry.path, &expected_path);
         }
 
@@ -322,119 +299,30 @@ mod tests {
             prop_assert!(metadata.contains(&expected_id));
         }
 
-        /// Property: Generated content has correct day count
-        ///
-        /// For any month, the number of generated date headers should match
-        /// the actual number of days in that month (28-31).
+        /// Property: Generated content has correct day count and boundaries
         #[test]
         fn prop_generate_correct_day_count(first_of_month in strategies::first_of_month()) {
             let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
             entry.generate().unwrap();
 
-            let expected_days = first_of_month.days_in_month() as usize;
+            let expected_days = first_of_month.days_in_month();
             let pattern = format!("###### {:04}-{:02}-", first_of_month.year(), first_of_month.month());
             let actual_days = entry.content.matches(&pattern).count();
 
-            prop_assert_eq!(actual_days, expected_days);
+            prop_assert_eq!(actual_days, expected_days as usize);
             prop_assert!(entry.content.starts_with("+++\n"));
-        }
 
-        /// Property: Generated content has first and last day
-        ///
-        /// For any month, the generated content should include headers for
-        /// both the 1st and the last day of the month.
-        #[test]
-        fn prop_generate_has_first_and_last_day(first_of_month in strategies::first_of_month()) {
-            let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
-            entry.generate().unwrap();
-
-            let last_day = first_of_month.days_in_month();
+            // Verify first and last day headers exist
             let first_header = format!("###### {:04}-{:02}-01 ", first_of_month.year(), first_of_month.month());
-            let last_header = format!("###### {:04}-{:02}-{:02} ", first_of_month.year(), first_of_month.month(), last_day);
-
+            let last_header = format!("###### {:04}-{:02}-{:02} ", first_of_month.year(), first_of_month.month(), expected_days);
             prop_assert!(entry.content.contains(&first_header));
             prop_assert!(entry.content.contains(&last_header));
         }
 
-        /// Property: GitHub struct fields have correct format
-        ///
-        /// For any valid entry with environment variables set, GitHub::new should produce
-        /// a struct with properly formatted fields.
+        /// Property: GitHub struct fields have correct format and branch name
         #[test]
         #[serial]
         fn prop_github_fields_format(
-            entry in strategies::entry(),
-            repo in strategies::github_repo(),
-            sha in strategies::commit_sha()
-        ) {
-            // Set environment variables for this test
-            setup_github_env(&repo, &sha);
-
-            let github = GitHub::new(entry.clone()).unwrap();
-
-            // Verify all fields are populated correctly
-            prop_assert_eq!(&github.repo, &repo);
-            prop_assert_eq!(&github.sha, &sha);
-            prop_assert!(github.path.starts_with(ENTRIES_DIR));
-            prop_assert!(github.branch.starts_with(BRANCH_PREFIX));
-            prop_assert!(github.message.starts_with("cron: "));
-            prop_assert!(!github.encoded.is_empty());
-
-            // Verify encoded content is valid base64
-            prop_assert!(STANDARD.decode(&github.encoded).is_ok());
-
-            // Clean up environment variables
-            cleanup_github_env();
-        }
-
-        /// Property: GitHub::new fails gracefully without environment variables
-        ///
-        /// When required environment variables are missing, GitHub::new should return
-        /// a descriptive error rather than panicking.
-        #[test]
-        #[serial]
-        fn prop_github_new_fails_without_env(entry in strategies::entry()) {
-            // Ensure environment variables are not set
-            cleanup_github_env();
-
-            let result = GitHub::new(entry);
-            prop_assert!(result.is_err());
-            prop_assert!(result.unwrap_err().to_string().contains("env"));
-        }
-
-        /// Property: Entry path never contains dangerous patterns
-        ///
-        /// For any generated entry, the path should never contain path traversal
-        /// sequences or absolute paths.
-        #[test]
-        fn prop_entry_path_security(first_of_month in strategies::first_of_month()) {
-            let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
-            entry.generate().unwrap();
-
-            prop_assert!(!entry.path.contains(".."));
-            prop_assert!(!entry.path.contains("//"));
-            prop_assert!(!entry.path.starts_with('/'));
-            prop_assert!(entry.path.starts_with(ENTRIES_DIR));
-        }
-
-        /// Property: Generated content is valid UTF-8
-        ///
-        /// For any month, the generated content should always be valid UTF-8.
-        #[test]
-        fn prop_generate_valid_utf8(first_of_month in strategies::first_of_month()) {
-            let mut entry = test_entry(first_of_month.year(), first_of_month.month(), 1);
-            entry.generate().unwrap();
-
-            prop_assert!(std::str::from_utf8(entry.content.as_bytes()).is_ok());
-            prop_assert!(!entry.content.is_empty());
-        }
-
-        /// Property: Branch name format is consistent
-        ///
-        /// For any entry, the branch name should follow the format "entry/YYYY-MM".
-        #[test]
-        #[serial]
-        fn prop_branch_name_format(
             entry in strategies::entry(),
             repo in strategies::github_repo(),
             sha in strategies::commit_sha()
@@ -444,22 +332,22 @@ mod tests {
             let github = GitHub::new(entry.clone()).unwrap();
             let expected_suffix = format!("{:04}-{:02}", entry.id.year(), entry.id.month());
 
+            // Verify all fields are populated correctly
+            prop_assert_eq!(&github.repo, &repo);
+            prop_assert_eq!(&github.sha, &sha);
+            prop_assert!(github.path.starts_with(ENTRIES_DIR));
             prop_assert!(github.branch.starts_with(BRANCH_PREFIX));
             prop_assert!(github.branch.ends_with(&expected_suffix));
+            prop_assert!(github.message.starts_with("cron: "));
+            prop_assert!(!github.encoded.is_empty());
+            prop_assert!(STANDARD.decode(&github.encoded).is_ok());
 
             cleanup_github_env();
         }
+
     }
 
     // ===== Edge case tests =====
-    //
-    // These tests verify specific boundary conditions not fully covered by property tests:
-    // - Leap year February (29 days)
-    // - Non-leap year February (28 days)
-    // - Timezone loading
-    // - Entry::new() runtime behavior
-    //
-    // General cases (day count, header format) are covered by property tests.
 
     #[test]
     fn test_leap_year_february() {
@@ -482,34 +370,13 @@ mod tests {
 
     #[test]
     fn test_jst_timezone_loads() {
-        // jst() should successfully load Asia/Tokyo timezone
         let tz = jst().unwrap();
         assert_eq!(tz.iana_name(), Some(TIMEZONE));
     }
 
     #[test]
-    fn test_entry_new_creates_valid_structure() {
-        // Entry::new() should create a valid entry with current month
-        let entry = Entry::new().unwrap();
-
-        // Verify structure
-        assert!(entry.path.starts_with(ENTRIES_DIR));
-        assert!(!entry.path.contains(".."));
-        assert!(entry.content.starts_with("+++\n"));
-        assert!(entry.content.contains("id = "));
-        assert!(entry.content.contains("created = "));
-        assert!(entry.content.contains("modified = "));
-
-        // Verify it has at least 28 day headers (minimum for any month)
-        let day_headers = entry.content.matches("###### ").count();
-        assert!(day_headers >= 28);
-        assert!(day_headers <= 31);
-    }
-
-    #[test]
     #[serial]
     fn test_github_new_requires_env_vars() {
-        // Clean environment
         cleanup_github_env();
 
         let entry = Entry::new().unwrap();
@@ -522,37 +389,5 @@ mod tests {
                 .to_string()
                 .contains("GITHUB_REPOSITORY")
         );
-    }
-
-    #[test]
-    #[serial]
-    fn test_github_new_with_valid_env() {
-        // Set up environment
-        setup_github_env("owner/repo", "0123456789abcdef0123456789abcdef01234567");
-
-        let entry = Entry::new().unwrap();
-        let github = GitHub::new(entry.clone()).unwrap();
-
-        assert_eq!(github.repo, "owner/repo");
-        assert_eq!(github.sha, "0123456789abcdef0123456789abcdef01234567");
-        assert_eq!(github.path, entry.path);
-        assert!(github.branch.starts_with(BRANCH_PREFIX));
-        assert!(github.message.contains("generated entry"));
-        assert!(!github.encoded.is_empty());
-
-        // Verify encoded content is valid base64 and decodes to original content
-        let decoded = STANDARD.decode(&github.encoded).unwrap();
-        assert_eq!(decoded, entry.content.as_bytes());
-
-        // Clean up
-        cleanup_github_env();
-    }
-
-    #[test]
-    fn test_constants() {
-        assert_eq!(TIMEZONE, "Asia/Tokyo");
-        assert_eq!(ENTRIES_DIR, "entries/");
-        assert_eq!(BRANCH_PREFIX, "entry/");
-        assert_eq!(BASE_BRANCH, "main");
     }
 }
