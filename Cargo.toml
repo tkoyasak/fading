@@ -27,7 +27,7 @@ tokio = { version = "1.49.0", features = ["io-std", "macros", "rt", "rt-multi-th
 toml = { version = "0.9.11" }
 tower = { version = "0.5.3" }
 tower-lsp-server = { version = "0.23.0" }
-tree-sitter = { version = "0.26.3" }
+tree-sitter = { version = "0.26.5" }
 tree-sitter-md = { version = "0.5.2", features = ["parser"] }
 xflags = { version = "0.4.0-pre.2" }
 xshell = { version = "0.3.0-pre.2" }
