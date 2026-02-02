@@ -38,12 +38,22 @@ impl Cmd for Open {
     fn run(self) -> Result<()> {
         let sh = Shell::new()?;
 
+        // Check if helix is installed
+        cmd!(sh, "which hx")
+            .read()
+            .context("Helix (hx) is not installed or not in PATH")?;
+
         // Get repository path from environment variable or use current directory
         let repo_dir = std::env::var("FADING_DIR").unwrap_or_else(|_| ".".to_string());
 
         // Parse month argument
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
+
+        // Check if file exists
+        if !std::path::Path::new(&path).exists() {
+            bail!("File not found: {path}");
+        }
 
         // Open in Helix
         cmd!(sh, "hx {path}")
