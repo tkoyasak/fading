@@ -41,13 +41,33 @@ The language server provides the following diagnostics:
 
 Triggered when a document lacks TOML frontmatter enclosed in `+++` delimiters.
 
-#### `invalid-frontmatter-toml`
+#### `invalid-toml`
 
 Triggered when the frontmatter is not valid TOML syntax.
 
-#### `missing-frontmatter-field`
+#### `missing-field`
 
 Triggered when required fields (`id`, `created`, `modified`) are missing from the frontmatter.
+
+#### `invalid-id-format`
+
+Triggered when the `id` field is not in YYYY-MM format.
+
+#### `invalid-date`
+
+Triggered when date fields (`created`, `modified`) are invalid or malformed.
+
+#### `created-after-modified`
+
+Triggered when the `created` date is later than the `modified` date.
+
+#### `invalid-heading-level`
+
+Triggered when entry headings are not h6 (######).
+
+#### `invalid-heading-format`
+
+Triggered when h6 headings don't match the YYYY-MM-DD Day format.
 
 #### `id-filename-mismatch`
 
@@ -135,7 +155,7 @@ cargo test -p fading-ls
 cargo llvm-cov --package fading-ls
 ```
 
-Current coverage: **99.42%**
+Current coverage: **61.32%**
 
 ## Dependencies
 

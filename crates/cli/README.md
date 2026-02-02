@@ -99,7 +99,7 @@ cargo test -p fading-cli
 cargo llvm-cov --package fading-cli
 ```
 
-Current coverage: **86.26%**
+Current coverage: **49.64%**
 
 ### Update xflags
 
