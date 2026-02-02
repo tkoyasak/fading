@@ -1,10 +1,3 @@
-//! Language Server for the fading markdown-based diary system.
-//!
-//! This crate provides an LSP implementation that supports:
-//! - Incremental document synchronization with tree-sitter parsing
-//! - Automatic metadata (modified date) updates via code actions
-//! - Real-time diagnostics for frontmatter validation
-
 use tower_lsp_server::{LspService, Server};
 
 mod backend;
@@ -12,10 +5,6 @@ mod code_actions;
 mod diagnostics;
 mod document;
 
-/// Runs the language server.
-///
-/// Initializes logging, creates the LSP service, and begins serving
-/// requests over stdin/stdout.
 pub async fn run() {
     env_logger::init();
 

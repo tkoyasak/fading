@@ -1,7 +1,3 @@
-//! LSP backend implementation.
-//!
-//! Handles the core LSP protocol: document synchronization, code actions, etc.
-
 use log::debug;
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::ls_types::{
@@ -20,17 +16,13 @@ use crate::code_actions::{code_actions, should_clear_modified, supported_action_
 use crate::diagnostics::{DIAGNOSTIC_SOURCE, diagnose};
 use crate::document::Document;
 
-/// The LSP backend that manages document state and handles requests.
 #[derive(Debug)]
 pub struct Backend {
-    /// LSP client for sending notifications.
     _client: Client,
-    /// Open documents indexed by URI.
     documents: papaya::HashMap<Uri, Document>,
 }
 
 impl Backend {
-    /// Creates a new backend instance.
     pub fn new(client: Client) -> Self {
         Self {
             _client: client,

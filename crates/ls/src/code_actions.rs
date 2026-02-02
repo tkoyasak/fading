@@ -26,7 +26,6 @@ struct MetadataProvider;
 
 impl CodeActionProvider for MetadataProvider {
     fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>> {
-        // Only offer code action if document has been modified
         if !doc.modified() {
             return None;
         }
@@ -34,7 +33,6 @@ impl CodeActionProvider for MetadataProvider {
         let (fm, range) = doc.frontmatter()?;
         let edits = update_metadata(&fm, range)?;
 
-        // Construct WorkspaceEdit with URI -> edits mapping
         let changes = std::collections::HashMap::from([(uri.clone(), edits)]);
         let code_action = CodeAction {
             title: "Update metadata".to_string(),
@@ -52,17 +50,10 @@ impl CodeActionProvider for MetadataProvider {
     }
 }
 
-/// Returns all registered code action providers.
 fn get_providers() -> Vec<Box<dyn CodeActionProvider>> {
-    vec![
-        Box::new(MetadataProvider),
-        // Future: Box::new(FormatProvider), etc.
-    ]
+    vec![Box::new(MetadataProvider)]
 }
 
-/// Returns all supported action kinds.
-///
-/// This is used by the LSP backend to advertise capabilities and filter requests.
 pub fn supported_action_kinds() -> Vec<CodeActionKind> {
     get_providers()
         .into_iter()
@@ -70,16 +61,6 @@ pub fn supported_action_kinds() -> Vec<CodeActionKind> {
         .collect()
 }
 
-/// Returns available code actions for a document.
-///
-/// Collects actions from all registered providers.
-///
-/// Currently supports:
-/// - Update metadata: Updates the `modified` date to today if the document has been modified
-///
-/// # Returns
-/// - `None` if no actions are available from any provider
-/// - `Some(actions)` with code actions from all providers
 pub fn code_actions(doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>> {
     let mut actions = Vec::new();
 
@@ -96,53 +77,21 @@ pub fn code_actions(doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand
     }
 }
 
-/// Checks if the document's modified flag should be cleared.
-///
-/// Returns true if the frontmatter's modified date is already today,
-/// indicating that no further updates are needed.
-///
-/// # Returns
-/// - `true`: Modified date is already today, safe to clear the modified flag
-/// - `false`: Modified date is not today or frontmatter is invalid
 pub fn should_clear_modified(doc: &Document) -> bool {
     doc.frontmatter()
         .and_then(|(fm, _)| toml::from_str::<Metadata>(&fm).ok())
         .is_some_and(|metadata| metadata.modified == today())
 }
 
-// ===== Private types and functions =====
-
-/// TOML frontmatter structure.
-///
-/// Only these three fields are recognized; any extra fields are stripped on update.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Metadata {
-    /// Entry identifier (e.g., "2026-01").
     id: String,
-    /// Date when the entry was created.
     created: toml::value::Date,
-    /// Date when the entry was last modified.
     modified: toml::value::Date,
 }
 
-/// Converts `jiff::civil::Date` to `toml::value::Date`.
-///
-/// # Panics
-///
-/// Panics if the year is negative or exceeds `u16::MAX` (65535).
-/// In practice, this should never happen for dates in reasonable ranges (1000-9999).
-///
-/// # Examples
-///
-/// ```ignore
-/// let date = Date::new(2026, 1, 15).unwrap();
-/// let toml_date = date_to_toml(date);
-/// assert_eq!(toml_date.year, 2026);
-/// ```
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn date_to_toml(date: Date) -> toml::value::Date {
-    // SAFETY: jiff guarantees month is 1-12 and day is 1-31
-    // year is truncated but should be in valid range for fading dates
     toml::value::Date {
         year: date.year() as u16,
         month: date.month() as u8,
@@ -150,33 +99,15 @@ fn date_to_toml(date: Date) -> toml::value::Date {
     }
 }
 
-/// Converts `toml::value::Date` to `jiff::civil::Date`.
-///
-/// Returns `None` if the date is invalid (e.g., Feb 30, month 13).
-///
-/// # Examples
-///
-/// ```ignore
-/// let toml_date = toml::value::Date { year: 2026, month: 2, day: 30 };
-/// assert!(toml_to_date(toml_date).is_none()); // Feb 30 is invalid
-/// ```
 #[allow(dead_code, clippy::cast_possible_wrap)]
 fn toml_to_date(date: toml::value::Date) -> Option<Date> {
     Date::new(date.year as i16, date.month as i8, date.day as i8).ok()
 }
 
-/// Returns the current date as `toml::value::Date`.
 fn today() -> toml::value::Date {
     date_to_toml(Zoned::now().date())
 }
 
-/// Generates text edits to update the `modified` date to today.
-///
-/// Takes the frontmatter text and its range directly.
-///
-/// # Returns
-/// - `Some(edits)`: Metadata needs updating, text edits provided
-/// - `None`: Modified date is already today, no update needed, or TOML parse error
 fn update_metadata(fm: &str, range: Range) -> Option<Vec<TextEdit>> {
     let mut metadata = toml::from_str::<Metadata>(fm).ok()?;
     let today = today();
@@ -199,8 +130,6 @@ mod tests {
     use std::str::FromStr;
     use tower_lsp_server::ls_types::Position;
 
-    // ===== Helper functions =====
-
     fn make_doc(content: &str) -> Document {
         Document::new(None, false, content.to_string())
     }
@@ -212,16 +141,6 @@ mod tests {
     fn uri() -> Uri {
         "file:///test.md".parse().unwrap()
     }
-
-    // ===== Edge case tests for code_actions() and should_clear_modified() =====
-    //
-    // These tests verify specific boundary conditions not fully covered by property tests:
-    // - Missing frontmatter (document structure validation)
-    // - Invalid TOML syntax (error handling)
-    //
-    // General cases (modified flag, date comparison) are covered by property tests:
-    // - prop_code_actions_respects_modified_flag
-    // - prop_should_clear_modified_consistency
 
     #[test]
     fn code_actions_returns_none_when_no_frontmatter() {
@@ -241,9 +160,6 @@ mod tests {
         assert!(!should_clear_modified(&doc));
     }
 
-    // ===== Private function tests =====
-
-    /// Proptest configuration: run 1000 test cases for better coverage
     fn proptest_config() -> ProptestConfig {
         ProptestConfig::with_cases(1000)
     }

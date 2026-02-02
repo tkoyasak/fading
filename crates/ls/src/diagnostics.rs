@@ -14,10 +14,8 @@ use tree_sitter::{Query, StreamingIterator};
 
 use crate::document::Document;
 
-/// Diagnostic source identifier.
 pub const DIAGNOSTIC_SOURCE: &str = "fading";
 
-/// Diagnostic codes for different error types.
 #[derive(Debug, Clone, Copy)]
 enum Code {
     MissingFrontmatter,
@@ -47,9 +45,6 @@ impl Code {
     }
 }
 
-/// Lenient frontmatter structure for validation.
-///
-/// Uses `Spanned<T>` to track byte offsets of each field in the source.
 #[derive(Debug, Deserialize)]
 struct RawMetadata {
     id: Option<Spanned<String>>,
@@ -57,11 +52,9 @@ struct RawMetadata {
     modified: Option<Spanned<toml::value::Datetime>>,
 }
 
-/// Runs all diagnostic checks on a document.
 pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
-    // Check 1: Frontmatter exists
     let Some((fm, fm_range)) = doc.frontmatter() else {
         diagnostics.push(make_diagnostic(
             Code::MissingFrontmatter,
@@ -72,7 +65,6 @@ pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
         return diagnostics;
     };
 
-    // Check 2: Valid TOML syntax
     let raw = match toml::from_str::<RawMetadata>(&fm) {
         Ok(raw) => raw,
         Err(e) => {
@@ -87,25 +79,15 @@ pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
         }
     };
 
-    // Check 3: Required fields
     check_required_fields(&raw, fm_range, &mut diagnostics);
-
-    // Check 4: id format (YYYY-MM)
     check_id_format(&raw.id, &fm, &mut diagnostics);
-
-    // Check 5: id matches filename
     check_id_filename_match(&raw.id, uri, &fm, &mut diagnostics);
-
-    // Check 6-7: Date validation
     check_dates(&raw, &fm, &mut diagnostics);
-
-    // Check 8-9: Heading validation
     check_headings(doc, &mut diagnostics);
 
     diagnostics
 }
 
-/// Creates a diagnostic with consistent formatting.
 fn make_diagnostic(
     code: Code,
     range: Range,
@@ -122,9 +104,6 @@ fn make_diagnostic(
     }
 }
 
-/// Converts a TOML parse error to a range.
-///
-/// Returns `None` if the error has no span information.
 fn toml_error_range(error: &toml::de::Error, fm: &str) -> Option<Range> {
     let span = error.span()?;
     let (line, col) = offset_to_position(fm, span.start);
@@ -134,21 +113,6 @@ fn toml_error_range(error: &toml::de::Error, fm: &str) -> Option<Range> {
     ))
 }
 
-/// Converts byte offset to (line, column) in frontmatter.
-///
-/// # Line numbering
-/// Line numbers are relative to the frontmatter content (after the opening `+++`).
-/// - Line 0: Would be the opening `+++` (not included in frontmatter string)
-/// - Line 1: First line of TOML content (where frontmatter string starts)
-/// - Line N: Nth line of TOML content
-///
-/// # Arguments
-/// - `fm`: The frontmatter string (TOML content only, without `+++` markers)
-/// - `offset`: Byte offset within the frontmatter string
-///
-/// # Returns
-/// - `line`: 1-based line number within frontmatter content
-/// - `col`: 0-based column number (resets to 0 after each newline)
 fn offset_to_position(fm: &str, offset: usize) -> (u32, u32) {
     let mut line = 1u32;
     let mut col = 0u32;
@@ -170,7 +134,6 @@ fn offset_to_position(fm: &str, offset: usize) -> (u32, u32) {
     (line, col)
 }
 
-/// Checks for missing required fields.
 fn check_required_fields(raw: &RawMetadata, range: Range, diagnostics: &mut Vec<Diagnostic>) {
     let fields = [
         (raw.id.is_none(), "id"),
@@ -213,10 +176,6 @@ fn check_id_format(id: &Option<Spanned<String>>, fm: &str, diagnostics: &mut Vec
     }
 }
 
-/// Validates that the id matches the filename.
-///
-/// Expects filename format: YYYY-MM.md
-/// Expects id format: "YYYY-MM"
 fn check_id_filename_match(
     id: &Option<Spanned<String>>,
     uri: &Uri,
@@ -224,19 +183,13 @@ fn check_id_filename_match(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let Some(spanned_id) = id else { return };
-
     let id_str = spanned_id.get_ref();
-
-    // Extract filename from URI (e.g., "file:///path/to/2026-01.md" -> "2026-01.md")
     let path_str = uri.path().as_str();
     let Some(filename) = path_str.split('/').next_back() else {
         return;
     };
-
-    // Extract expected id from filename (e.g., "2026-01.md" -> "2026-01")
     let expected_id = filename.strip_suffix(".md").unwrap_or(filename);
 
-    // Check if id matches filename (without .md extension)
     if id_str != expected_id {
         let (line, _) = offset_to_position(fm, spanned_id.span().start);
         let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
@@ -253,12 +206,10 @@ fn check_id_filename_match(
     }
 }
 
-/// Validates date fields and checks created <= modified.
 fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
     let created = validate_date_field(&raw.created, "created", fm, diagnostics);
     let modified = validate_date_field(&raw.modified, "modified", fm, diagnostics);
 
-    // Check created <= modified
     if let (Some(c), Some(m)) = (created, modified)
         && c > m
         && let Some(spanned_created) = &raw.created
@@ -273,14 +224,12 @@ fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Parses a Spanned Datetime as a Date.
 #[allow(clippy::cast_possible_wrap)]
 fn parse_date(spanned: &Spanned<toml::value::Datetime>) -> Option<Date> {
     let d = spanned.get_ref().date.as_ref()?;
     Date::new(d.year as i16, d.month as i8, d.day as i8).ok()
 }
 
-/// Validates a date field and returns the parsed date, adding diagnostics if invalid.
 fn validate_date_field(
     spanned: &Option<Spanned<toml::value::Datetime>>,
     field_name: &str,
@@ -332,12 +281,10 @@ fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Validates a single heading node.
 fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Vec<Diagnostic>) {
     let line = node.start_position().row as u32;
     let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
 
-    // Check 1: Must be h6
     let is_h6 = (0..node.child_count())
         .filter_map(|i| node.child(i as u32))
         .any(|child| child.kind() == "atx_h6_marker");
@@ -352,7 +299,6 @@ fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Ve
         return;
     }
 
-    // Check 2: Format must be YYYY-MM-DD Day
     let text = (0..node.child_count())
         .filter_map(|i| node.child(i as u32))
         .find(|child| child.kind() == "inline")
@@ -370,9 +316,6 @@ fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Ve
     }
 }
 
-/// Checks if the heading text matches the `YYYY-MM-DD Day` format.
-///
-/// Uses jiff to parse and validate the date, including checking that the day of week matches.
 fn is_valid_heading_date(text: &str) -> bool {
     Date::strptime("%Y-%m-%d %a", text).is_ok()
 }
@@ -388,8 +331,6 @@ mod tests {
     fn test_uri(filename: &str) -> Uri {
         format!("file:///test/{filename}").parse().unwrap()
     }
-
-    // ===== Unit tests for specific error conditions =====
 
     #[test]
     fn test_invalid_id_format() {
@@ -466,25 +407,11 @@ mod tests {
 
     #[test]
     fn test_id_filename_without_md_extension() {
-        // Test with filename without .md extension
         let doc =
             make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
         let diags = diagnose(&doc, &test_uri("2026-01"));
-        // Should match because strip_suffix returns original if no .md
         assert!(!has_diagnostic_code(&diags, "id-filename-mismatch"));
     }
-
-    // ===== Property-based tests =====
-    //
-    // These tests verify invariants across a wide range of inputs:
-    // - prop_diagnose_never_panics: Robustness (no crashes on any input)
-    // - prop_valid_frontmatter_no_missing_fields: Completeness (valid input → no errors)
-    // - prop_no_frontmatter_gets_diagnostic: Correctness (invalid input → expected error)
-    // - prop_valid_heading_date_format: Format validation consistency
-    // - prop_invalid_date_rejected: Invalid date rejection
-    // - prop_diagnostic_count_bounded: Performance (reasonable diagnostic count)
-    // - prop_valid_toml_no_error: Valid TOML parsing
-    // - prop_created_after_modified_error: Semantic validation
 
     use proptest::prelude::*;
 
