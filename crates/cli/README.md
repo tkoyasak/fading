@@ -71,13 +71,11 @@ fading open 2025-01
 
 ### `FADING_DIR`
 
-Path to the fading directory containing entries.
+**Required.** Path to the fading directory containing entries.
 
 ```bash
 export FADING_DIR="$HOME/path/to/fading"
 ```
-
-**Default**: `.` (current directory)
 
 **Entry file location**: `${FADING_DIR}/entries/${YYYY-MM}.md`
 

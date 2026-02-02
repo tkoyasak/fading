@@ -43,8 +43,8 @@ impl Cmd for Open {
             .read()
             .context("Helix (hx) is not installed or not in PATH")?;
 
-        // Get repository path from environment variable or use current directory
-        let repo_dir = std::env::var("FADING_DIR").unwrap_or_else(|_| ".".to_string());
+        // Get repository path from environment variable
+        let repo_dir = std::env::var("FADING_DIR").context("FADING_DIR env is not set")?;
 
         // Parse month argument
         let month_str = parse_month_arg(&self.month)?;
