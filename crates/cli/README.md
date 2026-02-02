@@ -25,11 +25,12 @@ fading ls
 ```
 
 The language server provides:
+
 - Text document synchronization
 - Code actions for updating metadata
 - Diagnostics for frontmatter validation
 
-Only activates when the workspace contains a folder named "fading".
+Activates when `FADING_DIR` environment variable matches the workspace path.
 
 ### `fading notify`
 
@@ -61,6 +62,7 @@ fading open 2025-01
 ```
 
 **Month argument formats:**
+
 - Empty or `today`: Current month (YYYY-MM)
 - `+N` or `-N`: N months offset from current month
 - `YYYY-MM`: Direct month specification
@@ -69,10 +71,10 @@ fading open 2025-01
 
 ### `FADING_DIR`
 
-Path to the fading repository containing entries.
+Path to the fading directory containing entries.
 
 ```bash
-export FADING_DIR="$HOME/path/to/fading-repo"
+export FADING_DIR="$HOME/path/to/fading"
 ```
 
 **Default**: `.` (current directory)
@@ -96,7 +98,7 @@ cargo test -p fading-cli
 ### Coverage
 
 ```bash
-cargo llvm-cov --package fading-cli
+cargo llvm-cov -p fading-cli
 ```
 
 Current coverage: **49.64%**

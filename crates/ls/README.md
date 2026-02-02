@@ -19,6 +19,7 @@ Language server implementation for the fading language.
 Automatically updates the `modified` field in the frontmatter to today's date when the document is modified.
 
 **Trigger conditions**:
+
 - Document has been modified since opening
 - Frontmatter exists and is valid TOML
 - `modified` field is not already set to today's date
@@ -74,21 +75,24 @@ Triggered when h6 headings don't match the YYYY-MM-DD Day format.
 Triggered when the frontmatter `id` field does not match the filename (without `.md` extension).
 
 **Example**:
+
 - Filename: `2026-01.md`
 - Expected `id`: `"2026-01"`
 
 ## Activation
 
-The language server only activates when the workspace contains a folder named **`fading`**.
+The language server activates when the `FADING_DIR` environment variable matches the workspace path.
 
 This prevents the server from running in unrelated projects.
+
+**Note**: Only single-root workspaces are supported. Multi-root workspaces will not activate the server.
 
 ## Architecture
 
 ### Key Components
 
 - **backend.rs**: LSP protocol implementation and request handling
-- **document.rs**: Document state management with `Rope` for efficient text operations
+- **document.rs**: Document state management with `crop::Rope` for efficient text operations
 - **code_actions.rs**: Code action providers (metadata updates)
 - **diagnostics.rs**: Diagnostic generation for validation errors
 
@@ -152,7 +156,7 @@ cargo test -p fading-ls
 ### Coverage
 
 ```bash
-cargo llvm-cov --package fading-ls
+cargo llvm-cov -p fading-ls
 ```
 
 Current coverage: **61.32%**

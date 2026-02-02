@@ -34,10 +34,20 @@ impl Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         debug!("fading-ls initialize.");
-        if params
-            .workspace_folders
-            .is_some_and(|folders| folders.iter().any(|f| f.name == "fading"))
-        {
+        let has_fading_root = params.workspace_folders.as_ref().is_some_and(|folders| {
+            if folders.len() == 1
+                && let Some(folder) = folders.first()
+            {
+                let path = folder.uri.path().as_str();
+
+                // Check if FADING_DIR matches workspace path
+                std::env::var("FADING_DIR").is_ok_and(|fading_dir| path == fading_dir)
+            } else {
+                false
+            }
+        });
+
+        if has_fading_root {
             Ok(InitializeResult {
                 server_info: Some(ServerInfo {
                     name: "fading".to_string(),
@@ -180,19 +190,17 @@ impl LanguageServer for Backend {
 mod tests {
     use super::*;
     use serde_json::json;
+    use serial_test::serial;
     use tower::{Service, ServiceExt};
     use tower_lsp_server::LspService;
     use tower_lsp_server::jsonrpc::{Request, Response};
 
-    fn initialize_request(id: i64, with_fading_folder: bool) -> Request {
-        let folders = if with_fading_folder {
-            json!([{"uri": "file:///workspace/fading", "name": "fading"}])
-        } else {
-            json!([{"uri": "file:///workspace/other", "name": "other"}])
-        };
-
+    fn initialize_request(id: i64, uri: &str) -> Request {
         Request::build("initialize")
-            .params(json!({"capabilities": {}, "workspaceFolders": folders}))
+            .params(json!({
+                "capabilities": {},
+                "workspaceFolders": [{"uri": uri, "name": "workspace"}]
+            }))
             .id(id)
             .finish()
     }
@@ -265,13 +273,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_initialize_with_fading_folder() {
+    #[serial]
+    async fn test_initialize_with_fading_dir() {
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace/fading");
+        }
         let (mut service, _) = LspService::new(Backend::new);
 
-        let request = initialize_request(1, true);
+        let request = initialize_request(1, "file:///workspace/fading");
         let response = send(&mut service, request).await.unwrap();
 
-        // Response should contain result (not error)
         let result = response.result().expect("should have result");
         let result_str = result.to_string();
         assert!(
@@ -282,19 +293,25 @@ mod tests {
             result_str.contains("textDocumentSync"),
             "result should contain 'textDocumentSync'"
         );
+
+        unsafe {
+            std::env::remove_var("FADING_DIR");
+        }
     }
 
     #[tokio::test]
-    async fn test_initialize_without_fading_folder() {
+    #[serial]
+    async fn test_initialize_without_fading_dir() {
+        unsafe {
+            std::env::remove_var("FADING_DIR");
+        }
         let (mut service, _) = LspService::new(Backend::new);
 
-        let request = initialize_request(1, false);
+        let request = initialize_request(1, "file:///workspace/other");
         let response = send(&mut service, request).await.unwrap();
 
-        // Should return default/empty capabilities
         let result = response.result().expect("should have result");
         let result_str = result.to_string();
-        // Default result should not contain "fading" server info
         assert!(
             !result_str.contains(r#""name":"fading""#),
             "result should not contain 'fading' server info"
@@ -302,11 +319,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_document_lifecycle() {
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        let init = initialize_request(1, true);
+        let init = initialize_request(1, "file:///workspace");
         send(&mut service, init).await;
 
         let uri = "file:///test.md";
@@ -330,11 +351,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_diagnostic_with_valid_document() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         let content = "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n";
@@ -353,11 +378,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_diagnostic_with_invalid_document() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         let content = "no frontmatter";
@@ -377,11 +406,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_diagnostic_unknown_document() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         // Request diagnostics for unknown document
         let response = send(&mut service, diagnostic_request(2, "file:///unknown.md"))
@@ -394,11 +427,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_code_action_with_modified_outdated_document() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         // Document with outdated modified date
@@ -422,11 +459,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_code_action_with_unmodified_document() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         let content = "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\n+++\n";
@@ -445,11 +486,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_code_action_filtered_by_only() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         let content = "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2020-01-01\n+++\n";
@@ -472,11 +517,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_shutdown_clears_documents() {
         let (mut service, _) = LspService::new(Backend::new);
 
         // Initialize
-        send(&mut service, initialize_request(1, true)).await;
+        unsafe {
+            std::env::set_var("FADING_DIR", "/workspace");
+        }
+        send(&mut service, initialize_request(1, "file:///workspace")).await;
 
         let uri = "file:///test.md";
         let content = "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n";
