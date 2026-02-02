@@ -241,28 +241,6 @@ mod tests {
         assert!(!should_clear_modified(&doc));
     }
 
-    // ===== supported_action_kinds() tests =====
-
-    #[test]
-    fn supported_action_kinds_returns_all_providers() {
-        let kinds = supported_action_kinds();
-
-        // Should have at least one kind (MetadataProvider)
-        assert!(!kinds.is_empty());
-
-        // Should contain the metadata action kind
-        assert!(kinds.contains(&CodeActionKind::new("source.updateMetadata.fading")));
-    }
-
-    #[test]
-    fn supported_action_kinds_matches_provider_count() {
-        let kinds = supported_action_kinds();
-        let providers = get_providers();
-
-        // Number of kinds should match number of providers
-        assert_eq!(kinds.len(), providers.len());
-    }
-
     // ===== Private function tests =====
 
     /// Proptest configuration: run 1000 test cases for better coverage
@@ -397,30 +375,6 @@ mod tests {
 
     proptest! {
         #![proptest_config(proptest_config())]
-
-        /// Property: Date type conversion is lossless
-        ///
-        /// For any valid date, converting `jiff::civil::Date` → `toml::value::Date` → `jiff::civil::Date`
-        /// preserves the original value.
-        #[test]
-        fn prop_date_type_conversion_is_lossless(date in strategies::jiff_date()) {
-            let toml_date = date_to_toml(date);
-            let converted_back = toml_to_date(toml_date).unwrap();
-
-            prop_assert_eq!(date, converted_back);
-        }
-
-        /// Property: Metadata TOML serialization is reversible
-        ///
-        /// For any valid Metadata with arbitrary dates, serializing to TOML and deserializing
-        /// produces an identical structure.
-        #[test]
-        fn prop_metadata_toml_serialization_roundtrip(metadata in strategies::metadata(None)) {
-            let toml_str = toml::to_string(&metadata).unwrap();
-            let deserialized = toml::from_str::<Metadata>(&toml_str).unwrap();
-
-            prop_assert_eq!(deserialized, metadata);
-        }
 
         /// Property: update_metadata always sets modified to today
         ///

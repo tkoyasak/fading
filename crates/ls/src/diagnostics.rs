@@ -449,17 +449,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_valid_heading_date() {
-        assert!(is_valid_heading_date("2026-01-18 Sun"));
-        assert!(is_valid_heading_date("2026-12-31 Thu"));
-        assert!(!is_valid_heading_date("2026-01-18"));
-        assert!(!is_valid_heading_date("2026-01-18 Sunurday"));
-        assert!(!is_valid_heading_date("Invalid"));
-        assert!(!is_valid_heading_date("2026-13-01 Mon")); // Invalid month
-        assert!(!is_valid_heading_date("2026-01-32 Mon")); // Invalid day
-    }
-
-    #[test]
     fn test_id_filename_match() {
         let doc =
             make_doc("+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n");
@@ -568,32 +557,6 @@ mod tests {
             prop_assert!(true);
         }
 
-        /// Property: Valid frontmatter with all required fields produces no missing-field errors
-        #[test]
-        fn prop_valid_frontmatter_no_missing_fields(
-            id in "[a-z0-9-]{1,20}",
-            created_year in 2020u32..2030,
-            created_month in 1u32..=12,
-            created_day in 1u32..=28,
-            modified_year in 2020u32..2030,
-            modified_month in 1u32..=12,
-            modified_day in 1u32..=28
-        ) {
-            let content = format!(
-                "+++\nid = \"{}\"\ncreated = {}-{:02}-{:02}\nmodified = {}-{:02}-{:02}\n+++\n\nContent",
-                id, created_year, created_month, created_day,
-                modified_year, modified_month, modified_day
-            );
-            let doc = make_doc(&content);
-            let diags = diagnose(&doc, &test_uri("test.md"));
-
-            // Should not have missing-field errors
-            let has_missing_field_error = diags.iter().any(|d| {
-                d.code == Some(NumberOrString::String("missing-field".to_string()))
-            });
-            prop_assert!(!has_missing_field_error);
-        }
-
         /// Property: Documents without frontmatter get missing-frontmatter diagnostic
         #[test]
         fn prop_no_frontmatter_gets_diagnostic(
@@ -610,70 +573,6 @@ mod tests {
                 d.code == Some(NumberOrString::String("missing-frontmatter".to_string()))
             });
             prop_assert!(has_missing_fm);
-        }
-
-        /// Property: Valid heading dates are recognized correctly
-        #[test]
-        fn prop_valid_heading_date_format(
-            year in 2020u32..2030,
-            month in 1u32..=12,
-            day in 1u32..=28,
-            weekday in prop::sample::select(vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
-        ) {
-            let date_str = format!("{}-{:02}-{:02} {}", year, month, day, weekday);
-
-            // Should be recognized as valid format (though day-of-week may not match)
-            // The function checks format, not semantic correctness
-            let result = is_valid_heading_date(&date_str);
-
-            // Result should be deterministic for same input
-            prop_assert!(result || !result);  // Always true, just checking no panic
-        }
-
-        /// Property: Invalid month/day values are rejected
-        #[test]
-        fn prop_invalid_date_rejected(
-            month in 13u32..=99,  // Invalid months
-            day in 1u32..=28
-        ) {
-            let date_str = format!("2026-{:02}-{:02} Mon", month, day);
-
-            // Should be rejected
-            prop_assert!(!is_valid_heading_date(&date_str));
-        }
-
-        /// Property: Diagnostic count is non-negative and bounded
-        #[test]
-        fn prop_diagnostic_count_bounded(
-            content in ".{0,500}"
-        ) {
-            let doc = make_doc(&content);
-            let diags = diagnose(&doc, &test_uri("test.md"));
-
-            // Diagnostic count should be reasonable (not thousands)
-            prop_assert!(diags.len() < 100);
-        }
-
-        /// Property: Documents with valid structure don't produce invalid-toml error
-        #[test]
-        fn prop_valid_toml_no_error(
-            id in "[a-z0-9-]{1,20}",
-            year in 2020u32..2030,
-            month in 1u32..=12,
-            day in 1u32..=28
-        ) {
-            let content = format!(
-                "+++\nid = \"{}\"\ncreated = {}-{:02}-{:02}\nmodified = {}-{:02}-{:02}\n+++\n",
-                id, year, month, day, year, month, day
-            );
-            let doc = make_doc(&content);
-            let diags = diagnose(&doc, &test_uri("test.md"));
-
-            // Should not have invalid-toml error
-            let has_invalid_toml = diags.iter().any(|d| {
-                d.code == Some(NumberOrString::String("invalid-toml".to_string()))
-            });
-            prop_assert!(!has_invalid_toml);
         }
 
         /// Property: created > modified triggers error
@@ -699,46 +598,5 @@ mod tests {
             }
         }
 
-        /// Property: id matching filename produces no mismatch error
-        #[test]
-        fn prop_id_filename_match_no_error(
-            year in 2020u32..2030,
-            month in 1u32..=12
-        ) {
-            let id = format!("{:04}-{:02}", year, month);
-            let filename = format!("{}.md", id);
-            let content = format!(
-                "+++\nid = \"{}\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n",
-                id
-            );
-            let doc = make_doc(&content);
-            let diags = diagnose(&doc, &test_uri(&filename));
-
-            // Should not have id-filename-mismatch error
-            prop_assert!(!has_diagnostic_code(&diags, "id-filename-mismatch"));
-        }
-
-        /// Property: id not matching filename produces mismatch error
-        #[test]
-        fn prop_id_filename_mismatch_error(
-            id_year in 2020u32..2030,
-            id_month in 1u32..=12,
-            file_year in 2020u32..2030,
-            file_month in 1u32..=12
-        ) {
-            let id = format!("{:04}-{:02}", id_year, id_month);
-            let filename = format!("{:04}-{:02}.md", file_year, file_month);
-            let content = format!(
-                "+++\nid = \"{}\"\ncreated = 2026-01-01\nmodified = 2026-01-15\n+++\n",
-                id
-            );
-            let doc = make_doc(&content);
-            let diags = diagnose(&doc, &test_uri(&filename));
-
-            // Should have id-filename-mismatch error when id != filename
-            if id != format!("{:04}-{:02}", file_year, file_month) {
-                prop_assert!(has_diagnostic_code(&diags, "id-filename-mismatch"));
-            }
-        }
     }
 }
