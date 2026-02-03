@@ -39,13 +39,13 @@ pub fn should_clear_modified(doc: &Document) -> bool {
         .is_some_and(|metadata| metadata.modified == today())
 }
 
-fn get_providers() -> Vec<Box<dyn CodeActionProvider>> {
-    vec![Box::new(MetadataProvider)]
-}
-
 trait CodeActionProvider {
     fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>>;
     fn action_kind(&self) -> CodeActionKind;
+}
+
+fn get_providers() -> Vec<Box<dyn CodeActionProvider>> {
+    vec![Box::new(MetadataProvider)]
 }
 
 struct MetadataProvider;

@@ -1,4 +1,4 @@
-# entries
+# task-entries
 
 Task runner for automating monthly entry generation. Designed to run in GitHub Actions cron jobs.
 
