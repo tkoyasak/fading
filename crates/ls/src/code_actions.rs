@@ -10,50 +10,6 @@ use tower_lsp_server::ls_types::{
 
 use crate::document::Document;
 
-/// Trait for code action providers.
-///
-/// Each code action type should implement this trait to provide its own actions.
-trait CodeActionProvider {
-    /// Provides code actions for a document.
-    fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>>;
-
-    /// Returns the action kind for this provider.
-    fn action_kind(&self) -> CodeActionKind;
-}
-
-/// Provider for metadata update code actions.
-struct MetadataProvider;
-
-impl CodeActionProvider for MetadataProvider {
-    fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>> {
-        if !doc.modified() {
-            return None;
-        }
-
-        let (fm, range) = doc.frontmatter()?;
-        let edits = update_metadata(&fm, range)?;
-
-        let changes = std::collections::HashMap::from([(uri.clone(), edits)]);
-        let code_action = CodeAction {
-            title: "Update metadata".to_string(),
-            kind: Some(self.action_kind()),
-            is_preferred: Some(true),
-            edit: Some(WorkspaceEdit::new(changes)),
-            ..Default::default()
-        };
-
-        Some(vec![code_action.into()])
-    }
-
-    fn action_kind(&self) -> CodeActionKind {
-        CodeActionKind::new("source.updateMetadata.fading")
-    }
-}
-
-fn get_providers() -> Vec<Box<dyn CodeActionProvider>> {
-    vec![Box::new(MetadataProvider)]
-}
-
 pub fn supported_action_kinds() -> Vec<CodeActionKind> {
     get_providers()
         .into_iter()
@@ -81,6 +37,43 @@ pub fn should_clear_modified(doc: &Document) -> bool {
     doc.frontmatter()
         .and_then(|(fm, _)| toml::from_str::<Metadata>(&fm).ok())
         .is_some_and(|metadata| metadata.modified == today())
+}
+
+fn get_providers() -> Vec<Box<dyn CodeActionProvider>> {
+    vec![Box::new(MetadataProvider)]
+}
+
+trait CodeActionProvider {
+    fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>>;
+    fn action_kind(&self) -> CodeActionKind;
+}
+
+struct MetadataProvider;
+
+impl CodeActionProvider for MetadataProvider {
+    fn provide(&self, doc: &Document, uri: &Uri) -> Option<Vec<CodeActionOrCommand>> {
+        if !doc.modified() {
+            return None;
+        }
+
+        let (fm, range) = doc.frontmatter()?;
+        let edits = update_metadata(&fm, range)?;
+
+        let changes = std::collections::HashMap::from([(uri.clone(), edits)]);
+        let code_action = CodeAction {
+            title: "Update metadata".to_string(),
+            kind: Some(self.action_kind()),
+            is_preferred: Some(true),
+            edit: Some(WorkspaceEdit::new(changes)),
+            ..Default::default()
+        };
+
+        Some(vec![code_action.into()])
+    }
+
+    fn action_kind(&self) -> CodeActionKind {
+        CodeActionKind::new("source.updateMetadata.fading")
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
