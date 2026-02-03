@@ -16,6 +16,215 @@ use crate::document::Document;
 
 pub const DIAGNOSTIC_SOURCE: &str = "fading";
 
+pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    let Some((fm, fm_range)) = doc.frontmatter() else {
+        diagnostics.push(make_diagnostic(
+            Code::MissingFrontmatter,
+            Range::new(Position::new(0, 0), Position::new(0, 0)),
+            DiagnosticSeverity::ERROR,
+            "Missing frontmatter: document must start with a `+++` block",
+        ));
+        return diagnostics;
+    };
+
+    let raw = match toml::from_str::<RawMetadata>(&fm) {
+        Ok(raw) => raw,
+        Err(e) => {
+            let range = toml_error_range(&e, &fm).unwrap_or(fm_range);
+            diagnostics.push(make_diagnostic(
+                Code::InvalidToml,
+                range,
+                DiagnosticSeverity::ERROR,
+                &format!("Invalid TOML: {}", e.message()),
+            ));
+            return diagnostics;
+        }
+    };
+
+    let ctx = DiagnosticContext {
+        doc,
+        uri,
+        fm: &fm,
+        raw: &raw,
+        fm_range,
+    };
+
+    for provider in get_providers() {
+        diagnostics.extend(provider.check(&ctx));
+    }
+
+    diagnostics
+}
+
+/// Context passed to diagnostic providers.
+struct DiagnosticContext<'a> {
+    doc: &'a Document,
+    uri: &'a Uri,
+    fm: &'a str,
+    raw: &'a RawMetadata,
+    fm_range: Range,
+}
+
+/// Trait for diagnostic providers.
+trait DiagnosticProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic>;
+}
+
+fn get_providers() -> Vec<Box<dyn DiagnosticProvider>> {
+    vec![
+        Box::new(RequiredFieldsProvider),
+        Box::new(IdFormatProvider),
+        Box::new(IdFilenameProvider),
+        Box::new(DateProvider),
+        Box::new(HeadingProvider),
+    ]
+}
+
+/// Checks for missing required fields (id, created, modified).
+struct RequiredFieldsProvider;
+
+impl DiagnosticProvider for RequiredFieldsProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic> {
+        let mut diagnostics = Vec::new();
+        let fields = [
+            (ctx.raw.id.is_none(), "id"),
+            (ctx.raw.created.is_none(), "created"),
+            (ctx.raw.modified.is_none(), "modified"),
+        ];
+
+        for (is_missing, field_name) in fields {
+            if is_missing {
+                diagnostics.push(make_diagnostic(
+                    Code::MissingField,
+                    ctx.fm_range,
+                    DiagnosticSeverity::ERROR,
+                    &format!("Missing required field: `{field_name}`"),
+                ));
+            }
+        }
+
+        diagnostics
+    }
+}
+
+/// Validates id field is in YYYY-MM format.
+struct IdFormatProvider;
+
+impl DiagnosticProvider for IdFormatProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic> {
+        let Some(spanned_id) = &ctx.raw.id else {
+            return vec![];
+        };
+
+        let (line, _) = offset_to_position(ctx.fm, spanned_id.span().start);
+        let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
+        let id_str = spanned_id.get_ref();
+        let is_valid = id_str.len() == 7 && format!("{id_str}-01").parse::<Date>().is_ok();
+
+        if !is_valid {
+            vec![make_diagnostic(
+                Code::InvalidIdFormat,
+                range,
+                DiagnosticSeverity::ERROR,
+                &format!("Invalid id format: expected YYYY-MM, got `{id_str}`"),
+            )]
+        } else {
+            vec![]
+        }
+    }
+}
+
+/// Validates id matches filename (e.g., "2026-01.md" → id = "2026-01").
+struct IdFilenameProvider;
+
+impl DiagnosticProvider for IdFilenameProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic> {
+        let Some(spanned_id) = &ctx.raw.id else {
+            return vec![];
+        };
+
+        let id_str = spanned_id.get_ref();
+        let path_str = ctx.uri.path().as_str();
+        let Some(filename) = path_str.split('/').next_back() else {
+            return vec![];
+        };
+        let expected_id = filename.strip_suffix(".md").unwrap_or(filename);
+
+        if id_str != expected_id {
+            let (line, _) = offset_to_position(ctx.fm, spanned_id.span().start);
+            let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
+
+            vec![make_diagnostic(
+                Code::IdFilenameMismatch,
+                range,
+                DiagnosticSeverity::ERROR,
+                &format!(
+                    "ID `{}` does not match filename `{}` (expected `{}`)",
+                    id_str, filename, expected_id
+                ),
+            )]
+        } else {
+            vec![]
+        }
+    }
+}
+
+/// Validates date fields (YYYY-MM-DD format) and created ≤ modified.
+struct DateProvider;
+
+impl DiagnosticProvider for DateProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic> {
+        let mut diagnostics = Vec::new();
+
+        let created = validate_date_field(&ctx.raw.created, "created", ctx.fm, &mut diagnostics);
+        let modified = validate_date_field(&ctx.raw.modified, "modified", ctx.fm, &mut diagnostics);
+
+        if let (Some(c), Some(m)) = (created, modified)
+            && c > m
+            && let Some(spanned_created) = &ctx.raw.created
+        {
+            let (line, _) = offset_to_position(ctx.fm, spanned_created.span().start);
+            diagnostics.push(make_diagnostic(
+                Code::CreatedAfterModified,
+                Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
+                DiagnosticSeverity::WARNING,
+                &format!("Creation date ({c}) is after modification date ({m})"),
+            ));
+        }
+
+        diagnostics
+    }
+}
+
+/// Validates headings are h6 (######) with "YYYY-MM-DD Day" format.
+struct HeadingProvider;
+
+impl DiagnosticProvider for HeadingProvider {
+    fn check(&self, ctx: &DiagnosticContext) -> Vec<Diagnostic> {
+        let mut diagnostics = Vec::new();
+        let Some(tree) = ctx.doc.tree() else {
+            return diagnostics;
+        };
+
+        let root = tree.block_tree().root_node();
+        let source = ctx.doc.source_bytes();
+
+        let query = heading_query();
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let mut captures = cursor.captures(query, root, source.as_slice());
+
+        while let Some((query_match, _)) = captures.next() {
+            for capture in query_match.captures {
+                validate_heading(capture.node, source.as_slice(), &mut diagnostics);
+            }
+        }
+
+        diagnostics
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 enum Code {
     MissingFrontmatter,
@@ -50,42 +259,6 @@ struct RawMetadata {
     id: Option<Spanned<String>>,
     created: Option<Spanned<toml::value::Datetime>>,
     modified: Option<Spanned<toml::value::Datetime>>,
-}
-
-pub fn diagnose(doc: &Document, uri: &Uri) -> Vec<Diagnostic> {
-    let mut diagnostics = Vec::new();
-
-    let Some((fm, fm_range)) = doc.frontmatter() else {
-        diagnostics.push(make_diagnostic(
-            Code::MissingFrontmatter,
-            Range::new(Position::new(0, 0), Position::new(0, 0)),
-            DiagnosticSeverity::ERROR,
-            "Missing frontmatter: document must start with a `+++` block",
-        ));
-        return diagnostics;
-    };
-
-    let raw = match toml::from_str::<RawMetadata>(&fm) {
-        Ok(raw) => raw,
-        Err(e) => {
-            let range = toml_error_range(&e, &fm).unwrap_or(fm_range);
-            diagnostics.push(make_diagnostic(
-                Code::InvalidToml,
-                range,
-                DiagnosticSeverity::ERROR,
-                &format!("Invalid TOML: {}", e.message()),
-            ));
-            return diagnostics;
-        }
-    };
-
-    check_required_fields(&raw, fm_range, &mut diagnostics);
-    check_id_format(&raw.id, &fm, &mut diagnostics);
-    check_id_filename_match(&raw.id, uri, &fm, &mut diagnostics);
-    check_dates(&raw, &fm, &mut diagnostics);
-    check_headings(doc, &mut diagnostics);
-
-    diagnostics
 }
 
 fn make_diagnostic(
@@ -134,96 +307,6 @@ fn offset_to_position(fm: &str, offset: usize) -> (u32, u32) {
     (line, col)
 }
 
-fn check_required_fields(raw: &RawMetadata, range: Range, diagnostics: &mut Vec<Diagnostic>) {
-    let fields = [
-        (raw.id.is_none(), "id"),
-        (raw.created.is_none(), "created"),
-        (raw.modified.is_none(), "modified"),
-    ];
-
-    for (is_missing, field_name) in fields {
-        if is_missing {
-            diagnostics.push(make_diagnostic(
-                Code::MissingField,
-                range,
-                DiagnosticSeverity::ERROR,
-                &format!("Missing required field: `{field_name}`"),
-            ));
-        }
-    }
-}
-
-/// Validates the id field format (YYYY-MM).
-fn check_id_format(id: &Option<Spanned<String>>, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
-    let Some(spanned_id) = id else { return };
-
-    // Get line number from byte offset (no need to search through frontmatter)
-    let (line, _) = offset_to_position(fm, spanned_id.span().start);
-    let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
-
-    let id_str = spanned_id.get_ref();
-
-    // Validate YYYY-MM format by attempting to parse with a dummy day
-    let is_valid = id_str.len() == 7 && format!("{id_str}-01").parse::<Date>().is_ok();
-
-    if !is_valid {
-        diagnostics.push(make_diagnostic(
-            Code::InvalidIdFormat,
-            range,
-            DiagnosticSeverity::ERROR,
-            &format!("Invalid id format: expected YYYY-MM, got `{id_str}`"),
-        ));
-    }
-}
-
-fn check_id_filename_match(
-    id: &Option<Spanned<String>>,
-    uri: &Uri,
-    fm: &str,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    let Some(spanned_id) = id else { return };
-    let id_str = spanned_id.get_ref();
-    let path_str = uri.path().as_str();
-    let Some(filename) = path_str.split('/').next_back() else {
-        return;
-    };
-    let expected_id = filename.strip_suffix(".md").unwrap_or(filename);
-
-    if id_str != expected_id {
-        let (line, _) = offset_to_position(fm, spanned_id.span().start);
-        let range = Range::new(Position::new(line, 0), Position::new(line + 1, 0));
-
-        diagnostics.push(make_diagnostic(
-            Code::IdFilenameMismatch,
-            range,
-            DiagnosticSeverity::ERROR,
-            &format!(
-                "ID `{}` does not match filename `{}` (expected `{}`)",
-                id_str, filename, expected_id
-            ),
-        ));
-    }
-}
-
-fn check_dates(raw: &RawMetadata, fm: &str, diagnostics: &mut Vec<Diagnostic>) {
-    let created = validate_date_field(&raw.created, "created", fm, diagnostics);
-    let modified = validate_date_field(&raw.modified, "modified", fm, diagnostics);
-
-    if let (Some(c), Some(m)) = (created, modified)
-        && c > m
-        && let Some(spanned_created) = &raw.created
-    {
-        let (line, _) = offset_to_position(fm, spanned_created.span().start);
-        diagnostics.push(make_diagnostic(
-            Code::CreatedAfterModified,
-            Range::new(Position::new(line, 0), Position::new(line + 1, 0)),
-            DiagnosticSeverity::WARNING,
-            &format!("Creation date ({c}) is after modification date ({m})"),
-        ));
-    }
-}
-
 #[allow(clippy::cast_possible_wrap)]
 fn parse_date(spanned: &Spanned<toml::value::Datetime>) -> Option<Date> {
     let d = spanned.get_ref().date.as_ref()?;
@@ -256,29 +339,11 @@ fn validate_date_field(
 /// Cached query for finding all headings (compiled once, reused across all documents).
 static HEADING_QUERY: OnceLock<Query> = OnceLock::new();
 
-/// Returns the cached heading query, compiling it on first access.
 fn heading_query() -> &'static Query {
     HEADING_QUERY.get_or_init(|| {
         let language = tree_sitter_md::LANGUAGE.into();
         Query::new(&language, "(atx_heading) @heading").expect("Failed to compile heading query")
     })
-}
-
-/// Validates all headings in the document using tree-sitter queries.
-fn check_headings(doc: &Document, diagnostics: &mut Vec<Diagnostic>) {
-    let Some(tree) = doc.tree() else { return };
-    let root = tree.block_tree().root_node();
-    let source = doc.source_bytes();
-
-    let query = heading_query();
-    let mut cursor = tree_sitter::QueryCursor::new();
-    let mut captures = cursor.captures(query, root, source.as_slice());
-
-    while let Some((query_match, _)) = captures.next() {
-        for capture in query_match.captures {
-            validate_heading(capture.node, source.as_slice(), diagnostics);
-        }
-    }
 }
 
 fn validate_heading(node: tree_sitter::Node, source: &[u8], diagnostics: &mut Vec<Diagnostic>) {
