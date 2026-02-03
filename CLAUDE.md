@@ -68,7 +68,7 @@ env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 
 ### Task Runner (`task-entries`)
 
-- Runs in GitHub Actions (UTC → JST timezone conversion via `jiff`)
+- Runs in GitHub Actions cron jobs (monthly, UTC-based)
 - Idempotent: checks existing branches/PRs before creation
 - Uses `gh` CLI for all GitHub API operations
 

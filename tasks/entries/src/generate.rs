@@ -2,12 +2,11 @@ use std::fmt::Write;
 
 use anyhow::{Context, Result, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use jiff::{ToSpan, Zoned, civil::Date, tz};
+use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::{Shell, cmd};
 
 use crate::flags::{Cmd, Generate};
 
-const TIMEZONE: &str = "Asia/Tokyo";
 const ENTRIES_DIR: &str = "entries/";
 const BRANCH_PREFIX: &str = "entry/";
 const BASE_BRANCH: &str = "main";
@@ -19,13 +18,6 @@ impl Cmd for Generate {
     }
 }
 
-/// Returns Asia/Tokyo timezone
-fn jst() -> Result<tz::TimeZone> {
-    tz::db()
-        .get(TIMEZONE)
-        .with_context(|| format!("Failed to load {TIMEZONE} timezone"))
-}
-
 #[derive(Debug, Clone)]
 struct Entry {
     pub id: Date,
@@ -35,7 +27,7 @@ struct Entry {
 
 impl Entry {
     fn new() -> Result<Self> {
-        let today = Zoned::now().with_time_zone(jst()?).date();
+        let today = Zoned::now().date();
         let id = today.first_of_month();
         let path = format!("{ENTRIES_DIR}{}.md", id.strftime("%Y-%m"));
 
@@ -54,9 +46,7 @@ impl Entry {
 
     fn metadata_block(&self) -> String {
         let id = self.id.strftime("%Y-%m");
-        let today = Zoned::now()
-            .with_time_zone(jst().expect("timezone should be available"))
-            .strftime("%Y-%m-%d");
+        let today = Zoned::now().strftime("%Y-%m-%d");
 
         format!(
             r#"+++
@@ -366,12 +356,6 @@ mod tests {
         assert_eq!(entry.content.matches("###### 2023-02-").count(), 28);
         assert!(entry.content.contains("###### 2023-02-28 "));
         assert!(!entry.content.contains("###### 2023-02-29 "));
-    }
-
-    #[test]
-    fn test_jst_timezone_loads() {
-        let tz = jst().unwrap();
-        assert_eq!(tz.iana_name(), Some(TIMEZONE));
     }
 
     #[test]

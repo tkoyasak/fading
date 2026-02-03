@@ -23,6 +23,5 @@ cargo run -p task-entries -- generate
 
 ## Behavior
 
-- **Timezone**: UTC → Asia/Tokyo (JST) conversion for date calculations
 - **Idempotent**: Checks for existing branches and PRs before creation
 - **Verified commits**: No custom author/committer information is specified, enabling [bot signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#signature-verification-for-bots)
