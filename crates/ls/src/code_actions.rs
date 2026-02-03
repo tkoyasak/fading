@@ -5,7 +5,7 @@
 use jiff::{Zoned, civil::Date};
 use serde::{Deserialize, Serialize};
 use tower_lsp_server::ls_types::{
-    CodeAction, CodeActionKind, CodeActionOrCommand, Range, TextEdit, Uri, WorkspaceEdit,
+    CodeAction, CodeActionKind, CodeActionOrCommand, TextEdit, Uri, WorkspaceEdit,
 };
 
 use crate::document::Document;
@@ -57,7 +57,8 @@ impl CodeActionProvider for MetadataProvider {
         }
 
         let (fm, range) = doc.frontmatter()?;
-        let edits = update_metadata(&fm, range)?;
+        let new_text = update_metadata(&fm)?;
+        let edits = vec![TextEdit::new(range, new_text)];
 
         let changes = std::collections::HashMap::from([(uri.clone(), edits)]);
         let code_action = CodeAction {
@@ -101,7 +102,7 @@ fn today() -> toml::value::Date {
     date_to_toml(Zoned::now().date())
 }
 
-fn update_metadata(fm: &str, range: Range) -> Option<Vec<TextEdit>> {
+fn update_metadata(fm: &str) -> Option<String> {
     let mut metadata = toml::from_str::<Metadata>(fm).ok()?;
     let today = today();
 
@@ -110,9 +111,7 @@ fn update_metadata(fm: &str, range: Range) -> Option<Vec<TextEdit>> {
     }
 
     metadata.modified = today;
-    let new_text = toml::to_string(&metadata).ok()?;
-
-    Some(vec![TextEdit::new(range, new_text)])
+    toml::to_string(&metadata).ok()
 }
 
 #[cfg(test)]
@@ -121,7 +120,6 @@ mod tests {
     use jiff::{ToSpan, civil::date};
     use proptest::prelude::*;
     use std::str::FromStr;
-    use tower_lsp_server::ls_types::Position;
 
     fn make_doc(content: &str) -> Document {
         Document::new(None, false, content.to_string())
@@ -287,22 +285,17 @@ mod tests {
 
         /// Property: update_metadata always sets modified to today
         ///
-        /// When modified date is not today, update_metadata returns Some(TextEdit) that:
+        /// When modified date is not today, update_metadata returns Some(String) that:
         /// - Preserves id and created fields
         /// - Changes modified to today's date
         /// - Maintains valid TOML structure
         #[test]
         fn prop_update_metadata_changes_modified_to_today(metadata in strategies::metadata(Some(false))) {
             let toml_str = toml::to_string(&metadata).unwrap();
-            let range = Range::new(Position::new(1, 0), Position::new(4, 0));
 
-            let edits = update_metadata(&toml_str, range).unwrap();
-            prop_assert_eq!(edits.len(), 1);
+            let new_text = update_metadata(&toml_str).unwrap();
 
-            let edit = &edits[0];
-            prop_assert_eq!(edit.range, range);
-
-            let updated = toml::from_str::<Metadata>(&edit.new_text).unwrap();
+            let updated = toml::from_str::<Metadata>(&new_text).unwrap();
             prop_assert_eq!(updated.id, metadata.id);
             prop_assert_eq!(updated.created, metadata.created);
             prop_assert_eq!(updated.modified, today());
@@ -316,9 +309,8 @@ mod tests {
         #[test]
         fn prop_update_metadata_noop_when_already_today(metadata in strategies::metadata(Some(true))) {
             let toml_str = toml::to_string(&metadata).unwrap();
-            let range = Range::new(Position::new(1, 0), Position::new(4, 0));
 
-            prop_assert!(update_metadata(&toml_str, range).is_none());
+            prop_assert!(update_metadata(&toml_str).is_none());
             prop_assert_eq!(metadata.modified, today());
         }
 
@@ -328,9 +320,7 @@ mod tests {
         /// update_metadata gracefully returns None instead of panicking.
         #[test]
         fn prop_update_metadata_returns_none_for_invalid_toml(invalid in strategies::invalid_toml()) {
-            let range = Range::new(Position::new(1, 0), Position::new(4, 0));
-
-            let result = update_metadata(&invalid, range);
+            let result = update_metadata(&invalid);
             prop_assert!(result.is_none());
         }
 
