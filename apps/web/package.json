@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "release": "wrangler deploy --strict",
-    "typcheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt"
   },
