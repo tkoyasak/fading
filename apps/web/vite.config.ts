@@ -21,7 +21,7 @@ export default defineConfig({
         // build `ssr` inside `rsc` directory so that
         // wrangler can deploy self-contained `dist/rsc`
         outDir: "./dist/rsc/ssr",
-        rollupOptions: {
+        rolldownOptions: {
           input: {
             index: "./src/framework/entry.ssr.tsx",
           },
@@ -33,7 +33,7 @@ export default defineConfig({
     },
     client: {
       build: {
-        rollupOptions: {
+        rolldownOptions: {
           input: {
             index: "./src/framework/entry.browser.tsx",
           },
