@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [".wrangler", "dist", "node_modules", "bun.lock"],
+  "experimentalSortImports": {
+    "newlinesBetween": false
+  }
+}
