@@ -6,9 +6,9 @@ import {
   encodeReply,
 } from "@vitejs/plugin-rsc/browser";
 import React from "react";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import ReactDOM from "react-dom/client";
 import { rscStream } from "rsc-html-stream/client";
-import type { RscPayload } from "./entry.rsc.tsx";
+import { type RscPayload } from "./entry.rsc.tsx";
 import { GlobalErrorBoundary } from "./error-boundary.tsx";
 import { createRscRenderRequest } from "./request.tsx";
 
@@ -72,9 +72,9 @@ async function main() {
     </React.StrictMode>
   );
   if ("__NO_HYDRATE" in globalThis) {
-    createRoot(document).render(browserRoot);
+    ReactDOM.createRoot(document).render(browserRoot);
   } else {
-    hydrateRoot(document, browserRoot, {
+    ReactDOM.hydrateRoot(document, browserRoot, {
       formState: initialPayload.formState,
     });
   }
