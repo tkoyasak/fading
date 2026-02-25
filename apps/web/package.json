@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "release": "wrangler deploy --strict",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc"
   },
   "dependencies": {
     "react": "^19.2.4",
