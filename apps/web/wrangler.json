@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vite-rsc-starter",
+  "main": "./src/framework/entry.rsc.tsx",
+  "compatibility_date": "2026-03-02",
+  "compatibility_flags": ["nodejs_als"],
+  "route": {
+    "pattern": "tkoyasak.dev/lab/vite-rsc-starter*",
+    "zone_name": "tkoyasak.dev"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
