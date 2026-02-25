@@ -1,5 +1,5 @@
 {
-  "name": "@vitejs/plugin-rsc-examples-starter-cf-single",
+  "name": "vite-rsc-starter",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,27 +7,25 @@
     "build": "vite build",
     "preview": "vite preview",
     "release": "wrangler deploy --strict",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint --type-aware",
-    "format": "oxfmt"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.25.2",
+    "@cloudflare/vite-plugin": "^1.25.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitejs/plugin-rsc": "^0.5.20",
-    "oxfmt": "^0.34.0",
-    "oxlint": "^1.49.0",
-    "oxlint-tsgolint": "^0.14.2",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
+    "oxlint-tsgolint": "^0.15.0",
     "rsc-html-stream": "^0.0.7",
     "typescript": "^5.9.3",
     "vite": "^8.0.0-beta.15",
-    "wrangler": "^4.67.0"
+    "wrangler": "^4.68.1"
   },
   "overrides": {
     "vite": "$vite"

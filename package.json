@@ -1,0 +1,16 @@
+{
+  "name": "fading-crates",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "format": "oxfmt",
+    "lint": "oxlint --type-aware"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
+    "oxlint-tsgolint": "^0.15.0"
+  }
+}
