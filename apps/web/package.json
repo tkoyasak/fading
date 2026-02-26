@@ -7,9 +7,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "release": "wrangler deploy --strict",
-    "typecheck": "tsc"
+    "check": "tsc",
+    "types": "wrangler types"
   },
   "dependencies": {
+    "marked": "^17.0.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

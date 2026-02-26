@@ -1,11 +1,18 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "vite-rsc-starter",
+  "name": "fading",
   "main": "./src/framework/entry.rsc.tsx",
-  "compatibility_date": "2026-03-02",
+  "compatibility_date": "2026-02-26",
   "compatibility_flags": ["nodejs_als"],
+  "kv_namespaces": [
+    {
+      "binding": "DIARY_KV",
+      "id": "<KV_NAMESPACE_ID>",
+      "preview_id": "<KV_NAMESPACE_PREVIEW_ID>"
+    }
+  ],
   "route": {
-    "pattern": "tkoyasak.dev/lab/vite-rsc-starter*",
+    "pattern": "tkoyasak.dev/lab/fading*",
     "zone_name": "tkoyasak.dev"
   },
   "observability": {
