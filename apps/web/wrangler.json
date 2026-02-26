@@ -6,9 +6,9 @@
   "compatibility_flags": ["nodejs_als"],
   "kv_namespaces": [
     {
-      "binding": "DIARY_KV",
-      "id": "<KV_NAMESPACE_ID>",
-      "preview_id": "<KV_NAMESPACE_PREVIEW_ID>"
+      "binding": "KV",
+      "id": "d7d628060e0e43d89aeae77dd95160b5",
+      "preview_id": "0d8eec8f81a34da393ee7e7a36712656"
     }
   ],
   "route": {
