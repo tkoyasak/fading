@@ -1,11 +1,5 @@
 "use server";
 
-let serverCounter = 0;
-
-export async function getServerCounter() {
-  return serverCounter;
-}
-
-export async function updateServerCounter(change: number) {
-  serverCounter += change;
-}
+// no-op: RSC 再レンダリングをトリガーするだけ
+// Root が再レンダリング時に新しいランダムエントリを選ぶ
+export async function refresh(): Promise<void> {}
