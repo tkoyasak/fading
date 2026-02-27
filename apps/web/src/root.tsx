@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { getRandomEntry } from "./action.tsx";
-import { DiaryViewer } from "./client.tsx";
+import { Viewer } from "./client.tsx";
 
 export async function Root() {
   const initialEntry = await getRandomEntry();
@@ -11,7 +12,9 @@ export async function Root() {
         <title>fading</title>
       </head>
       <body>
-        <DiaryViewer initialEntry={initialEntry} />
+        <Suspense fallback={<p>Loading...</p>}>
+          <Viewer initialEntry={initialEntry} fetchEntry={getRandomEntry} />
+        </Suspense>
       </body>
     </html>
   );

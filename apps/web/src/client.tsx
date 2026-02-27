@@ -1,37 +1,54 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { getRandomEntry } from "./action.tsx";
+import { use, useState, useTransition } from "react";
 import type { Entry } from "./action.tsx";
 
-export function DiaryViewer({ initialEntry }: { initialEntry: Entry | null }) {
-  const [entry, setEntry] = useState(initialEntry);
+interface ViewerProps {
+  initialEntry: Entry | null;
+  fetchEntry: () => Promise<Entry | null>;
+}
+
+export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
+  const [promise, setPromise] = useState(() => Promise.resolve(initialEntry));
   const [isPending, startTransition] = useTransition();
 
   function handleNext() {
-    startTransition(async () => {
-      const newEntry = await getRandomEntry();
-      setEntry(newEntry);
-    });
+    startTransition(() =>
+      setPromise(
+        Promise.all([fetchEntry(), new Promise((r) => setTimeout(r, 800))]).then(
+          ([entry]) => entry,
+        ),
+      ),
+    );
   }
 
   return (
     <>
-      {entry ? (
-        <>
-          <header>
-            <time dateTime={entry.date}>{entry.date}</time>
-          </header>
-          <main dangerouslySetInnerHTML={{ __html: entry.html }} />
-          <footer>
-            <button disabled={isPending} onClick={handleNext}>
-              {isPending ? "読み込み中…" : "次の日記"}
-            </button>
-          </footer>
-        </>
-      ) : (
-        <p>日記が見つかりませんでした。</p>
-      )}
+      <Content promise={promise} />
+      <footer>
+        <button disabled={isPending} onClick={handleNext}>
+          次の日記
+        </button>
+      </footer>
     </>
+  );
+}
+
+interface ContentProps {
+  promise: Promise<Entry | null>;
+}
+
+function Content({ promise }: ContentProps) {
+  const entry = use(promise);
+
+  return entry ? (
+    <>
+      <header>
+        <time dateTime={entry.date}>{entry.date}</time>
+      </header>
+      <main dangerouslySetInnerHTML={{ __html: entry.html }} />
+    </>
+  ) : (
+    <p>日記が見つかりませんでした。</p>
   );
 }
