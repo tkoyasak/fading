@@ -23,14 +23,24 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   }
 
   return (
-    <>
-      <Content promise={promise} />
-      <footer>
-        <button disabled={isPending} onClick={handleNext}>
-          次の日記
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+      <article
+        className="max-w-prose w-full transition-opacity duration-300"
+        style={{ opacity: isPending ? 0.4 : 1 }}
+      >
+        <Content promise={promise} />
+      </article>
+      <footer className="mt-12">
+        <button
+          className="size-10 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-all border-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          disabled={isPending}
+          onClick={handleNext}
+          aria-label="次の日記"
+        >
+          <span className="icon-[material-symbols--add] size-5" />
         </button>
       </footer>
-    </>
+    </div>
   );
 }
 
@@ -43,12 +53,17 @@ function Content({ promise }: ContentProps) {
 
   return entry ? (
     <>
-      <header>
-        <time dateTime={entry.date}>{entry.date}</time>
+      <header className="mb-8">
+        <time className="text-xs text-zinc-600 font-mono tracking-widest" dateTime={entry.date}>
+          {entry.date}
+        </time>
       </header>
-      <main dangerouslySetInnerHTML={{ __html: entry.html }} />
+      <main
+        className="prose text-zinc-300 leading-relaxed text-base"
+        dangerouslySetInnerHTML={{ __html: entry.html }}
+      />
     </>
   ) : (
-    <p>日記が見つかりませんでした。</p>
+    <p className="text-zinc-600 text-sm text-center py-12">日記が見つかりませんでした。</p>
   );
 }
