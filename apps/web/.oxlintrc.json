@@ -19,7 +19,7 @@
   },
   "rules": {
     "react-in-jsx-scope": "off",
-    "no-unassigned-import": "off"
+    "no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
   },
   "overrides": [
     {
