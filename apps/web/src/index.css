@@ -1,5 +1,12 @@
 @import "tailwindcss";
-@plugin "@iconify/tailwind4";
+
+.prose h6 {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+  font-weight: normal;
+  letter-spacing: 0.1em;
+  margin-bottom: 2em;
+}
 
 .prose p {
   margin-bottom: 1.5em;

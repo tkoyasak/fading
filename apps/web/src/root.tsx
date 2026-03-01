@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { getRandomEntry } from "./action.tsx";
 import { Viewer } from "./client.tsx";
 
@@ -13,9 +12,7 @@ export async function Root() {
         <title>fading</title>
       </head>
       <body className="bg-zinc-950 text-zinc-100 min-h-screen font-sans antialiased">
-        <Suspense fallback={<p>Loading...</p>}>
-          <Viewer initialEntry={initialEntry} fetchEntry={getRandomEntry} />
-        </Suspense>
+        <Viewer initialEntry={initialEntry} fetchEntry={getRandomEntry} />
       </body>
     </html>
   );
