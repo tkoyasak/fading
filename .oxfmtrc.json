@@ -2,5 +2,15 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "sortImports": {
     "newlinesBetween": false
-  }
+  },
+  "overrides": [
+    {
+      "files": ["apps/web/**"],
+      "options": {
+        "sortTailwindcss": {
+          "stylesheet": "apps/web/src/index.css"
+        }
+      }
+    }
+  ]
 }

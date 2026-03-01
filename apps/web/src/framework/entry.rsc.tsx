@@ -6,14 +6,14 @@ import {
   decodeAction,
   decodeFormState,
 } from "@vitejs/plugin-rsc/rsc";
-import ReactDOM from "react-dom/client";
+import type { ReactFormState } from "react-dom/client";
 import { Root } from "../root.tsx";
 import { parseRenderRequest } from "./request.tsx";
 
 export type RscPayload = {
   root: React.ReactNode;
   returnValue?: { ok: boolean; data: unknown };
-  formState?: ReactDOM.ReactFormState;
+  formState?: ReactFormState;
 };
 
 async function handler(request: Request): Promise<Response> {
@@ -23,7 +23,7 @@ async function handler(request: Request): Promise<Response> {
 
   // handle server function request
   let returnValue: RscPayload["returnValue"] | undefined;
-  let formState: ReactDOM.ReactFormState | undefined;
+  let formState: ReactFormState | undefined;
   let temporaryReferences: unknown | undefined;
   let actionStatus: number | undefined;
   if (renderRequest.isAction === true) {

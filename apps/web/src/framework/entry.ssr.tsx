@@ -1,9 +1,9 @@
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import React from "react";
-import ReactDOM from "react-dom/client";
+import type { ReactFormState } from "react-dom/client";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { injectRSCPayload } from "rsc-html-stream/server";
-import { type RscPayload } from "./entry.rsc.tsx";
+import type { RscPayload } from "./entry.rsc.tsx";
 
 export type RenderHTML = typeof renderHTML;
 
@@ -11,7 +11,7 @@ export async function renderHTML(
   rscStream: ReadableStream<Uint8Array>,
   options?: {
     request: Request;
-    formState?: ReactDOM.ReactFormState;
+    formState?: ReactFormState;
     nonce?: string;
     debugNojs?: boolean;
   },

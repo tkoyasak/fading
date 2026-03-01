@@ -1,3 +1,4 @@
+import "../index.css";
 import {
   createFromReadableStream,
   createFromFetch,
@@ -8,7 +9,7 @@ import {
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { rscStream } from "rsc-html-stream/client";
-import { type RscPayload } from "./entry.rsc.tsx";
+import type { RscPayload } from "./entry.rsc.tsx";
 import { GlobalErrorBoundary } from "./error-boundary.tsx";
 import { createRscRenderRequest } from "./request.tsx";
 

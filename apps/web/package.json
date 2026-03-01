@@ -7,25 +7,26 @@
     "build": "vite build",
     "preview": "vite preview",
     "release": "wrangler deploy --strict",
-    "typecheck": "tsc"
+    "check": "tsc",
+    "types": "wrangler types"
   },
   "dependencies": {
+    "marked": "^17.0.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.25.5",
+    "@cloudflare/vite-plugin": "^1.25.6",
+    "@tailwindcss/vite": "^4.2.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
-    "@vitejs/plugin-rsc": "^0.5.20",
-    "oxfmt": "^0.35.0",
-    "oxlint": "^1.50.0",
-    "oxlint-tsgolint": "^0.15.0",
+    "@vitejs/plugin-rsc": "^0.5.21",
     "rsc-html-stream": "^0.0.7",
+    "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0-beta.15",
-    "wrangler": "^4.68.1"
+    "vite": "^8.0.0-beta.16",
+    "wrangler": "^4.69.0"
   },
   "overrides": {
     "vite": "$vite"
