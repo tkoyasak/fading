@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useTransition } from "react";
+import { Suspense, use, useEffect, useState, useTransition } from "react";
 import type { Entry } from "./action.tsx";
 
 interface ViewerProps {
@@ -11,6 +11,16 @@ interface ViewerProps {
 export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   const [promise, setPromise] = useState(() => Promise.resolve(initialEntry));
   const [isPending, startTransition] = useTransition();
+  const [dots, setDots] = useState(".");
+
+  useEffect(() => {
+    if (!isPending) {
+      setDots(".");
+      return;
+    }
+    const id = setInterval(() => setDots((d) => (d.length === 3 ? "." : d + ".")), 400);
+    return () => clearInterval(id);
+  }, [isPending]);
 
   function handleNext() {
     startTransition(() =>
@@ -23,21 +33,27 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+    <div className="min-h-screen flex flex-col items-center px-6 py-10">
       <article
-        className="max-w-prose w-full transition-opacity duration-300"
+        className="relative max-w-prose w-full px-8 py-6 transition-opacity duration-300"
         style={{ opacity: isPending ? 0.4 : 1 }}
       >
-        <Content promise={promise} />
+        {/* + corner frame */}
+        <span aria-hidden="true" className="absolute top-0 -left-2 -right-2 h-px bg-zinc-600" />
+        <span aria-hidden="true" className="absolute bottom-0 -left-2 -right-2 h-px bg-zinc-600" />
+        <span aria-hidden="true" className="absolute left-0 -top-2 -bottom-2 w-px bg-zinc-600" />
+        <span aria-hidden="true" className="absolute right-0 -top-2 -bottom-2 w-px bg-zinc-600" />
+        <Suspense fallback={null}>
+          <Content promise={promise} />
+        </Suspense>
       </article>
-      <footer className="mt-12">
+      <footer className="mt-8">
         <button
-          className="size-10 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-all border-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          className="px-2 py-1 text-sm text-zinc-300 hover:text-zinc-300 underline underline-offset-4 decoration-1 decoration-zinc-300 disabled:no-underline hover:no-underline hover:outline-dotted hover:outline-zinc-400 bg-transparent border-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           disabled={isPending}
           onClick={handleNext}
-          aria-label="次の日記"
         >
-          <span className="icon-[material-symbols--add] size-5" />
+          {isPending ? dots : "next"}
         </button>
       </footer>
     </div>
@@ -52,17 +68,10 @@ function Content({ promise }: ContentProps) {
   const entry = use(promise);
 
   return entry ? (
-    <>
-      <header className="mb-8">
-        <time className="text-xs text-zinc-600 font-mono tracking-widest" dateTime={entry.date}>
-          {entry.date}
-        </time>
-      </header>
-      <main
-        className="prose text-zinc-300 leading-relaxed text-base"
-        dangerouslySetInnerHTML={{ __html: entry.html }}
-      />
-    </>
+    <main
+      className="prose text-zinc-300 leading-relaxed text-base text-left"
+      dangerouslySetInnerHTML={{ __html: entry.html }}
+    />
   ) : (
     <p className="text-zinc-600 text-sm text-center py-12">日記が見つかりませんでした。</p>
   );
