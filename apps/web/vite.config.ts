@@ -1,12 +1,12 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
-import tailwind from "@tailwindcss/vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import rsc from "@vitejs/plugin-rsc";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
-    tailwind(),
+    tailwindcss(),
     react(),
     rsc(),
     cloudflare({
