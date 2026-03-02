@@ -34,22 +34,21 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
 
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8 sm:px-6 sm:py-10">
-      <article
-        className="relative w-full max-w-prose px-4 py-4 transition-opacity duration-300 sm:px-8 sm:py-6"
-        style={{ opacity: isPending ? 0.4 : 1 }}
-      >
+      <article className="relative w-full max-w-prose px-4 py-4 sm:px-8 sm:py-6">
         {/* + corner frame */}
         <span aria-hidden="true" className="absolute top-0 -right-2 -left-2 h-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -right-2 bottom-0 -left-2 h-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -top-2 -bottom-2 left-0 w-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -top-2 right-0 -bottom-2 w-px bg-zinc-600" />
-        <React.Suspense fallback={null}>
-          <Content promise={promise} />
-        </React.Suspense>
+        <div className="transition-opacity duration-300" style={{ opacity: isPending ? 0.5 : 1 }}>
+          <React.Suspense fallback={null}>
+            <Content promise={promise} />
+          </React.Suspense>
+        </div>
       </article>
       <footer className="mt-8">
         <button
-          className="cursor-pointer border-none bg-transparent px-2 py-1 text-sm text-zinc-300 underline decoration-zinc-300 decoration-1 underline-offset-4 transition-all hover:text-zinc-300 hover:no-underline hover:outline-zinc-300 hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-30"
+          className="cursor-pointer border-none bg-transparent text-sm leading-none text-white underline decoration-white decoration-1 underline-offset-4 hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-white hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
           disabled={isPending}
           onClick={handleNext}
         >
@@ -69,10 +68,10 @@ function Content({ promise }: ContentProps) {
 
   return entry ? (
     <main
-      className="prose text-left text-base leading-relaxed text-zinc-200"
+      className="prose text-left text-base leading-relaxed text-white"
       dangerouslySetInnerHTML={{ __html: entry.html }}
     />
   ) : (
-    <p className="py-12 text-center text-sm text-zinc-600">entry not found</p>
+    <p className="py-12 text-center text-sm text-white">entry not found</p>
   );
 }

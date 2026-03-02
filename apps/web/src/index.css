@@ -20,7 +20,7 @@
 .prose h2,
 .prose h3,
 .prose h4 {
-  color: rgb(228 228 231); /* zinc-200 */
+  color: #fff;
   font-weight: 600;
   line-height: 1.3;
   margin-top: 2em;
@@ -34,13 +34,13 @@
 }
 
 .prose a {
-  color: rgb(147 197 253); /* blue-300 */
+  color: #fff;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .prose a:hover {
-  color: rgb(191 219 254); /* blue-200 */
+  color: #fff;
 }
 
 .prose code {
@@ -78,7 +78,7 @@
 .prose blockquote {
   border-left: 2px solid rgb(63 63 70); /* zinc-700 */
   padding-left: 1em;
-  color: rgb(161 161 170); /* zinc-400 */
+  color: #fff;
   margin-left: 0;
   margin-bottom: 1.5em;
 }
