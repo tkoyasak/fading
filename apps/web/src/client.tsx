@@ -33,9 +33,9 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-6 py-10">
+    <div className="flex min-h-screen flex-col items-center px-4 py-8 sm:px-6 sm:py-10">
       <article
-        className="relative w-full max-w-prose px-8 py-6 transition-opacity duration-300"
+        className="relative w-full max-w-prose px-4 py-4 transition-opacity duration-300 sm:px-8 sm:py-6"
         style={{ opacity: isPending ? 0.4 : 1 }}
       >
         {/* + corner frame */}
