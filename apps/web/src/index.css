@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+::selection {
+  background: #444444;
+}
+
 .prose h6 {
   font-family: ui-monospace, monospace;
   font-size: 0.85em;
@@ -29,32 +33,29 @@
 
 .prose h1:first-child,
 .prose h2:first-child,
-.prose h3:first-child {
+.prose h3:first-child,
+.prose h4:first-child {
   margin-top: 0;
 }
 
 .prose a {
   color: #fff;
   text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.prose a:hover {
-  color: #fff;
+  text-underline-offset: 4px;
 }
 
 .prose code {
   font-family: ui-monospace, monospace;
   font-size: 0.875em;
-  background-color: rgb(39 39 42); /* zinc-800 */
+  background-color: rgb(24 24 27); /* zinc-900 */
   padding: 0.125em 0.375em;
-  border-radius: 0.25em;
+  border-radius: 0;
 }
 
 .prose pre {
   background-color: rgb(24 24 27); /* zinc-900 */
-  padding: 1em 1.25em;
-  border-radius: 0.5em;
+  padding: 4px 1.25em;
+  border-radius: 0;
   overflow-x: auto;
   margin-bottom: 1.5em;
 }
@@ -71,8 +72,22 @@
   margin-bottom: 1.5em;
 }
 
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
 .prose li {
-  margin-bottom: 0.5em;
+  margin-bottom: 0;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid rgb(82 82 91); /* zinc-600 */
+  margin-bottom: 1.5em;
 }
 
 .prose blockquote {

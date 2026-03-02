@@ -48,7 +48,7 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
       </article>
       <footer className="mt-8">
         <button
-          className="cursor-pointer border-none bg-transparent text-sm leading-none text-white underline decoration-white decoration-1 underline-offset-4 hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-white hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+          className="cursor-pointer border-none bg-transparent text-sm leading-none text-white underline decoration-white decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-white hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
           disabled={isPending}
           onClick={handleNext}
         >
@@ -68,7 +68,7 @@ function Content({ promise }: ContentProps) {
 
   return entry ? (
     <main
-      className="prose text-left text-base leading-relaxed text-white"
+      className="prose text-base leading-relaxed text-white"
       dangerouslySetInnerHTML={{ __html: entry.html }}
     />
   ) : (
