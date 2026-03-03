@@ -48,13 +48,18 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
       </article>
       <footer className="mt-8 sm:mt-12">
         <button
-          className="cursor-pointer border-none bg-transparent text-sm leading-none text-zinc-300 underline decoration-zinc-300 decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-zinc-300 hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+          className="cursor-pointer border-none bg-transparent text-base leading-none text-zinc-300 underline decoration-zinc-300 decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-zinc-300 hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
           disabled={isPending}
           onClick={handleNext}
         >
           {isPending ? dots : "next"}
         </button>
       </footer>
+      {import.meta.env.DEV && (
+        <React.Suspense fallback={null}>
+          <RawMarkdown promise={promise} />
+        </React.Suspense>
+      )}
     </div>
   );
 }
@@ -72,6 +77,16 @@ function Content({ promise }: ContentProps) {
       dangerouslySetInnerHTML={{ __html: entry.html }}
     />
   ) : (
-    <p className="py-12 text-center text-sm text-zinc-600">entry not found</p>
+    <p className="py-12 text-center text-base text-zinc-200">entry not found</p>
   );
+}
+
+function RawMarkdown({ promise }: ContentProps) {
+  const entry = React.use(promise);
+
+  return entry?.markdown ? (
+    <pre className="wrap-break-words mt-8 w-full max-w-prose overflow-x-auto font-mono text-xs whitespace-pre-wrap text-zinc-400 sm:mt-12">
+      {entry.markdown}
+    </pre>
+  ) : null;
 }

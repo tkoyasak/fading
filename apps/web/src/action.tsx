@@ -3,7 +3,11 @@
 import { env } from "cloudflare:workers";
 import { marked } from "marked";
 
-export type Entry = { date: string; html: string };
+export type Entry = {
+  date: string;
+  html: string;
+  markdown?: string;
+};
 
 export async function getRandomEntry(): Promise<Entry | null> {
   const indexJson = await env.KV.get("__index");
@@ -12,5 +16,9 @@ export async function getRandomEntry(): Promise<Entry | null> {
   const date = keys[Math.floor(Math.random() * keys.length)];
   const markdown = await env.KV.get(date);
   if (!markdown) return null;
-  return { date, html: String(await marked(markdown)) };
+  return {
+    date,
+    html: String(await marked(markdown)),
+    ...(import.meta.env.DEV && { markdown }),
+  };
 }
