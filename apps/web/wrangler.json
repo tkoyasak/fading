@@ -2,20 +2,20 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "fading",
   "main": "./src/framework/entry.rsc.tsx",
-  "compatibility_date": "2026-02-26",
-  "compatibility_flags": ["nodejs_als"],
+  "compatibility_date": "2026-03-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "route": {
+    "pattern": "tkoyasak.dev/lab/fading*",
+    "zone_name": "tkoyasak.dev"
+  },
   "kv_namespaces": [
     {
       "binding": "KV",
       "id": "d7d628060e0e43d89aeae77dd95160b5",
       "preview_id": "0d8eec8f81a34da393ee7e7a36712656"
     }
-  ],
-  "route": {
-    "pattern": "tkoyasak.dev/lab/fading*",
-    "zone_name": "tkoyasak.dev"
-  },
-  "observability": {
-    "enabled": true
-  }
+  ]
 }
