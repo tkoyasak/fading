@@ -8,7 +8,7 @@
       "files": ["apps/web/**"],
       "options": {
         "sortTailwindcss": {
-          "stylesheet": "apps/web/src/index.css"
+          "stylesheet": "apps/web/src/global.css"
         }
       }
     }
