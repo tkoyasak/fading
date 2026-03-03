@@ -33,8 +33,8 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-4 py-8 sm:px-6 sm:py-10">
-      <article className="relative w-full max-w-prose px-4 py-4 sm:px-8 sm:py-6">
+    <div className="flex flex-col items-center px-6 py-8 sm:px-8 sm:py-12">
+      <article className="relative w-full max-w-prose px-4 py-8 sm:px-8 sm:py-12">
         {/* + corner frame */}
         <span aria-hidden="true" className="absolute top-0 -right-2 -left-2 h-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -right-2 bottom-0 -left-2 h-px bg-zinc-600" />
@@ -46,9 +46,9 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
           </React.Suspense>
         </div>
       </article>
-      <footer className="mt-8">
+      <footer className="mt-8 sm:mt-12">
         <button
-          className="cursor-pointer border-none bg-transparent text-sm leading-none text-white underline decoration-white decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-white hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+          className="cursor-pointer border-none bg-transparent text-sm leading-none text-zinc-300 underline decoration-zinc-300 decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-zinc-300 hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
           disabled={isPending}
           onClick={handleNext}
         >
@@ -68,10 +68,10 @@ function Content({ promise }: ContentProps) {
 
   return entry ? (
     <main
-      className="prose text-base leading-relaxed text-white"
+      className="prose text-base leading-loose text-zinc-200"
       dangerouslySetInnerHTML={{ __html: entry.html }}
     />
   ) : (
-    <p className="py-12 text-center text-sm text-white">entry not found</p>
+    <p className="py-12 text-center text-sm text-zinc-600">entry not found</p>
   );
 }
