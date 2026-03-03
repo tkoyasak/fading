@@ -11,7 +11,7 @@ export async function Root() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>fading</title>
       </head>
-      <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased [font-synthesis:none] [text-rendering:optimizeLegibility]">
+      <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased">
         <Viewer initialEntry={initialEntry} fetchEntry={getRandomEntry} />
       </body>
     </html>
