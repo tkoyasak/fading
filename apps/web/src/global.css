@@ -11,6 +11,7 @@ body {
 
 .prose h6 {
   font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
   font-weight: normal;
   letter-spacing: 0.1em;
   margin-bottom: 2em;
