@@ -31,8 +31,11 @@ Rust workspace (Edition 2024, MSRV 1.93.0).
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
 - `tasks/entries`: `task-entries` — GitHub Actions task runner (entry generation)
+- `apps/web`: Web viewer — Vite + React RSC + Cloudflare Workers
 
 ## Commands
+
+### Rust
 
 Replace `{package}` with `fading-cli`, `fading-ls`, `fading-zed`, or `task-entries`.
 
@@ -50,6 +53,16 @@ cargo run -p task-entries -- generate
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```
 
+### Web (`apps/web`)
+
+```bash
+bun run dev       # Vite dev server (Cloudflare Workers)
+bun run build     # Production build
+bun run check     # tsc type check
+bun run release   # wrangler deploy --strict
+bun run types     # Regenerate worker-configuration.d.ts
+```
+
 ## Key Patterns
 
 ### CLI (`fading-cli`)
@@ -65,6 +78,15 @@ env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 - **Document storage**: `papaya::HashMap` for concurrent access
 - **Text operations**: `crop::Rope` for incremental edits
 - **Parsing**: `tree-sitter-md` for heading analysis
+
+### Web (`apps/web`)
+
+- **Stack**: Vite 8 + React 19 RSC + `@vitejs/plugin-rsc` + Cloudflare Workers
+- **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `src/global.css`
+- **Entry points**: `src/root.tsx` (RSC root), `src/action.tsx` (`"use server"`), `src/client.tsx` (`"use client"`)
+- **Data**: Cloudflare KV — `__index` key holds JSON array of date keys; each date key holds markdown content
+- **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
+- **Dev only**: `RawMarkdown` component shows unparsed markdown source below the next button (`import.meta.env.DEV`)
 
 ### Task Runner (`task-entries`)
 
