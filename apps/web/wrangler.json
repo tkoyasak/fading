@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "fading",
   "main": "./src/framework/entry.rsc.tsx",
-  "compatibility_date": "2026-03-03",
+  "compatibility_date": "2026-03-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
