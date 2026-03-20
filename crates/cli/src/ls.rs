@@ -1,6 +1,6 @@
 use tokio::runtime::Runtime;
 
-use crate::flags::{Cmd, Ls};
+use crate::{Cmd, Ls};
 
 impl Cmd for Ls {
     fn run(self) -> anyhow::Result<()> {

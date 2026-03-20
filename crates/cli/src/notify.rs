@@ -1,7 +1,7 @@
 use jiff::Zoned;
 use xshell::{Shell, cmd};
 
-use crate::flags::{Cmd, Notify};
+use crate::{Cmd, Notify};
 
 fn format_notification_body(date: &str) -> String {
     format!("\"Time to be fading! {date}\"")

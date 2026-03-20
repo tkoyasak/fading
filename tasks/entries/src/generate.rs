@@ -5,7 +5,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::{Shell, cmd};
 
-use crate::flags::{Cmd, Generate};
+use crate::{Cmd, Generate};
 
 const ENTRIES_DIR: &str = "entries/";
 const BRANCH_PREFIX: &str = "entry/";

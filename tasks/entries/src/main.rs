@@ -1,12 +1,26 @@
-use anyhow::Result;
-
-mod flags;
 mod generate;
 
-use crate::flags::{Cmd, Task, TaskCmd};
+xflags::xflags! {
+    /// CLI for the `fading` entries
+    cmd task {
+
+        /// Generate a monthly entry
+        cmd generate {}
+    }
+}
+
+pub trait Cmd {
+    fn run(self) -> anyhow::Result<()>;
+}
 
 fn main() {
-    if let Err(err) = try_main() {
+    let flags = Task::from_env_or_exit();
+
+    let result = match flags.subcommand {
+        TaskCmd::Generate(generate) => generate.run(),
+    };
+
+    if let Err(err) = result {
         let prefix = if std::env::var("GITHUB_ACTIONS").is_ok_and(|s| s == "true") {
             "::error::"
         } else {
@@ -14,12 +28,5 @@ fn main() {
         };
         eprintln!("{prefix}{err:?}");
         std::process::exit(1);
-    }
-}
-
-fn try_main() -> Result<()> {
-    let flags = Task::from_env()?;
-    match flags.subcommand {
-        TaskCmd::Generate(generate) => generate.run(),
     }
 }

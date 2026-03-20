@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use jiff::{Span, Zoned, civil::Date};
 use xshell::{Shell, cmd};
 
-use crate::flags::{Cmd, Open};
+use crate::{Cmd, Open};
 
 fn current_month() -> String {
     Zoned::now().strftime("%Y-%m").to_string()
