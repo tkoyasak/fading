@@ -7,6 +7,10 @@
   "observability": {
     "enabled": true
   },
+  "route": {
+    "pattern": "fading.lab.tkoyasak.dev",
+    "custom_domain": true
+  },
   "kv_namespaces": [
     {
       "binding": "KV",
