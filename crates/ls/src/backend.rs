@@ -81,6 +81,7 @@ impl LanguageServer for Backend {
                     )),
                     ..Default::default()
                 },
+                offset_encoding: Some("utf-8".to_string()),
             })
         } else {
             Ok(Default::default())

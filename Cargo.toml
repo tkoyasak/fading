@@ -12,23 +12,23 @@ rust-version = "1.93.0" # https://github.com/actions/runner-images
 fading-ls = { path = "crates/ls" }
 
 # non-local crates
-anyhow = { version = "1.0.101" }
+anyhow = { version = "1.0.102" }
 base64 = { version = "0.22.1" }
 crop = { version = "0.4.3" }
-env_logger = { version = "0.11.8" }
-jiff = { version = "0.2.19" }
+env_logger = { version = "0.11.9" }
+jiff = { version = "0.2.23" }
 log = { version = "0.4.29" }
 papaya = { version = "0.2.3" }
 proptest = { version = "1.10.0" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149" }
-serial_test = { version = "3.3.1" }
-tokio = { version = "1.49.0", features = ["io-std", "macros", "rt", "rt-multi-thread"] }
-toml = { version = "0.9.11" }
+serial_test = { version = "3.4.0" }
+tokio = { version = "1.50.0", features = ["io-std", "macros", "rt", "rt-multi-thread"] }
+toml = { version = "1.0.7" }
 tower = { version = "0.5.3" }
 tower-lsp-server = { version = "0.23.0" }
-tree-sitter = { version = "0.26.5" }
-tree-sitter-md = { version = "0.5.2", features = ["parser"] }
+tree-sitter = { version = "0.26.7" }
+tree-sitter-md = { version = "0.5.3", features = ["parser"] }
 xflags = { version = "0.4.0-pre.2" }
 xshell = { version = "0.3.0-pre.2" }
 zed_extension_api = { version = "0.7.0" }
