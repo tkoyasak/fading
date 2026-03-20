@@ -66,6 +66,7 @@ impl Cmd for Open {
             bail!("File not found: {path}");
         }
 
+        // Open in Helix via Ghostty
         open_in_ghostty(&path)
     }
 }
