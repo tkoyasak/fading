@@ -34,15 +34,26 @@ fn parse_month_arg(month: &Option<String>) -> Result<String> {
     }
 }
 
+// Open a file in Helix via Ghostty's AppleScript API.
+// Requires Ghostty 1.3.0+. See: https://github.com/ghostty-org/ghostty/pull/11208
+fn open_in_ghostty(path: &str) -> Result<()> {
+    let sh = Shell::new()?;
+    let script = format!(
+        r#"tell application "Ghostty"
+    activate
+    set win to new window
+    set term to terminal 1 of selected tab of win
+    input text "hx {path}" to term
+    send key "return" to term
+end tell"#
+    );
+    cmd!(sh, "osascript -e {script}")
+        .run()
+        .context("Failed to open Ghostty")
+}
+
 impl Cmd for Open {
     fn run(self) -> Result<()> {
-        let sh = Shell::new()?;
-
-        // Check if helix is installed
-        cmd!(sh, "which hx")
-            .read()
-            .context("Helix (hx) is not installed or not in PATH")?;
-
         // Get repository path from environment variable
         let repo_dir = std::env::var("FADING_DIR").context("FADING_DIR env is not set")?;
 
@@ -55,12 +66,7 @@ impl Cmd for Open {
             bail!("File not found: {path}");
         }
 
-        // Open in Helix
-        cmd!(sh, "hx {path}")
-            .run()
-            .with_context(|| format!("Failed to open {path} in Helix"))?;
-
-        Ok(())
+        open_in_ghostty(&path)
     }
 }
 
