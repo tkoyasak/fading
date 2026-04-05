@@ -44,7 +44,7 @@ fn open_in_ghostty(path: &str) -> Result<()> {
     set win to new window
     set term to terminal 1 of selected tab of win
     input text "hx {path}" to term
-    send key "return" to term
+    send key "enter" to term
 end tell"#
     );
     cmd!(sh, "osascript -e {script}")
