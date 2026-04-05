@@ -43,10 +43,8 @@ fn open_in_ghostty(path: &str, working_dir: &str) -> Result<()> {
     activate
     set cfg to new surface configuration
     set initial working directory of cfg to "{working_dir}"
+    set initial input of cfg to "hx {path}\n"
     set win to new window with configuration cfg
-    set term to terminal 1 of selected tab of win
-    input text "hx {path}" to term
-    send key "enter" to term
 end tell"#
     );
     cmd!(sh, "osascript -e {script}")
