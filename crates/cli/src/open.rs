@@ -36,12 +36,14 @@ fn parse_month_arg(month: &Option<String>) -> Result<String> {
 
 // Open a file in Helix via Ghostty's AppleScript API.
 // Requires Ghostty 1.3.0+. See: https://github.com/ghostty-org/ghostty/pull/11208
-fn open_in_ghostty(path: &str) -> Result<()> {
+fn open_in_ghostty(path: &str, working_dir: &str) -> Result<()> {
     let sh = Shell::new()?;
     let script = format!(
         r#"tell application "Ghostty"
     activate
-    set win to new window
+    set cfg to new surface configuration
+    set initial working directory of cfg to "{working_dir}"
+    set win to new window with configuration cfg
     set term to terminal 1 of selected tab of win
     input text "hx {path}" to term
     send key "enter" to term
@@ -67,7 +69,7 @@ impl Cmd for Open {
         }
 
         // Open in Helix via Ghostty
-        open_in_ghostty(&path)
+        open_in_ghostty(&path, &repo_dir)
     }
 }
 
