@@ -27,17 +27,16 @@ modified = 2026-01-15
 
 Rust workspace (Edition 2024, MSRV 1.93.0).
 
-- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open commands)
+- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open, new, backup commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
-- `tasks/entries`: `task-entries` — GitHub Actions task runner (entry generation)
 - `apps/web`: Web viewer — Vite + React RSC + Cloudflare Workers
 
 ## Commands
 
 ### Rust
 
-Replace `{package}` with `fading-cli`, `fading-ls`, `fading-zed`, or `task-entries`.
+Replace `{package}` with `fading-cli`, `fading-ls`, or `fading-zed`.
 
 ```bash
 cargo build -p {package}
@@ -48,7 +47,9 @@ cargo llvm-cov -p {package}
 
 cargo run -p fading-cli -- ls
 cargo run -p fading-cli -- open
-cargo run -p task-entries -- generate
+cargo run -p fading-cli -- new
+cargo run -p fading-cli -- new 2026-04
+cargo run -p fading-cli -- backup
 
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```
@@ -69,7 +70,8 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 - `xflags` macro generates argument parsing in `src/flags.rs`
 - Commands implement `Cmd` trait: `run(self) -> anyhow::Result<()>`
-- `FADING_DIR` env var is required for `open` command
+- `FADING_DIR` env var is required for `open`, `new`, and `backup` commands
+- `FADING_R2_BUCKET` env var is required for `backup` command
 
 ### Language Server (`fading-ls`)
 
@@ -87,12 +89,6 @@ bun run types     # Regenerate worker-configuration.d.ts
 - **Data**: Cloudflare KV — `__index` key holds JSON array of date keys; each date key holds markdown content
 - **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
 - **Dev only**: `RawMarkdown` component shows unparsed markdown source below the next button (`import.meta.env.DEV`)
-
-### Task Runner (`task-entries`)
-
-- Runs in GitHub Actions cron jobs (monthly, UTC-based)
-- Idempotent: checks existing branches/PRs before creation
-- Uses `gh` CLI for all GitHub API operations
 
 ## Testing
 
