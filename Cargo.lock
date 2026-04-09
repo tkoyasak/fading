@@ -242,6 +242,7 @@ dependencies = [
  "fading-ls",
  "jiff",
  "proptest",
+ "serde_json",
  "tokio",
  "xflags",
  "xshell",

@@ -1,16 +1,13 @@
-mod backup;
 mod ls;
 mod month;
 mod new;
 mod notify;
 mod open;
+mod push;
 
 xflags::xflags! {
     /// CLI for the `fading` language
     cmd fading {
-
-        /// Backup the repository to Cloudflare R2
-        cmd backup {}
 
         /// Start the language server
         cmd ls {}
@@ -29,6 +26,14 @@ xflags::xflags! {
             /// Month to open: empty/today (current), +N/-N (offset), or YYYY-MM (direct)
             optional month: String
         }
+
+        /// Push to Cloudflare (R2 backup and/or KV sync)
+        cmd push {
+            /// Target: r2, kv (default: both)
+            optional target: String
+            /// Sync all KV entries (ignore last synced commit)
+            optional -f, --full
+        }
     }
 }
 
@@ -40,11 +45,11 @@ fn main() {
     let flags = Fading::from_env_or_exit();
 
     let result = match flags.subcommand {
-        FadingCmd::Backup(backup) => backup.run(),
         FadingCmd::Ls(ls) => ls.run(),
         FadingCmd::New(new) => new.run(),
         FadingCmd::Notify(notify) => notify.run(),
         FadingCmd::Open(open) => open.run(),
+        FadingCmd::Push(push) => push.run(),
     };
 
     if let Err(err) = result {
