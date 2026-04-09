@@ -11,7 +11,9 @@ export type Entry = {
 
 export async function getRandomEntry(): Promise<Entry | null> {
   const indexJson = await env.KV.get("__index");
-  const keys: string[] = indexJson ? JSON.parse(indexJson) : [];
+  const { keys }: { keys: string[]; commit: string } = indexJson
+    ? JSON.parse(indexJson)
+    : { keys: [], commit: "" };
   if (keys.length === 0) return null;
   const date = keys[Math.floor(Math.random() * keys.length)];
   const markdown = await env.KV.get(date);
