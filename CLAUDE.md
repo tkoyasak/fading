@@ -27,7 +27,7 @@ modified = 2026-01-15
 
 Rust workspace (Edition 2024, MSRV 1.93.0).
 
-- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open, new, backup commands)
+- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open, new, push commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
 - `apps/web`: Web viewer — Vite + React RSC + Cloudflare Workers
@@ -49,7 +49,9 @@ cargo run -p fading-cli -- ls
 cargo run -p fading-cli -- open
 cargo run -p fading-cli -- new
 cargo run -p fading-cli -- new 2026-04
-cargo run -p fading-cli -- backup
+cargo run -p fading-cli -- push
+cargo run -p fading-cli -- push r2
+cargo run -p fading-cli -- push kv --full
 
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```
@@ -70,8 +72,9 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 - `xflags` macro generates argument parsing in `src/flags.rs`
 - Commands implement `Cmd` trait: `run(self) -> anyhow::Result<()>`
-- `FADING_DIR` env var is required for `open`, `new`, and `backup` commands
-- `FADING_R2_BUCKET` env var is required for `backup` command
+- `FADING_DIR` env var is required for `open`, `new`, and `push` commands
+- `FADING_CLI_R2_BUCKET` env var is required for `push` (R2 backup)
+- `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push` (KV sync)
 
 ### Language Server (`fading-ls`)
 
@@ -86,7 +89,7 @@ bun run types     # Regenerate worker-configuration.d.ts
 - **Stack**: Vite 8 + React 19 RSC + `@vitejs/plugin-rsc` + Cloudflare Workers
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `src/global.css`
 - **Entry points**: `src/root.tsx` (RSC root), `src/action.tsx` (`"use server"`), `src/client.tsx` (`"use client"`)
-- **Data**: Cloudflare KV — `__index` key holds JSON array of date keys; each date key holds markdown content
+- **Data**: Cloudflare KV — `__index` key holds `{keys: string[], commit: string}`; each date key (`YYYY-MM-DD`) holds markdown content
 - **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
 - **Dev only**: `RawMarkdown` component shows unparsed markdown source below the next button (`import.meta.env.DEV`)
 
