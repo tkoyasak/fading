@@ -4,6 +4,7 @@ mod new;
 mod notify;
 mod open;
 mod push;
+mod sigv4;
 
 xflags::xflags! {
     /// CLI for the `fading` language
