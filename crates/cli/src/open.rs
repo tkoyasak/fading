@@ -1,18 +1,29 @@
 use anyhow::{Context, Result, bail};
+use jiff::Zoned;
 use xshell::{Shell, cmd};
 
 use crate::{Cmd, Open, month::parse_month_arg};
 
+/// Find the 1-indexed line number of today's heading in the file, if present.
+fn find_today_line(path: &str) -> Option<usize> {
+    let today = Zoned::now().strftime("%Y-%m-%d").to_string();
+    let prefix = format!("###### {today}");
+    let content = std::fs::read_to_string(path).ok()?;
+    content
+        .lines()
+        .enumerate()
+        .find(|(_, line)| line.starts_with(&prefix))
+        .map(|(i, _)| i + 1)
+}
+
 // Open a file in Helix via Ghostty's AppleScript API.
 // Requires Ghostty 1.3.0+. See: https://github.com/ghostty-org/ghostty/pull/11208
-fn open_in_ghostty(path: &str, working_dir: &str) -> Result<()> {
+fn open_in_ghostty(path: &str, working_dir: &str, line: Option<usize>) -> Result<()> {
     let sh = Shell::new()?;
 
-    // Check if hx is already editing this file
     let hx_running = cmd!(sh, "pgrep -f {path}").read().is_ok();
 
     let script = if hx_running {
-        // Focus the existing terminal in the working directory
         format!(
             r#"tell application "Ghostty"
     activate
@@ -35,13 +46,16 @@ fn open_in_ghostty(path: &str, working_dir: &str) -> Result<()> {
 end tell"#
         )
     } else {
-        // Open a new Ghostty window and run hx after shell initialization
+        let hx_target = match line {
+            Some(n) => format!("{path}:{n}"),
+            None => path.to_string(),
+        };
         format!(
             r#"tell application "Ghostty"
     activate
     set cfg to new surface configuration
     set initial working directory of cfg to "{working_dir}"
-    set initial input of cfg to "hx {path}\n"
+    set initial input of cfg to "hx {hx_target}\n"
     set win to new window with configuration cfg
 end tell"#
         )
@@ -54,19 +68,16 @@ end tell"#
 
 impl Cmd for Open {
     fn run(self) -> Result<()> {
-        // Get repository path from environment variable
         let repo_dir = std::env::var("FADING_DIR").context("FADING_DIR env is not set")?;
-
-        // Parse month argument
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 
-        // Check if file exists
         if !std::path::Path::new(&path).exists() {
             bail!("File not found: {path}");
         }
 
-        // Open in Helix via Ghostty
-        open_in_ghostty(&path, &repo_dir)
+        let jump_to_today = matches!(self.month.as_deref(), None | Some("today"));
+        let line = jump_to_today.then(|| find_today_line(&path)).flatten();
+        open_in_ghostty(&path, &repo_dir, line)
     }
 }
