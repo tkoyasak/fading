@@ -15,7 +15,12 @@ fn generate_entry(month_str: &str) -> Result<String> {
 
     write!(
         content,
-        "+++\nid = \"{month_str}\"\ncreated = {today}\nmodified = {today}\n+++\n"
+        r#"+++
+id = "{month_str}"
+created = {today}
+modified = {today}
++++
+"#
     )?;
 
     for date in id.series(1.days()).take(id.days_in_month() as usize) {
