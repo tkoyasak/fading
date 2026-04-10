@@ -32,7 +32,7 @@ fn parse_entries(content: &str) -> Vec<(String, String)> {
             }) => {
                 if let Some(date) = current_date.take() {
                     let trimmed = content[content_start..range.start].trim();
-                    if !trimmed.is_empty() {
+                    if !trimmed.is_empty() && trimmed != "<!-- -->" {
                         entries.push((date, trimmed.to_string()));
                     }
                 }
@@ -54,7 +54,7 @@ fn parse_entries(content: &str) -> Vec<(String, String)> {
 
     if let Some(date) = current_date {
         let trimmed = content[content_start..].trim();
-        if !trimmed.is_empty() {
+        if !trimmed.is_empty() && trimmed != "<!-- -->" {
             entries.push((date, trimmed.to_string()));
         }
     }
@@ -293,6 +293,32 @@ modified = 2026-01-01
 
 ###### 2026-01-03 Sat
 
+"#;
+        let entries = parse_entries(content);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, "2026-01-02");
+        assert_eq!(entries[0].1, "今日は良い日だった。");
+    }
+
+    #[test]
+    fn test_parse_entries_skips_placeholder() {
+        let content = r#"+++
+id = "2026-01"
+created = 2026-01-01
+modified = 2026-01-01
++++
+
+###### 2026-01-01 Thu
+
+<!-- -->
+
+###### 2026-01-02 Fri
+
+今日は良い日だった。
+
+###### 2026-01-03 Sat
+
+<!-- -->
 "#;
         let entries = parse_entries(content);
         assert_eq!(entries.len(), 1);
