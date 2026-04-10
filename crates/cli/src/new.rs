@@ -24,7 +24,15 @@ modified = {today}
     )?;
 
     for date in id.series(1.days()).take(id.days_in_month() as usize) {
-        write!(content, "\n###### {}\n\n\n", date.strftime("%Y-%m-%d %a"))?;
+        write!(
+            content,
+            r"
+###### {}
+
+<!-- -->
+",
+            date.strftime("%Y-%m-%d %a")
+        )?;
     }
 
     Ok(content)
