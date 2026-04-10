@@ -52,21 +52,18 @@ fn parse_entries(content: &str) -> Vec<(String, String)> {
     entries
 }
 
-/// Read all entry files and return (date, content) pairs sorted by date.
-fn parse_all_entries(repo_dir: &str) -> Result<Vec<(String, String)>> {
-    let entries_dir = format!("{repo_dir}/entries");
-    let mut paths: Vec<_> = fs::read_dir(&entries_dir)
-        .with_context(|| format!("Failed to read {entries_dir}"))?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
-        .map(|e| e.path())
-        .collect();
-    paths.sort();
+/// Read all entry files at HEAD and return (date, content) pairs sorted by date.
+fn parse_all_entries(sh: &Shell, repo_dir: &str) -> Result<Vec<(String, String)>> {
+    let names = cmd!(sh, "git -C {repo_dir} ls-tree --name-only HEAD -- entries/")
+        .read()
+        .context("Failed to list entries at HEAD")?;
 
     let mut all_entries = Vec::new();
-    for path in paths {
-        let content =
-            fs::read_to_string(&path).with_context(|| format!("Failed to read {path:?}"))?;
+    for name in names.lines().filter(|f| f.ends_with(".md")) {
+        let path = format!("entries/{name}");
+        let content = cmd!(sh, "git -C {repo_dir} show HEAD:{path}")
+            .read()
+            .with_context(|| format!("Failed to read {path} at HEAD"))?;
         all_entries.extend(parse_entries(&content));
     }
     Ok(all_entries)
@@ -128,7 +125,7 @@ fn push_kv(
         .context("Failed to get HEAD commit")?;
     let head = head.trim();
 
-    let all_entries = parse_all_entries(repo_dir)?;
+    let all_entries = parse_all_entries(sh, repo_dir)?;
 
     let base_url = format!(
         "https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{ns_id}"
