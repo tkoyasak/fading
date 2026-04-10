@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs};
+use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
@@ -7,7 +7,6 @@ use xshell::{Shell, cmd};
 
 use crate::{Cmd, Push};
 
-const BUNDLE_PATH: &str = "/tmp/fading.bundle";
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
 /// Parse a monthly entry file into (date, content) pairs.
@@ -86,11 +85,22 @@ fn push_r2(
     access_key_id: &str,
     secret_access_key: &str,
 ) -> Result<()> {
-    cmd!(sh, "git -C {repo_dir} bundle create {BUNDLE_PATH} --all")
-        .run()
-        .context("Failed to create git bundle")?;
+    let temp = sh.create_temp_dir().context("Failed to create temp dir")?;
+    let bundle_path = temp.path().join(R2_OBJECT_KEY);
+    let bundle_path_str = bundle_path
+        .to_str()
+        .context("Bundle path is not valid UTF-8")?;
 
-    let body = fs::read(BUNDLE_PATH).context("Failed to read bundle file")?;
+    cmd!(
+        sh,
+        "git -C {repo_dir} bundle create {bundle_path_str} --all"
+    )
+    .run()
+    .context("Failed to create git bundle")?;
+
+    let body = sh
+        .read_binary_file(&bundle_path)
+        .context("Failed to read bundle file")?;
 
     let datetime = jiff::Timestamp::now()
         .to_zoned(jiff::tz::TimeZone::UTC)
@@ -150,7 +160,10 @@ fn push_kv(
 
         match index_result {
             Ok(mut resp) => {
-                let json_str = resp.body_mut().read_to_string().unwrap_or_default();
+                let json_str = resp.body_mut().read_to_string().unwrap_or_else(|e| {
+                    eprintln!("KV: failed to read index response: {e}");
+                    String::new()
+                });
                 if let Ok(index) = serde_json::from_str::<Value>(&json_str) {
                     let last_commit = index["commit"].as_str().unwrap_or("");
 
@@ -180,7 +193,10 @@ fn push_kv(
                     all_entries.iter().collect()
                 }
             }
-            Err(_) => all_entries.iter().collect(),
+            Err(e) => {
+                eprintln!("KV: failed to fetch index, falling back to full sync: {e}");
+                all_entries.iter().collect()
+            }
         }
     };
 
