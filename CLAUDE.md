@@ -18,10 +18,15 @@ modified = 2026-01-15
 ###### 2026-01-15 Thu
 
 また明日ね．
+
+###### 2026-01-16 Fri
+
+<!-- -->
 ```
 
 - **Frontmatter**: TOML enclosed in `+++` — `id` (YYYY-MM, matches filename), `created`, `modified` (auto-updated by LS)
 - **Entries**: Separated by `###### YYYY-MM-DD Day` headings
+- **Empty days**: Use `<!-- -->` as placeholder (preserved by Markdown formatters; excluded from KV sync)
 
 ## Repository Structure
 

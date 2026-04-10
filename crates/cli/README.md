@@ -37,8 +37,8 @@ Idempotent — skips if the entry already exists.
 Open a fading entry file in Helix editor.
 
 ```bash
-fading open              # Current month
-fading open today        # Current month
+fading open              # Current month, jump to today's heading
+fading open today        # Current month, jump to today's heading
 fading open +1           # 1 month in the future
 fading open -12          # 12 months in the past
 fading open 2025-01      # Specific month
@@ -60,10 +60,14 @@ R2 and KV operations run independently — if one fails, the other continues.
 
 ## Configuration
 
-| Variable                     | Required    | Description                  |
-| ---------------------------- | ----------- | ---------------------------- |
-| `FADING_DIR`                 | Yes         | Path to the fading directory |
-| `FADING_CLI_R2_BUCKET`       | `push` (R2) | Cloudflare R2 bucket name    |
-| `FADING_CLI_KV_NAMESPACE_ID` | `push` (KV) | Cloudflare KV namespace ID   |
+| Variable                          | Required    | Description                  |
+| --------------------------------- | ----------- | ---------------------------- |
+| `FADING_DIR`                      | Yes         | Path to the fading directory |
+| `FADING_CLI_CF_ACCOUNT_ID`        | `push`      | Cloudflare account ID        |
+| `FADING_CLI_R2_BUCKET`            | `push` (R2) | Cloudflare R2 bucket name    |
+| `FADING_CLI_R2_ACCESS_KEY_ID`     | `push` (R2) | R2 API token access key      |
+| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `push` (R2) | R2 API token secret key      |
+| `FADING_CLI_CF_API_TOKEN`         | `push` (KV) | Cloudflare API token         |
+| `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID   |
 
 Entry file location: `${FADING_DIR}/entries/${YYYY-MM}.md`
