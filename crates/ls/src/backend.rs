@@ -40,8 +40,8 @@ impl LanguageServer for Backend {
             {
                 let path = folder.uri.path().as_str();
 
-                // Check if FADING_DIR matches workspace path
-                std::env::var("FADING_DIR").is_ok_and(|fading_dir| path == fading_dir)
+                // Check if FADING_HOME matches workspace path
+                std::env::var("FADING_HOME").is_ok_and(|fading_dir| path == fading_dir)
             } else {
                 false
             }
@@ -277,7 +277,7 @@ mod tests {
     #[serial]
     async fn test_initialize_with_fading_dir() {
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace/fading");
+            std::env::set_var("FADING_HOME", "/workspace/fading");
         }
         let (mut service, _) = LspService::new(Backend::new);
 
@@ -296,7 +296,7 @@ mod tests {
         );
 
         unsafe {
-            std::env::remove_var("FADING_DIR");
+            std::env::remove_var("FADING_HOME");
         }
     }
 
@@ -304,7 +304,7 @@ mod tests {
     #[serial]
     async fn test_initialize_without_fading_dir() {
         unsafe {
-            std::env::remove_var("FADING_DIR");
+            std::env::remove_var("FADING_HOME");
         }
         let (mut service, _) = LspService::new(Backend::new);
 
@@ -323,7 +323,7 @@ mod tests {
     #[serial]
     async fn test_document_lifecycle() {
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         let (mut service, _) = LspService::new(Backend::new);
 
@@ -358,7 +358,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -385,7 +385,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -413,7 +413,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -434,7 +434,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -466,7 +466,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -493,7 +493,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 
@@ -524,7 +524,7 @@ mod tests {
 
         // Initialize
         unsafe {
-            std::env::set_var("FADING_DIR", "/workspace");
+            std::env::set_var("FADING_HOME", "/workspace");
         }
         send(&mut service, initialize_request(1, "file:///workspace")).await;
 

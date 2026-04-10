@@ -62,7 +62,7 @@ R2 and KV operations run independently — if one fails, the other continues.
 
 | Variable                          | Required    | Description                  |
 | --------------------------------- | ----------- | ---------------------------- |
-| `FADING_DIR`                      | Yes         | Path to the fading directory |
+| `FADING_HOME`                     | Yes         | Path to the fading directory |
 | `FADING_CLI_CF_ACCOUNT_ID`        | `push`      | Cloudflare account ID        |
 | `FADING_CLI_R2_BUCKET`            | `push` (R2) | Cloudflare R2 bucket name    |
 | `FADING_CLI_R2_ACCESS_KEY_ID`     | `push` (R2) | R2 API token access key      |
@@ -70,4 +70,4 @@ R2 and KV operations run independently — if one fails, the other continues.
 | `FADING_CLI_CF_API_TOKEN`         | `push` (KV) | Cloudflare API token         |
 | `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID   |
 
-Entry file location: `${FADING_DIR}/entries/${YYYY-MM}.md`
+Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`

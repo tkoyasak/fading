@@ -30,9 +30,9 @@ Incremental sync with UTF-8 position encoding.
 
 ## Configuration
 
-| Variable     | Required | Description                                       |
-| ------------ | -------- | ------------------------------------------------- |
-| `FADING_DIR` | Yes      | Must exactly match the workspace path to activate |
+| Variable      | Required | Description                                       |
+| ------------- | -------- | ------------------------------------------------- |
+| `FADING_HOME` | Yes      | Must exactly match the workspace path to activate |
 
 Only single-root workspaces are supported.
 

@@ -40,7 +40,7 @@ modified = {today}
 
 impl Cmd for New {
     fn run(self) -> Result<()> {
-        let repo_dir = std::env::var("FADING_DIR").context("FADING_DIR env is not set")?;
+        let repo_dir = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 

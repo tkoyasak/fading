@@ -77,7 +77,7 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 - `xflags` macro generates argument parsing in `src/flags.rs`
 - Commands implement `Cmd` trait: `run(self) -> anyhow::Result<()>`
-- `FADING_DIR` env var is required for `open`, `new`, and `push` commands
+- `FADING_HOME` env var is required for `open`, `new`, and `push` commands
 - `FADING_CLI_CF_ACCOUNT_ID` env var is required for `push` (Cloudflare account ID, shared between R2 and KV)
 - `FADING_CLI_R2_BUCKET` env var is required for `push r2` (R2 bucket name)
 - `FADING_CLI_R2_ACCESS_KEY_ID` env var is required for `push r2` (R2 API token access key)
@@ -87,7 +87,7 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 ### Language Server (`fading-ls`)
 
-- **Activation**: Only when `FADING_DIR` env var exactly matches workspace path (single-root only)
+- **Activation**: Only when `FADING_HOME` env var exactly matches workspace path (single-root only)
 - **Provider pattern**: `CodeActionProvider` trait in `code_actions.rs`, `DiagnosticProvider` trait in `diagnostics.rs`
 - **Document storage**: `papaya::HashMap` for concurrent access
 - **Text operations**: `crop::Rope` for incremental edits

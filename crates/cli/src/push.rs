@@ -230,7 +230,7 @@ fn push_kv(
 
 impl Cmd for Push {
     fn run(self) -> Result<()> {
-        let repo_dir = std::env::var("FADING_DIR").context("FADING_DIR env is not set")?;
+        let repo_dir = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
 
         let target = self.target.as_deref();
         let do_r2 = matches!(target, None | Some("r2"));
