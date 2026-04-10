@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fs};
 
 use anyhow::{Context, Result};
+use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
@@ -10,40 +11,49 @@ const BUNDLE_PATH: &str = "/tmp/fading.bundle";
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
 /// Parse a monthly entry file into (date, content) pairs.
-/// Skips empty days (template-only entries with no content).
+/// Skips the TOML frontmatter and empty days.
 fn parse_entries(content: &str) -> Vec<(String, String)> {
+    let opts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
     let mut entries = Vec::new();
     let mut current_date: Option<String> = None;
-    let mut current_content = String::new();
-    let mut in_frontmatter = false;
+    let mut content_start: usize = 0;
+    let mut in_h6 = false;
+    let mut heading_text = String::new();
 
-    for line in content.lines() {
-        if line == "+++" {
-            in_frontmatter = !in_frontmatter;
-            continue;
-        }
-        if in_frontmatter {
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("###### ") {
-            if let Some(date) = current_date.take() {
-                let trimmed = current_content.trim();
-                if !trimmed.is_empty() {
-                    entries.push((date, trimmed.to_string()));
-                }
+    for (event, range) in Parser::new_ext(content, opts).into_offset_iter() {
+        match event {
+            // Skip frontmatter; set content_start to just after the closing +++
+            Event::End(TagEnd::MetadataBlock(_)) => {
+                content_start = range.end;
             }
-            // Date is the first 10 chars of the heading (YYYY-MM-DD)
-            current_date = rest.get(..10).map(|s| s.to_string());
-            current_content.clear();
-        } else if current_date.is_some() {
-            current_content.push_str(line);
-            current_content.push('\n');
+            Event::Start(Tag::Heading {
+                level: HeadingLevel::H6,
+                ..
+            }) => {
+                if let Some(date) = current_date.take() {
+                    let trimmed = content[content_start..range.start].trim();
+                    if !trimmed.is_empty() {
+                        entries.push((date, trimmed.to_string()));
+                    }
+                }
+                in_h6 = true;
+                heading_text.clear();
+            }
+            Event::Text(text) if in_h6 => {
+                heading_text.push_str(&text);
+            }
+            Event::End(TagEnd::Heading(_)) if in_h6 => {
+                in_h6 = false;
+                // Date is the first 10 chars of the heading text (YYYY-MM-DD)
+                current_date = heading_text.get(..10).map(|s| s.to_string());
+                content_start = range.end;
+            }
+            _ => {}
         }
     }
 
     if let Some(date) = current_date {
-        let trimmed = current_content.trim();
+        let trimmed = content[content_start..].trim();
         if !trimmed.is_empty() {
             entries.push((date, trimmed.to_string()));
         }
@@ -60,10 +70,9 @@ fn parse_all_entries(sh: &Shell, repo_dir: &str) -> Result<Vec<(String, String)>
 
     let mut all_entries = Vec::new();
     for name in names.lines().filter(|f| f.ends_with(".md")) {
-        let path = format!("entries/{name}");
-        let content = cmd!(sh, "git -C {repo_dir} show HEAD:{path}")
+        let content = cmd!(sh, "git -C {repo_dir} show HEAD:{name}")
             .read()
-            .with_context(|| format!("Failed to read {path} at HEAD"))?;
+            .with_context(|| format!("Failed to read {name} at HEAD"))?;
         all_entries.extend(parse_entries(&content));
     }
     Ok(all_entries)
