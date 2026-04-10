@@ -73,8 +73,12 @@ bun run types     # Regenerate worker-configuration.d.ts
 - `xflags` macro generates argument parsing in `src/flags.rs`
 - Commands implement `Cmd` trait: `run(self) -> anyhow::Result<()>`
 - `FADING_DIR` env var is required for `open`, `new`, and `push` commands
-- `FADING_CLI_R2_BUCKET` env var is required for `push` (R2 backup)
-- `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push` (KV sync)
+- `FADING_CLI_CF_ACCOUNT_ID` env var is required for `push` (Cloudflare account ID, shared between R2 and KV)
+- `FADING_CLI_R2_BUCKET` env var is required for `push r2` (R2 bucket name)
+- `FADING_CLI_R2_ACCESS_KEY_ID` env var is required for `push r2` (R2 API token access key)
+- `FADING_CLI_R2_SECRET_ACCESS_KEY` env var is required for `push r2` (R2 API token secret key)
+- `FADING_CLI_CF_API_TOKEN` env var is required for `push kv` (Cloudflare API token)
+- `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push kv` (KV namespace ID)
 
 ### Language Server (`fading-ls`)
 
