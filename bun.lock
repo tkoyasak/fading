@@ -13,7 +13,7 @@
     "apps/web": {
       "name": "vite-rsc-starter",
       "dependencies": {
-        "marked": "17.0.6",
+        "marked": "18.0.0",
         "react": "19.2.4",
         "react-dom": "19.2.4",
       },
@@ -401,7 +401,7 @@
 
     "magic-string": ["magic-string@0.30.21", "https://npm.flatt.tech/magic-string/-/magic-string-0.30.21.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
-    "marked": ["marked@17.0.6", "https://npm.flatt.tech/marked/-/marked-17.0.6.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-gB0gkNafnonOw0obSTEGZTT86IuhILt2Wfx0mWH/1Au83kybTayroZ/V6nS25mN7u8ASy+5fMhgB3XPNrOZdmA=="],
+    "marked": ["marked@18.0.0", "https://npm.flatt.tech/marked/-/marked-18.0.0.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-2e7Qiv/HJSXj8rDEpgTvGKsP8yYtI9xXHKDnrftrmnrJPaFNM7VRb2YCzWaX4BP1iCJ/XPduzDJZMFoqTCcIMA=="],
 
     "miniflare": ["miniflare@4.20260401.0", "https://npm.flatt.tech/miniflare/-/miniflare-4.20260401.0.tgz", { "dependencies": { "@cspotcode/source-map-support": "0.8.1", "sharp": "^0.34.5", "undici": "7.24.4", "workerd": "1.20260401.1", "ws": "8.18.0", "youch": "4.1.0-beta.10" }, "bin": { "miniflare": "bootstrap.js" } }, "sha512-lngHPzZFN9sxYG/mhzvnWiBMNVAN5MsO/7g32ttJ07rymtiK/ZBalODTKb8Od+BQdlU5DOR4CjVt9NydjnUyYg=="],
 
