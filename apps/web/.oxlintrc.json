@@ -20,19 +20,5 @@
   "rules": {
     "react-in-jsx-scope": "off",
     "no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
-  },
-  "overrides": [
-    {
-      "files": ["src/framework/**"],
-      "rules": {
-        "no-unused-vars": "off",
-        "no-redundant-type-constituents": "off",
-        "no-floating-promises": "off",
-        "unbound-method": "off",
-        "consistent-function-scoping": "off",
-        "no-unnecessary-boolean-literal-compare": "off",
-        "no-unsafe-type-assertion": "off"
-      }
-    }
-  ]
+  }
 }

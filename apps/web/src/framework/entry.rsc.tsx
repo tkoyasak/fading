@@ -24,9 +24,9 @@ async function handler(request: Request): Promise<Response> {
   // handle server function request
   let returnValue: RscPayload["returnValue"] | undefined;
   let formState: ReactFormState | undefined;
-  let temporaryReferences: unknown | undefined;
   let actionStatus: number | undefined;
-  if (renderRequest.isAction === true) {
+  let temporaryReferences: unknown;
+  if (renderRequest.isAction) {
     if (renderRequest.actionId) {
       // action is called via `ReactClient.setServerCallback`.
       const contentType = request.headers.get("content-type");
@@ -39,7 +39,7 @@ async function handler(request: Request): Promise<Response> {
       try {
         const data = await action.apply(null, args);
         returnValue = { ok: true, data };
-      } catch (e) {
+      } catch (e: unknown) {
         returnValue = { ok: false, data: e };
         actionStatus = 500;
       }
@@ -52,7 +52,7 @@ async function handler(request: Request): Promise<Response> {
       try {
         const result = await decodedAction();
         formState = await decodeFormState(result, formData);
-      } catch (e) {
+      } catch {
         // there's no single general obvious way to surface this error,
         // so explicitly return classic 500 response.
         return new Response("Internal Server Error: server action failed", {
@@ -68,7 +68,7 @@ async function handler(request: Request): Promise<Response> {
   // to achieve single round trip to mutate and fetch from server.
   const rscPayload: RscPayload = { root: <Root />, formState, returnValue };
   const rscOptions = { temporaryReferences };
-  const rscStream = renderToReadableStream<RscPayload>(rscPayload, rscOptions);
+  const rscStream = renderToReadableStream(rscPayload, rscOptions);
 
   // Respond RSC stream without HTML rendering as decided by `RenderRequest`
   if (renderRequest.isRsc) {

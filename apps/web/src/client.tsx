@@ -14,11 +14,12 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   const [dots, setDots] = React.useState(".");
 
   React.useEffect(() => {
-    if (!isPending) {
+    let id: ReturnType<typeof setInterval> | undefined;
+    if (isPending) {
+      id = setInterval(() => setDots((d) => (d.length === 3 ? "." : d + ".")), 400);
+    } else {
       setDots(".");
-      return;
     }
-    const id = setInterval(() => setDots((d) => (d.length === 3 ? "." : d + ".")), 400);
     return () => clearInterval(id);
   }, [isPending]);
 

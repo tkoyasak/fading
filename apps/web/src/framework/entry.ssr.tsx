@@ -40,7 +40,7 @@ export async function renderHTML(
       nonce: options?.nonce,
       formState: options?.formState,
     });
-  } catch (e) {
+  } catch {
     // fallback to render an empty shell and run pure CSR on browser,
     // which can replay server component error and trigger error boundary.
     status = 500;

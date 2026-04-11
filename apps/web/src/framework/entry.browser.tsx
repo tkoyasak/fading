@@ -83,8 +83,29 @@ async function main() {
   // implement server HMR by triggering re-fetch/render of RSC upon server code change
   if (import.meta.hot) {
     import.meta.hot.on("rsc:update", () => {
-      fetchRscPayload();
+      void fetchRscPayload();
     });
+  }
+}
+
+function onClick(e: MouseEvent) {
+  if (!(e.target instanceof Element)) return;
+  const link = e.target.closest("a");
+  if (
+    link instanceof HTMLAnchorElement &&
+    link.href &&
+    (!link.target || link.target === "_self") &&
+    link.origin === location.origin &&
+    !link.hasAttribute("download") &&
+    e.button === 0 && // left clicks only
+    !e.metaKey && // open in new tab (mac)
+    !e.ctrlKey && // open in new tab (windows)
+    !e.altKey && // download
+    !e.shiftKey &&
+    !e.defaultPrevented
+  ) {
+    e.preventDefault();
+    history.pushState(null, "", link.href);
   }
 }
 
@@ -92,6 +113,7 @@ async function main() {
 function listenNavigation(onNavigation: () => void) {
   window.addEventListener("popstate", onNavigation);
 
+  // oxlint-disable-next-line typescript/unbound-method
   const oldPushState = window.history.pushState;
   window.history.pushState = function (...args) {
     const res = oldPushState.apply(this, args);
@@ -99,6 +121,7 @@ function listenNavigation(onNavigation: () => void) {
     return res;
   };
 
+  // oxlint-disable-next-line typescript/unbound-method
   const oldReplaceState = window.history.replaceState;
   window.history.replaceState = function (...args) {
     const res = oldReplaceState.apply(this, args);
@@ -106,26 +129,6 @@ function listenNavigation(onNavigation: () => void) {
     return res;
   };
 
-  function onClick(e: MouseEvent) {
-    let link = (e.target as Element).closest("a");
-    if (
-      link &&
-      link instanceof HTMLAnchorElement &&
-      link.href &&
-      (!link.target || link.target === "_self") &&
-      link.origin === location.origin &&
-      !link.hasAttribute("download") &&
-      e.button === 0 && // left clicks only
-      !e.metaKey && // open in new tab (mac)
-      !e.ctrlKey && // open in new tab (windows)
-      !e.altKey && // download
-      !e.shiftKey &&
-      !e.defaultPrevented
-    ) {
-      e.preventDefault();
-      history.pushState(null, "", link.href);
-    }
-  }
   document.addEventListener("click", onClick);
 
   return () => {
@@ -136,4 +139,4 @@ function listenNavigation(onNavigation: () => void) {
   };
 }
 
-main();
+void main();
