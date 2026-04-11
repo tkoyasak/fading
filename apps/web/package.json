@@ -21,7 +21,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.1",
-    "@vitejs/plugin-rsc": "0.5.22",
+    "@vitejs/plugin-rsc": "0.5.23",
     "rsc-html-stream": "0.0.7",
     "tailwindcss": "4.2.2",
     "typescript": "6.0.2",
