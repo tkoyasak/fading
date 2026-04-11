@@ -20,7 +20,7 @@ export async function getRandomEntry(): Promise<Entry | null> {
   if (!markdown) return null;
   return {
     date,
-    html: String(await marked(markdown)),
+    html: await marked(markdown),
     ...(import.meta.env.DEV && { markdown }),
   };
 }
