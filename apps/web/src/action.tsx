@@ -16,12 +16,11 @@ export interface Entry {
 
 export async function getRandomEntry(): Promise<Entry | null> {
   const indexJson = await env.KV.get("__index");
-  const index: KvIndex =
+  const { keys }: KvIndex =
     indexJson === null
       ? { keys: [], commit: "" }
       : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `JSON.parse` returns `any`; KV value is known to match this shape
         (JSON.parse(indexJson) as KvIndex);
-  const { keys } = index;
   if (keys.length === 0) {
     return null;
   }
