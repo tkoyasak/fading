@@ -21,28 +21,38 @@ async function main() {
   // deserialize RSC stream back to React VDOM for CSR
   const initialPayload = await createFromReadableStream<RscPayload>(
     // initial RSC stream is injected in SSR stream as <script>...FLIGHT_DATA...</script>
-    rscStream,
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `rsc-html-stream` types `rscStream` as `ReadableStream<any>`
+    rscStream as ReadableStream<Uint8Array>,
   );
 
   // browser root component to (re-)render RSC payload as state
   function BrowserRoot() {
+    // oxlint-disable-next-line react/hook-use-state -- `setPayload_` is intentionally wrapped via `startTransition`
     const [payload, setPayload_] = React.useState(initialPayload);
 
     React.useEffect(() => {
-      setPayload = (v) => React.startTransition(() => setPayload_(v));
+      setPayload = (v) => {
+        React.startTransition(() => {
+          setPayload_(v);
+        });
+      };
     }, [setPayload_]);
 
     // re-fetch/render on client side navigation
-    React.useEffect(() => {
-      return listenNavigation(() => fetchRscPayload());
-    }, []);
+    React.useEffect(
+      () =>
+        listenNavigation(() => {
+          void fetchRscPayload();
+        }),
+      [],
+    );
 
     return payload.root;
   }
 
   // re-fetch RSC and trigger re-rendering
   async function fetchRscPayload() {
-    const renderRequest = createRscRenderRequest(window.location.href);
+    const renderRequest = createRscRenderRequest(globalThis.location.href);
     const payload = await createFromFetch<RscPayload>(fetch(renderRequest));
     setPayload(payload);
   }
@@ -51,7 +61,7 @@ async function main() {
   // on server function request after hydration.
   setServerCallback(async (id, args) => {
     const temporaryReferences = createTemporaryReferenceSet();
-    const renderRequest = createRscRenderRequest(window.location.href, {
+    const renderRequest = createRscRenderRequest(globalThis.location.href, {
       id,
       body: await encodeReply(args, { temporaryReferences }),
     });
@@ -60,7 +70,9 @@ async function main() {
     });
     setPayload(payload);
     const { ok, data } = payload.returnValue!;
-    if (!ok) throw data;
+    if (!ok) {
+      throw data;
+    }
     return data;
   });
 
@@ -89,7 +101,9 @@ async function main() {
 }
 
 function onClick(e: MouseEvent) {
-  if (!(e.target instanceof Element)) return;
+  if (!(e.target instanceof Element)) {
+    return;
+  }
   const link = e.target.closest("a");
   if (
     link instanceof HTMLAnchorElement &&
@@ -111,32 +125,30 @@ function onClick(e: MouseEvent) {
 
 // a little helper to setup events interception for client side navigation
 function listenNavigation(onNavigation: () => void) {
-  window.addEventListener("popstate", onNavigation);
+  globalThis.addEventListener("popstate", onNavigation);
 
-  // oxlint-disable-next-line typescript/unbound-method
-  const oldPushState = window.history.pushState;
-  window.history.pushState = function (...args) {
-    const res = oldPushState.apply(this, args);
+  // oxlint-disable-next-line typescript/unbound-method -- saving method reference to patch it; `this` is restored via `apply` in the wrapper
+  const oldPushState = globalThis.history.pushState;
+  globalThis.history.pushState = function pushState(...args) {
+    oldPushState.apply(this, args);
     onNavigation();
-    return res;
   };
 
-  // oxlint-disable-next-line typescript/unbound-method
-  const oldReplaceState = window.history.replaceState;
-  window.history.replaceState = function (...args) {
-    const res = oldReplaceState.apply(this, args);
+  // oxlint-disable-next-line typescript/unbound-method -- saving method reference to patch it; `this` is restored via `apply` in the wrapper
+  const oldReplaceState = globalThis.history.replaceState;
+  globalThis.history.replaceState = function replaceState(...args) {
+    oldReplaceState.apply(this, args);
     onNavigation();
-    return res;
   };
 
   document.addEventListener("click", onClick);
 
   return () => {
     document.removeEventListener("click", onClick);
-    window.removeEventListener("popstate", onNavigation);
-    window.history.pushState = oldPushState;
-    window.history.replaceState = oldReplaceState;
+    globalThis.removeEventListener("popstate", onNavigation);
+    globalThis.history.pushState = oldPushState;
+    globalThis.history.replaceState = oldReplaceState;
   };
 }
 
-void main();
+await main();

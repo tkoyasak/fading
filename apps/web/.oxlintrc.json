@@ -5,20 +5,51 @@
     "typescript",
     "unicorn",
     "react",
+    "react-perf",
+    // "nextjs",
     "oxc",
     "import",
-    "jsdoc",
-    "jsx-a11y",
-    "node",
+    // "jsdoc",
+    // "jsx-a11y",
+    // "node",
     "promise",
+    // "jest",
     "vitest"
+    // "vue",
   ],
   "categories": {
     "correctness": "error",
-    "suspicious": "error"
+    "suspicious": "error",
+    "pedantic": "error",
+    "perf": "error",
+    "style": "error"
+    // "restriction": "error",
+    // "nursery": "error"
   },
   "rules": {
-    "react-in-jsx-scope": "off",
-    "no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
+    "eslint/capitalized-comments": "off",
+    "eslint/func-style": "off",
+    "eslint/id-length": "off",
+    "eslint/init-declarations": "off",
+    "eslint/max-lines-per-function": "off",
+    "eslint/max-statements": ["error", { "max": 50 }],
+    "eslint/no-inline-comments": "off",
+    "eslint/no-magic-numbers": "off",
+    "eslint/no-ternary": "off",
+    "eslint/sort-imports": "off",
+    "eslint/sort-keys": "off",
+
+    "unicorn/no-null": "off",
+
+    "react/jsx-max-depth": ["error", { "max": 5 }],
+    "react/react-in-jsx-scope": "off",
+
+    "import/exports-last": "off",
+    "import/group-exports": "off",
+    "import/no-named-export": "off",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+    "import/prefer-default-export": "off",
+
+    "promise/avoid-new": "off"
   }
 }

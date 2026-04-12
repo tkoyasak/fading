@@ -36,7 +36,7 @@ export async function renderHTML(
   let status: number | undefined;
   try {
     htmlStream = await renderToReadableStream(<SsrRoot />, {
-      bootstrapScriptContent: options?.debugNojs ? undefined : bootstrapScriptContent,
+      bootstrapScriptContent: options?.debugNojs === true ? undefined : bootstrapScriptContent,
       nonce: options?.nonce,
       formState: options?.formState,
     });
@@ -51,16 +51,16 @@ export async function renderHTML(
         </body>
       </html>,
       {
-        bootstrapScriptContent:
-          `self.__NO_HYDRATE=1;` + (options?.debugNojs ? "" : bootstrapScriptContent),
+        bootstrapScriptContent: `self.__NO_HYDRATE=1;${options?.debugNojs === true ? "" : bootstrapScriptContent}`,
         nonce: options?.nonce,
       },
     );
   }
 
   let responseStream: ReadableStream<Uint8Array> = htmlStream;
-  if (!options?.debugNojs) {
+  if (options?.debugNojs !== true) {
     // initial RSC stream is injected in HTML stream as <script>...FLIGHT_DATA...</script>
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- `injectRSCPayload` from `rsc-html-stream` has loose `ReadableStream<any>` return type
     responseStream = responseStream.pipeThrough(
       injectRSCPayload(rscStream2, {
         nonce: options?.nonce,

@@ -16,6 +16,7 @@ class ErrorBoundary extends React.Component<{
     reset: () => void;
   }>;
 }> {
+  // oxlint-disable-next-line react/state-in-constructor -- class field syntax is idiomatic modern JS
   state: { error?: Error } = {};
 
   static getDerivedStateFromError(error: Error) {
@@ -23,11 +24,12 @@ class ErrorBoundary extends React.Component<{
   }
 
   reset = () => {
+    // oxlint-disable-next-line react/no-set-state -- `ErrorBoundary` requires class component
     this.setState({ error: null });
   };
 
   render() {
-    const error = this.state.error;
+    const { error } = this.state;
     if (error) {
       return <this.props.errorComponent error={error} reset={this.reset} />;
     }
@@ -45,6 +47,7 @@ function DefaultGlobalErrorPage(props: { error: Error; reset: () => void }) {
         <title>Unexpected Error</title>
       </head>
       <body
+        // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop -- error page rendered only on unhandled errors; performance is not a concern
         style={{
           fontFamily:
             'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
@@ -65,6 +68,7 @@ function DefaultGlobalErrorPage(props: { error: Error; reset: () => void }) {
           {import.meta.env.DEV && "message" in props.error ? props.error.message : "(Unknown)"}
         </pre>
         <button
+          // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop -- closes over `props.reset`; cannot be extracted without binding
           onClick={() => {
             React.startTransition(() => {
               props.reset();

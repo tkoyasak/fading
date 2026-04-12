@@ -10,15 +10,16 @@ import type { ReactFormState } from "react-dom/client";
 import { Root } from "../root.tsx";
 import { parseRenderRequest } from "./request.tsx";
 
-export type RscPayload = {
+export interface RscPayload {
   root: React.ReactNode;
   returnValue?: { ok: boolean; data: unknown };
   formState?: ReactFormState;
-};
+}
 
 async function handler(request: Request): Promise<Response> {
   // differentiate RSC, SSR, action, etc.
   const renderRequest = parseRenderRequest(request);
+  // oxlint-disable-next-line prefer-destructuring -- reassigning a parameter, destructuring would conflict
   request = renderRequest.request;
 
   // handle server function request
@@ -27,29 +28,14 @@ async function handler(request: Request): Promise<Response> {
   let actionStatus: number | undefined;
   let temporaryReferences: unknown;
   if (renderRequest.isAction) {
-    if (renderRequest.actionId) {
-      // action is called via `ReactClient.setServerCallback`.
-      const contentType = request.headers.get("content-type");
-      const body = contentType?.startsWith("multipart/form-data")
-        ? await request.formData()
-        : await request.text();
-      temporaryReferences = createTemporaryReferenceSet();
-      const args = await decodeReply(body, { temporaryReferences });
-      const action = await loadServerAction(renderRequest.actionId);
-      try {
-        const data = await action.apply(null, args);
-        returnValue = { ok: true, data };
-      } catch (e: unknown) {
-        returnValue = { ok: false, data: e };
-        actionStatus = 500;
-      }
-    } else {
+    if (renderRequest.actionId === undefined) {
       // otherwise server function is called via `<form action={...}>`
       // before hydration (e.g. when javascript is disabled).
       // aka progressive enhancement.
       const formData = await request.formData();
       const decodedAction = await decodeAction(formData);
       try {
+        // oxlint-disable-next-line typescript/no-confusing-void-expression -- `decodeAction` returns void per type, but the value is passed to `decodeFormState` per the RSC progressive-enhancement API
         const result = await decodedAction();
         formState = await decodeFormState(result, formData);
       } catch {
@@ -58,6 +44,24 @@ async function handler(request: Request): Promise<Response> {
         return new Response("Internal Server Error: server action failed", {
           status: 500,
         });
+      }
+    } else {
+      // action is called via `ReactClient.setServerCallback`.
+      const contentType = request.headers.get("content-type");
+      const body =
+        contentType?.startsWith("multipart/form-data") === true
+          ? await request.formData()
+          : await request.text();
+      temporaryReferences = createTemporaryReferenceSet();
+      const args = await decodeReply(body, { temporaryReferences });
+      const action = await loadServerAction(renderRequest.actionId);
+      try {
+        // oxlint-disable-next-line typescript/no-unsafe-assignment, typescript/no-unsafe-call -- `loadServerAction` returns an untyped `Function` from the RSC runtime
+        const data = await action(...args);
+        returnValue = { ok: true, data };
+      } catch (error: unknown) {
+        returnValue = { ok: false, data: error };
+        actionStatus = 500;
       }
     }
   }
@@ -80,11 +84,12 @@ async function handler(request: Request): Promise<Response> {
     });
   }
 
+  // oxlint-disable-next-line typescript/consistent-type-imports -- Vite RSC loadModule requires `typeof import()` in type argument
   const { renderHTML } = await import.meta.viteRsc.loadModule<typeof import("./entry.ssr.tsx")>(
     "ssr",
     "index",
   );
-  return await renderHTML(rscStream, {
+  return renderHTML(rscStream, {
     request,
     formState,
     // allow quick simulation of javascript disabled browser
@@ -92,11 +97,13 @@ async function handler(request: Request): Promise<Response> {
   });
 }
 
-export default {
+const app = {
   fetch(request: Request) {
     return handler(request);
   },
 };
+
+export default app;
 
 if (import.meta.hot) {
   import.meta.hot.accept();

@@ -16,21 +16,30 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   React.useEffect(() => {
     let id: ReturnType<typeof setInterval> | undefined;
     if (isPending) {
-      id = setInterval(() => setDots((d) => (d.length === 3 ? "." : d + ".")), 400);
+      id = setInterval(() => {
+        setDots((d) => (d.length === 3 ? "." : `${d}.`));
+      }, 400);
     } else {
       setDots(".");
     }
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+    };
   }, [isPending]);
 
+  // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop -- DOM `button` element; `useCallback` wouldn't prevent re-renders since button is not a memoized component
   function handleNext() {
-    startTransition(() =>
+    startTransition(() => {
       setPromise(
-        Promise.all([fetchEntry(), new Promise((r) => setTimeout(r, 800))]).then(
-          ([entry]) => entry,
-        ),
-      ),
-    );
+        Promise.all([
+          fetchEntry(),
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, 800);
+          }),
+          // oxlint-disable-next-line promise/prefer-await-to-then -- extracts the first element from Promise.all; using `await` would delay `setPromise` and change Suspense timing
+        ]).then(([entry]) => entry),
+      );
+    });
   }
 
   return (
@@ -41,7 +50,9 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
         <span aria-hidden="true" className="absolute -right-2 bottom-0 -left-2 h-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -top-2 -bottom-2 left-0 w-px bg-zinc-600" />
         <span aria-hidden="true" className="absolute -top-2 right-0 -bottom-2 w-px bg-zinc-600" />
-        <div className="transition-opacity duration-300" style={{ opacity: isPending ? 0.5 : 1 }}>
+        <div
+          className={`transition-opacity duration-300 ${isPending ? "opacity-50" : "opacity-100"}`}
+        >
           <React.Suspense fallback={null}>
             <Content promise={promise} />
           </React.Suspense>
@@ -75,6 +86,7 @@ function Content({ promise }: ContentProps) {
   return entry ? (
     <main
       className="prose text-base leading-loose text-zinc-200"
+      // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop -- `dangerouslySetInnerHTML` requires a plain object per React API; extracting to a variable doesn't help since `entry.html` changes each render
       dangerouslySetInnerHTML={{ __html: entry.html }}
     />
   ) : (
@@ -85,9 +97,9 @@ function Content({ promise }: ContentProps) {
 function RawMarkdown({ promise }: ContentProps) {
   const entry = React.use(promise);
 
-  return entry?.markdown ? (
+  return entry?.markdown === undefined ? null : (
     <pre className="wrap-break-words mt-8 w-full max-w-prose overflow-x-auto font-mono text-xs whitespace-pre-wrap text-zinc-400 sm:mt-12">
       {entry.markdown}
     </pre>
-  ) : null;
+  );
 }
