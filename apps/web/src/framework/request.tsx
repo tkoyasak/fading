@@ -6,13 +6,13 @@ const HEADER_ACTION_ID = "x-rsc-action";
 
 // Parsed request information used to route between RSC/SSR rendering and action handling.
 // Created by parseRenderRequest() from incoming HTTP requests.
-type RenderRequest = {
+interface RenderRequest {
   isRsc: boolean; // true if request should return RSC payload (via _.rsc suffix)
   isAction: boolean; // true if this is a server action call (POST request)
   actionId?: string; // server action ID from x-rsc-action header
   request: Request; // normalized Request with _.rsc suffix removed from URL
   url: URL; // normalized URL with _.rsc suffix removed
-};
+}
 
 export function createRscRenderRequest(
   urlString: string,
@@ -36,8 +36,8 @@ export function parseRenderRequest(request: Request): RenderRequest {
   const isAction = request.method === "POST";
   if (url.pathname.endsWith(URL_POSTFIX)) {
     url.pathname = url.pathname.slice(0, -URL_POSTFIX.length);
-    const actionId = request.headers.get(HEADER_ACTION_ID) || undefined;
-    if (request.method === "POST" && !actionId) {
+    const actionId = request.headers.get(HEADER_ACTION_ID) ?? undefined;
+    if (request.method === "POST" && actionId === undefined) {
       throw new Error("Missing action id header for RSC action request");
     }
     return {
@@ -47,12 +47,11 @@ export function parseRenderRequest(request: Request): RenderRequest {
       request: new Request(url, request),
       url,
     };
-  } else {
-    return {
-      isRsc: false,
-      isAction,
-      request,
-      url,
-    };
   }
+  return {
+    isRsc: false,
+    isAction,
+    request,
+    url,
+  };
 }
