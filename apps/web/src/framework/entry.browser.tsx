@@ -109,7 +109,7 @@ function onClick(e: MouseEvent) {
     link instanceof HTMLAnchorElement &&
     link.href &&
     (!link.target || link.target === "_self") &&
-    link.origin === location.origin &&
+    link.origin === globalThis.location.origin &&
     !link.hasAttribute("download") &&
     e.button === 0 && // left clicks only
     !e.metaKey && // open in new tab (mac)
@@ -119,7 +119,7 @@ function onClick(e: MouseEvent) {
     !e.defaultPrevented
   ) {
     e.preventDefault();
-    history.pushState(null, "", link.href);
+    globalThis.history.pushState(null, "", link.href);
   }
 }
 
