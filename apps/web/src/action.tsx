@@ -10,28 +10,24 @@ interface KvIndex {
 
 export interface Entry {
   date: string;
-  html: string;
-  markdown?: string;
+  __html: string;
+  __raw?: string;
 }
 
 export async function getRandomEntry(): Promise<Entry | null> {
-  const indexJson = await env.KV.get("__index");
-  const { keys }: KvIndex =
-    indexJson === null
-      ? { keys: [], commit: "" }
-      : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `JSON.parse` returns `any`; KV value is known to match this shape
-        (JSON.parse(indexJson) as KvIndex);
+  const indexJson = await env.KV.get<KvIndex>("__index", "json");
+  const keys = indexJson?.keys ?? [];
   if (keys.length === 0) {
     return null;
   }
   const date = keys[Math.floor(Math.random() * keys.length)];
-  const markdown = await env.KV.get(date);
-  if (markdown === null) {
+  const raw = await env.KV.get(date, "text");
+  if (raw === null) {
     return null;
   }
   return {
     date,
-    html: await marked(markdown),
-    ...(import.meta.env.DEV && { markdown }),
+    __html: await marked(raw),
+    ...(import.meta.env.DEV && { __raw: raw }),
   };
 }

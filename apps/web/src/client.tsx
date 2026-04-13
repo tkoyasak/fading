@@ -4,12 +4,12 @@ import React from "react";
 import type { Entry } from "./action.tsx";
 
 interface ViewerProps {
-  initialEntry: Entry | null;
+  initial: Entry | null;
   fetchEntry: () => Promise<Entry | null>;
 }
 
-export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
-  const [promise, setPromise] = React.useState(() => Promise.resolve(initialEntry));
+export function Viewer({ initial, fetchEntry }: ViewerProps) {
+  const [entry, setEntry] = React.useState(initial);
   const [isPending, startTransition] = React.useTransition();
   const [dots, setDots] = React.useState(".");
 
@@ -28,17 +28,15 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
   }, [isPending]);
 
   // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop -- DOM `button` element; `useCallback` wouldn't prevent re-renders since button is not a memoized component
-  function handleNext() {
-    startTransition(() => {
-      setPromise(
-        Promise.all([
-          fetchEntry(),
-          new Promise<void>((resolve) => {
-            setTimeout(resolve, 800);
-          }),
-          // oxlint-disable-next-line promise/prefer-await-to-then -- extracts the first element from Promise.all; using `await` would delay `setPromise` and change Suspense timing
-        ]).then(([entry]) => entry),
-      );
+  function nextAction() {
+    startTransition(async () => {
+      const [next] = await Promise.all([
+        fetchEntry(),
+        new Promise((resolve) => {
+          setTimeout(resolve, 1000);
+        }),
+      ]);
+      setEntry(next);
     });
   }
 
@@ -53,53 +51,39 @@ export function Viewer({ initialEntry, fetchEntry }: ViewerProps) {
         <div
           className={`transition-opacity duration-300 ${isPending ? "opacity-50" : "opacity-100"}`}
         >
-          <React.Suspense fallback={null}>
-            <Content promise={promise} />
-          </React.Suspense>
+          <Content entry={entry} />
         </div>
       </article>
       <footer className="mt-8 sm:mt-12">
         <button
           className="cursor-pointer border-none bg-transparent text-base leading-none text-zinc-300 underline decoration-zinc-300 decoration-1 underline-offset-4 select-none hover:no-underline hover:outline-2 hover:outline-offset-[5px] hover:outline-zinc-300 hover:outline-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
           disabled={isPending}
-          onClick={handleNext}
+          onClick={nextAction}
         >
           {isPending ? dots : "next"}
         </button>
       </footer>
-      {import.meta.env.DEV && (
-        <React.Suspense fallback={null}>
-          <RawMarkdown promise={promise} />
-        </React.Suspense>
-      )}
+      {import.meta.env.DEV && <RawMarkdown entry={entry} />}
     </div>
   );
 }
 
 interface ContentProps {
-  promise: Promise<Entry | null>;
+  entry: Entry | null;
 }
 
-function Content({ promise }: ContentProps) {
-  const entry = React.use(promise);
-
+function Content({ entry }: ContentProps) {
   return entry ? (
-    <main
-      className="prose text-base leading-loose text-zinc-200"
-      // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop -- `dangerouslySetInnerHTML` requires a plain object per React API; extracting to a variable doesn't help since `entry.html` changes each render
-      dangerouslySetInnerHTML={{ __html: entry.html }}
-    />
+    <main className="prose text-base leading-loose text-zinc-200" dangerouslySetInnerHTML={entry} />
   ) : (
     <p className="py-12 text-center text-base text-zinc-200">entry not found</p>
   );
 }
 
-function RawMarkdown({ promise }: ContentProps) {
-  const entry = React.use(promise);
-
-  return entry?.markdown === undefined ? null : (
+function RawMarkdown({ entry }: ContentProps) {
+  return entry?.__raw === undefined ? null : (
     <pre className="wrap-break-words mt-8 w-full max-w-prose overflow-x-auto font-mono text-xs whitespace-pre-wrap text-zinc-400 sm:mt-12">
-      {entry.markdown}
+      {entry.__raw}
     </pre>
   );
 }
