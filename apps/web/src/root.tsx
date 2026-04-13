@@ -1,9 +1,8 @@
+import React from "react";
 import { getRandomEntry } from "./action.tsx";
 import { Viewer } from "./client.tsx";
 
-export async function Root() {
-  const initialEntry = await getRandomEntry();
-
+export function Root() {
   return (
     <html lang="ja">
       <head>
@@ -12,8 +11,15 @@ export async function Root() {
         <title>fading</title>
       </head>
       <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased">
-        <Viewer initialEntry={initialEntry} fetchEntry={getRandomEntry} />
+        <React.Suspense fallback="Loading...">
+          <InitialView />
+        </React.Suspense>
       </body>
     </html>
   );
+}
+
+async function InitialView() {
+  const initial = await getRandomEntry();
+  return <Viewer initial={initial} fetchEntry={getRandomEntry} />;
 }
