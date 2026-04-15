@@ -14,9 +14,6 @@ export interface Entry {
 }
 
 export async function getRandomEntry(): Promise<Entry | null> {
-  // await new Promise((resolve) => {
-  //   setTimeout(resolve, 2000);
-  // });
   const indexJson = await env.KV.get<KvIndex>("__index", "json");
   const keys = indexJson?.keys ?? [];
   if (keys.length === 0) {
