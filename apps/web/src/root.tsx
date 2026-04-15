@@ -9,7 +9,7 @@ export function Root() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>fading</title>
       </head>
-      <body>
+      <body className="min-h-screen">
         <Viewer initial={getRandomEntry()} fetchEntry={getRandomEntry} />
       </body>
     </html>

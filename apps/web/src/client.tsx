@@ -22,23 +22,20 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
 
   return (
     <>
-      <main>
+      <main className="mx-auto max-w-sm pb-6">
         <React.Suspense>
           <Preview entryPromise={entryPromise} />
         </React.Suspense>
       </main>
-      <footer>
-        <React.Suspense fallback={<LoaderCircle size={16} className="animate-spin" />}>
-          <Date entryPromise={entryPromise} />
-          <button type="button" disabled={isPending} onClick={handleNext}>
-            next
-            {isPending ? (
-              <LoaderCircle size={16} className="animate-spin" />
-            ) : (
-              <ArrowRight size={16} className="" />
-            )}
-          </button>
-        </React.Suspense>
+      <footer className="fixed right-0 bottom-0 left-0 backdrop-blur-[1px]">
+        <div className="mx-auto max-w-sm">
+          <React.Suspense
+            // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
+            fallback={<FallbackFooter />}
+          >
+            <Footer entryPromise={entryPromise} isPending={isPending} onClick={handleNext} />
+          </React.Suspense>
+        </div>
       </footer>
     </>
   );
@@ -60,11 +57,35 @@ function Preview({ entryPromise }: EntryProps) {
   );
 }
 
-function Date({ entryPromise }: EntryProps) {
+interface FooterProps extends EntryProps {
+  isPending: boolean;
+  onClick: () => void;
+}
+
+function Footer({ entryPromise, isPending, onClick }: FooterProps) {
   const entry = React.use(entryPromise);
   return (
-    <React.ViewTransition>
-      <span>{entry?.date}</span>
-    </React.ViewTransition>
+    <div className="flex items-center justify-between">
+      <React.ViewTransition>
+        <span className="tabular-nums">{entry?.date}</span>
+      </React.ViewTransition>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={onClick}
+        className="flex items-center gap-1 leading-none"
+      >
+        next
+        {isPending ? <LoaderCircle size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+      </button>
+    </div>
+  );
+}
+
+function FallbackFooter() {
+  return (
+    <div className="flex justify-end">
+      <LoaderCircle size={16} className="animate-spin" />
+    </div>
   );
 }
