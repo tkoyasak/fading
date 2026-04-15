@@ -79,7 +79,13 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
         <span className="leading-none [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]">
           next
         </span>
-        {isPending ? <LoaderCircle size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+        <React.ViewTransition>
+          {isPending ? (
+            <LoaderCircle size={16} className="animate-spin" />
+          ) : (
+            <ArrowRight size={16} />
+          )}
+        </React.ViewTransition>
       </button>
     </div>
   );
