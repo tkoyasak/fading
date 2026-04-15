@@ -29,12 +29,14 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
       </main>
       <footer className="fixed right-0 bottom-0 left-0 text-[14px] backdrop-blur-[1px]">
         <div className="mx-auto max-w-sm">
-          <React.Suspense
-            // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
-            fallback={<FallbackFooter />}
-          >
-            <Footer entryPromise={entryPromise} isPending={isPending} onClick={handleNext} />
-          </React.Suspense>
+          <React.ViewTransition>
+            <React.Suspense
+              // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
+              fallback={<FallbackFooter />}
+            >
+              <Footer entryPromise={entryPromise} isPending={isPending} onClick={handleNext} />
+            </React.Suspense>
+          </React.ViewTransition>
         </div>
       </footer>
     </>
