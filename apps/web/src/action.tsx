@@ -10,24 +10,30 @@ interface KvIndex {
 
 export interface Entry {
   date: string;
-  __html: string;
-  __raw?: string;
+  html: string;
+  raw?: string;
 }
 
 export async function getRandomEntry(): Promise<Entry | null> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 2000);
+  });
   const indexJson = await env.KV.get<KvIndex>("__index", "json");
   const keys = indexJson?.keys ?? [];
   if (keys.length === 0) {
     return null;
   }
-  const date = keys[Math.floor(Math.random() * keys.length)];
-  const raw = await env.KV.get(date, "text");
+
+  const x = keys[Math.floor(Math.random() * keys.length)];
+  const raw = await env.KV.get(x, "text");
   if (raw === null) {
     return null;
   }
+  const a = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(x).getDay()];
+
   return {
-    date,
-    __html: await marked(raw),
-    ...(import.meta.env.DEV && { __raw: raw }),
+    date: `${x} ${a}`,
+    html: await marked(raw),
+    ...(import.meta.env.DEV && { raw }),
   };
 }

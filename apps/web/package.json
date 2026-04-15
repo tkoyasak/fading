@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "marked": "18.0.0",
-    "react": "19.2.5",
-    "react-dom": "19.2.5"
+    "react": "19.3.0-canary-705268dc-20260409",
+    "react-dom": "19.3.0-canary-705268dc-20260409"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.31.2",

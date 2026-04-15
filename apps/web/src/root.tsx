@@ -11,15 +11,12 @@ export function Root() {
         <title>fading</title>
       </head>
       <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased">
-        <React.Suspense fallback="Loading...">
-          <InitialView />
-        </React.Suspense>
+        <React.ViewTransition>
+          <React.Suspense fallback="Loading...">
+            <Viewer initial={getRandomEntry()} fetchEntry={getRandomEntry} />
+          </React.Suspense>
+        </React.ViewTransition>
       </body>
     </html>
   );
-}
-
-async function InitialView() {
-  const initial = await getRandomEntry();
-  return <Viewer initial={initial} fetchEntry={getRandomEntry} />;
 }
