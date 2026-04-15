@@ -1,20 +1,54 @@
-@import "tailwindcss";
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
 
-body {
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+@layer base {
+  *,
+  ::after,
+  ::before {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    font-family:
+      ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  b,
+  strong {
+    font-weight: bolder;
+  }
+
+  img,
+  svg {
+    display: block;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  [hidden] {
+    display: none;
+  }
 }
 
-::selection {
-  background: #444444;
-}
-
-.prose h6 {
-  font-family: ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: normal;
-  letter-spacing: 0.1em;
-  margin-bottom: 2em;
+.prose {
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .prose p {
@@ -26,24 +60,22 @@ body {
 }
 
 .prose a {
-  text-underline-offset: 0.3em;
   text-decoration: underline;
-  text-decoration-thickness: 1px;
   text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
 }
 
 .prose code {
-  font-family: ui-monospace, monospace;
-  font-size: 0.875em;
-  background-color: rgb(24 24 27); /* zinc-900 */
+  font-family: inherit;
+  background-color: rgb(244 244 245);
   padding: 0.125em 0.375em;
-  border-radius: 0;
 }
 
 .prose pre {
-  background-color: rgb(24 24 27); /* zinc-900 */
+  font-family: inherit;
+  background-color: rgb(244 244 245);
   padding: 0.75em 1.25em;
-  border-radius: 0;
   overflow-x: auto;
   margin-bottom: 1.5em;
 }
@@ -51,36 +83,12 @@ body {
 .prose pre code {
   background: none;
   padding: 0;
-  font-size: 0.875em;
-}
-
-.prose ul,
-.prose ol {
-  padding-left: 1.5em;
-  margin-bottom: 1.5em;
-}
-
-.prose ul:last-child,
-.prose ol:last-child {
-  margin-bottom: 0;
-}
-
-.prose ul {
-  list-style-type: disc;
-}
-
-.prose ol {
-  list-style-type: decimal;
-}
-
-.prose li {
-  margin-bottom: 0.25em;
 }
 
 .prose blockquote {
-  border-left: 2px solid rgb(63 63 70); /* zinc-700 */
-  padding-left: 1em;
-  color: rgb(161 161 170); /* zinc-400 */
+  background-color: rgb(244 244 245);
+  border-left: 2px solid rgb(212 212 216);
+  padding: 0.75em 1.25em;
   margin-left: 0;
   margin-bottom: 1.5em;
 }
