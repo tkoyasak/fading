@@ -27,7 +27,7 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
           <Preview entryPromise={entryPromise} />
         </React.Suspense>
       </main>
-      <footer className="fixed right-0 bottom-0 left-0 backdrop-blur-[1px]">
+      <footer className="fixed right-0 bottom-0 left-0 text-[14px] backdrop-blur-[1px]">
         <div className="mx-auto max-w-sm">
           <React.Suspense
             // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
@@ -50,6 +50,7 @@ function Preview({ entryPromise }: EntryProps) {
   return (
     <React.ViewTransition>
       <article
+        className="prose"
         // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
         dangerouslySetInnerHTML={{ __html: entry?.html ?? "" }}
       />
@@ -73,9 +74,11 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
         type="button"
         disabled={isPending}
         onClick={onClick}
-        className="flex items-center gap-1 leading-none"
+        className="flex items-center gap-1"
       >
-        next
+        <span className="leading-none [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]">
+          next
+        </span>
         {isPending ? <LoaderCircle size={16} className="animate-spin" /> : <ArrowRight size={16} />}
       </button>
     </div>
