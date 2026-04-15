@@ -43,8 +43,10 @@ fn parse_entries(content: &str) -> Vec<(String, String)> {
             }
             Event::End(TagEnd::Heading(_)) if in_h6 => {
                 in_h6 = false;
-                // Date is the first 10 chars of the heading text (YYYY-MM-DD)
-                current_date = heading_text.get(..10).map(|s| s.to_string());
+                // Convert YYYY-MM-DD (first 10 chars) to YYYYMMDD for KV key
+                current_date = heading_text
+                    .get(..10)
+                    .map(|s| format!("{}{}{}", &s[..4], &s[5..7], &s[8..10]));
                 content_start = range.end;
             }
             _ => {}
@@ -187,7 +189,11 @@ fn push_kv(
 
                     all_entries
                         .iter()
-                        .filter(|(date, _)| changed_months.contains(&date[..7]))
+                        .filter(|(date, _)| {
+                            // date is YYYYMMDD; changed_months are YYYY-MM
+                            let month = format!("{}-{}", &date[..4], &date[4..6]);
+                            changed_months.contains(month.as_str())
+                        })
                         .collect()
                 } else {
                     all_entries.iter().collect()
@@ -312,7 +318,7 @@ modified = 2026-01-01
 "#;
         let entries = parse_entries(content);
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, "2026-01-02");
+        assert_eq!(entries[0].0, "20260102");
         assert_eq!(entries[0].1, "今日は良い日だった。");
     }
 
@@ -338,7 +344,7 @@ modified = 2026-01-01
 "#;
         let entries = parse_entries(content);
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, "2026-01-02");
+        assert_eq!(entries[0].0, "20260102");
         assert_eq!(entries[0].1, "今日は良い日だった。");
     }
 
@@ -361,9 +367,9 @@ modified = 2026-01-01
 "#;
         let entries = parse_entries(content);
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].0, "2026-01-01");
+        assert_eq!(entries[0].0, "20260101");
         assert_eq!(entries[0].1, "一行目。");
-        assert_eq!(entries[1].0, "2026-01-02");
+        assert_eq!(entries[1].0, "20260102");
         assert_eq!(entries[1].1, "二行目。\n続き。");
     }
 }
