@@ -31,6 +31,6 @@ export async function getRandomEntry(): Promise<Entry | null> {
 
   return {
     date: `${x} ${a}`,
-    html: await marked(raw),
+    html: await marked(raw, { gfm: false }),
   };
 }
