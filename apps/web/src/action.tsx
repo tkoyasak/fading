@@ -11,13 +11,12 @@ interface KvIndex {
 export interface Entry {
   date: string;
   html: string;
-  raw?: string;
 }
 
 export async function getRandomEntry(): Promise<Entry | null> {
-  await new Promise((resolve) => {
-    setTimeout(resolve, 2000);
-  });
+  // await new Promise((resolve) => {
+  //   setTimeout(resolve, 2000);
+  // });
   const indexJson = await env.KV.get<KvIndex>("__index", "json");
   const keys = indexJson?.keys ?? [];
   if (keys.length === 0) {
@@ -34,6 +33,5 @@ export async function getRandomEntry(): Promise<Entry | null> {
   return {
     date: `${x} ${a}`,
     html: await marked(raw),
-    ...(import.meta.env.DEV && { raw }),
   };
 }
