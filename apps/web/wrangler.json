@@ -4,18 +4,32 @@
   "main": "./src/framework/entry.rsc.tsx",
   "compatibility_date": "2026-04-09",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
   "observability": {
     "enabled": true
   },
-  "route": {
-    "pattern": "fading.lab.tkoyasak.dev",
-    "custom_domain": true
-  },
+  "routes": [
+    {
+      "pattern": "fading.tkoyasak.dev",
+      "custom_domain": true
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "d7d628060e0e43d89aeae77dd95160b5",
-      "preview_id": "0d8eec8f81a34da393ee7e7a36712656"
+      "id": "d7d628060e0e43d89aeae77dd95160b5"
     }
-  ]
+  ],
+  "env": {
+    "dev": {
+      "workers_dev": true,
+      "routes": [],
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "0d8eec8f81a34da393ee7e7a36712656"
+        }
+      ]
+    }
+  }
 }

@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "CLOUDFLARE_ENV=dev vite",
+    "build": "CLOUDFLARE_ENV=dev vite build",
+    "build:prod": "vite build",
     "preview": "vite preview",
-    "release": "wrangler deploy --strict",
+    "release": "vite build && wrangler deploy --strict",
     "check": "tsc",
     "types": "wrangler types"
   },
