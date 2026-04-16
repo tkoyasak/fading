@@ -16,7 +16,12 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
   // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop
   function handleNext() {
     startTransition(() => {
-      setEntryPromise(fetchEntry());
+      setEntryPromise(
+        new Promise((resolve) => {
+          setTimeout(resolve, 1104);
+          // oxlint-disable-next-line promise/prefer-await-to-then
+        }).then(fetchEntry),
+      );
     });
   }
 
