@@ -27,7 +27,7 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
           <Preview entryPromise={entryPromise} />
         </React.Suspense>
       </main>
-      <footer className="fixed right-0 bottom-0 left-0 text-[14px] backdrop-blur-[1px]">
+      <footer className="fixed right-0 bottom-0 left-0 text-[16px] backdrop-blur-[1px]">
         <div className="mx-auto max-w-sm">
           <React.ViewTransition>
             <React.Suspense
