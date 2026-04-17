@@ -70,9 +70,11 @@ fn push_kv(
     api_token: &str,
     full: bool,
 ) -> Result<()> {
-    let cache = crate::cache::load(sh, repo_dir, repo_dir)?;
-    let head = cache.commit.as_str();
-    let all_entries = &cache.entries;
+    let head = cmd!(sh, "git -C {repo_dir} rev-parse HEAD")
+        .read()
+        .context("Failed to get HEAD commit")?;
+    let head = head.trim();
+    let all_entries = crate::parse::read_all_entries(repo_dir)?;
 
     let base_url = format!(
         "https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{ns_id}"
