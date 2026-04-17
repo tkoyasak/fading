@@ -44,6 +44,20 @@ fading open -12          # 12 months in the past
 fading open 2025-01      # Specific month
 ```
 
+### `fading stats [month]`
+
+Show a contribution calendar for the past 365 days of journal writing activity.
+
+```bash
+fading stats             # Past year up to today
+fading stats today       # Past year up to today
+fading stats +1          # Past year up to 1 month in the future
+fading stats -1          # Past year up to 1 month in the past
+fading stats 2025-01     # Past year up to 2025-01-31
+```
+
+Activity is scaled by quartile (p25/p50/p75) of character counts across written days.
+
 ### `fading push [target] [--full]`
 
 Push to Cloudflare (R2 backup and/or KV sync).

@@ -32,7 +32,7 @@ modified = 2026-01-15
 
 Rust workspace (Edition 2024, MSRV 1.93.0).
 
-- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open, new, push commands)
+- `crates/cli`: `fading-cli` — CLI binary (ls, notify, open, new, push, stats commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
 - `apps/web`: Web viewer — Vite + React RSC + Cloudflare Workers
@@ -57,6 +57,8 @@ cargo run -p fading-cli -- new 2026-04
 cargo run -p fading-cli -- push
 cargo run -p fading-cli -- push r2
 cargo run -p fading-cli -- push kv --full
+cargo run -p fading-cli -- stats
+cargo run -p fading-cli -- stats 2026-04
 
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```
