@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 
-use crate::{Cmd, Stats, month::parse_month_arg};
+use crate::{Cmd, Stats, month::parse_month_arg, parse};
 
 impl Cmd for Stats {
     fn run(self) -> Result<()> {
@@ -44,8 +44,10 @@ fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMa
         if path.exists() {
             let content = std::fs::read_to_string(&path)
                 .with_context(|| format!("Failed to read {}", path.display()))?;
-            for (day, len) in parse_entry_lengths(&content, from, to) {
-                map.insert(day, len);
+            for (day, text) in parse::parse_entries(&content) {
+                if day >= from && day <= to {
+                    map.insert(day, text.chars().count());
+                }
             }
         }
 
@@ -59,74 +61,6 @@ fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMa
     }
 
     Ok(map)
-}
-
-fn parse_entry_lengths(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
-    let mut result = Vec::new();
-    let mut current_date: Option<Date> = None;
-    let mut in_frontmatter = false;
-    let mut frontmatter_done = false;
-    let mut current_lines: Vec<&str> = Vec::new();
-
-    for line in content.lines() {
-        if !frontmatter_done {
-            if line == "+++" {
-                if !in_frontmatter {
-                    in_frontmatter = true;
-                } else {
-                    frontmatter_done = true;
-                }
-                continue;
-            }
-            if in_frontmatter {
-                continue;
-            }
-        }
-
-        if let Some(date) = parse_heading_date(line) {
-            if let Some(d) = current_date
-                && d >= from
-                && d <= to
-            {
-                let len = entry_char_count(&current_lines);
-                if len > 0 {
-                    result.push((d, len));
-                }
-            }
-            current_date = Some(date);
-            current_lines.clear();
-        } else if current_date.is_some() {
-            current_lines.push(line);
-        }
-    }
-
-    if let Some(d) = current_date
-        && d >= from
-        && d <= to
-    {
-        let len = entry_char_count(&current_lines);
-        if len > 0 {
-            result.push((d, len));
-        }
-    }
-
-    result
-}
-
-fn parse_heading_date(line: &str) -> Option<Date> {
-    let rest = line.strip_prefix("###### ")?;
-    rest.get(..10)?.parse().ok()
-}
-
-/// Returns the char count of the entry, or 0 if it's empty/placeholder.
-fn entry_char_count(lines: &[&str]) -> usize {
-    let joined = lines.join("\n");
-    let trimmed = joined.trim();
-    if trimmed.is_empty() || trimmed == "<!-- -->" {
-        0
-    } else {
-        trimmed.chars().count()
-    }
 }
 
 fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
@@ -262,68 +196,5 @@ fn month_abbr(month: i8) -> &'static str {
         11 => "Nov",
         12 => "Dec",
         _ => "???",
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_heading_date() {
-        assert_eq!(
-            parse_heading_date("###### 2026-01-15 Thu"),
-            Some("2026-01-15".parse().unwrap())
-        );
-        assert_eq!(parse_heading_date("## Not a heading"), None);
-        assert_eq!(parse_heading_date("###### invalid-date Thu"), None);
-    }
-
-    #[test]
-    fn test_entry_char_count() {
-        assert_eq!(entry_char_count(&[]), 0);
-        assert_eq!(entry_char_count(&[""]), 0);
-        assert_eq!(entry_char_count(&["<!-- -->"]), 0);
-        assert_eq!(entry_char_count(&["", "<!-- -->", ""]), 0);
-        assert_eq!(entry_char_count(&["Hello"]), 5);
-        assert_eq!(entry_char_count(&["こんにちは"]), 5);
-    }
-
-    #[test]
-    fn test_parse_entry_lengths() {
-        let content = r#"+++
-id = "2026-01"
-created = 2026-01-01
-modified = 2026-01-15
-+++
-
-###### 2026-01-14 Wed
-
-こんにちは．
-
-###### 2026-01-15 Thu
-
-<!-- -->
-
-###### 2026-01-16 Fri
-
-また明日ね．
-"#;
-        let from = "2026-01-01".parse().unwrap();
-        let to = "2026-01-31".parse().unwrap();
-        let mut days = parse_entry_lengths(content, from, to);
-        days.sort_by_key(|(d, _)| *d);
-
-        assert_eq!(days.len(), 2);
-        assert_eq!(days[0].0, "2026-01-14".parse::<Date>().unwrap());
-        assert!(days[0].1 > 0);
-        assert_eq!(days[1].0, "2026-01-16".parse::<Date>().unwrap());
-        assert!(days[1].1 > 0);
-        // 2026-01-15 is placeholder, should be absent
-        assert!(
-            !days
-                .iter()
-                .any(|(d, _)| *d == "2026-01-15".parse::<Date>().unwrap())
-        );
     }
 }
