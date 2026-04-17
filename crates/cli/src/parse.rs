@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
+use anyhow::{Context, Result};
 use jiff::civil::Date;
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use xshell::{Shell, cmd};
 
 /// Parse a monthly entry file into `(Date, content)` pairs.
 /// Skips the TOML frontmatter and empty/placeholder days.
@@ -49,6 +53,60 @@ pub(crate) fn parse_entries(content: &str) -> Vec<(Date, String)> {
     }
 
     entries
+}
+
+/// Read and parse all entry files from git HEAD in parallel.
+/// Returns a map of YYYYMMDD → entry content.
+pub(crate) fn read_all_entries(repo_dir: &str) -> Result<HashMap<String, String>> {
+    let sh = Shell::new().context("Failed to create shell")?;
+    let names = cmd!(sh, "git -C {repo_dir} ls-tree --name-only HEAD -- entries/")
+        .read()
+        .context("Failed to list entries at HEAD")?;
+
+    let names: Vec<String> = names
+        .lines()
+        .filter(|f| f.ends_with(".md"))
+        .map(|s| s.to_string())
+        .collect();
+
+    read_files_parallel(repo_dir, &names)
+}
+
+fn read_files_parallel(repo_dir: &str, names: &[String]) -> Result<HashMap<String, String>> {
+    let results: Vec<Result<Vec<(String, String)>>> = std::thread::scope(|s| {
+        let handles: Vec<_> = names
+            .iter()
+            .map(|name| {
+                s.spawn(move || -> Result<Vec<(String, String)>> {
+                    let sh = Shell::new()?;
+                    let content = match cmd!(sh, "git -C {repo_dir} show HEAD:{name}").read() {
+                        Ok(c) => c,
+                        Err(_) => return Ok(vec![]), // file absent at HEAD
+                    };
+                    Ok(parse_entries(&content)
+                        .into_iter()
+                        .map(|(date, text)| (date.strftime("%Y%m%d").to_string(), text))
+                        .collect())
+                })
+            })
+            .collect();
+
+        handles
+            .into_iter()
+            .map(|h| {
+                h.join()
+                    .unwrap_or_else(|_| Err(anyhow::anyhow!("thread panicked")))
+            })
+            .collect()
+    });
+
+    let mut entries = HashMap::new();
+    for result in results {
+        for (date, text) in result? {
+            entries.insert(date, text);
+        }
+    }
+    Ok(entries)
 }
 
 #[cfg(test)]

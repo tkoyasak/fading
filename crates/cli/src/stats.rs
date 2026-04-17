@@ -1,14 +1,15 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
-use xshell::Shell;
 
-use crate::{Cmd, Stats, month::parse_month_arg};
+use crate::{Cmd, Stats, month::parse_month_arg, parse};
 
 impl Cmd for Stats {
     fn run(self) -> Result<()> {
         let home = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
+        let entries_dir = Path::new(&home).join("entries");
 
         let today = Zoned::now().date();
         let month_str = parse_month_arg(&self.month)?;
@@ -25,32 +26,59 @@ impl Cmd for Stats {
         };
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
-        let sh = Shell::new()?;
-        let cache = crate::cache::load(&sh, &home, &home)?;
-
-        let mut entries: HashMap<Date, usize> = HashMap::new();
-        for (yyyymmdd, text) in &cache.entries {
-            if let Some(date) = parse_yyyymmdd(yyyymmdd)
-                && date >= from
-                && date <= to
-            {
-                entries.insert(date, text.chars().count());
-            }
-        }
-
+        let entries = find_entry_lengths(&entries_dir, from, to)?;
         render_grid(&entries, from, to);
         Ok(())
     }
 }
 
-fn parse_yyyymmdd(s: &str) -> Option<Date> {
-    if s.len() != 8 {
-        return None;
+fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
+    let mut paths = Vec::new();
+    let mut month = from.first_of_month();
+    loop {
+        let month_str = format!("{:04}-{:02}", month.year(), month.month());
+        paths.push(entries_dir.join(format!("{month_str}.md")));
+        if month.year() == to.year() && month.month() == to.month() {
+            break;
+        }
+        month = month
+            .checked_add(1.months())
+            .context("date arithmetic")?
+            .first_of_month();
     }
-    let year: i16 = s[..4].parse().ok()?;
-    let month: i8 = s[4..6].parse().ok()?;
-    let day: i8 = s[6..8].parse().ok()?;
-    Date::new(year, month, day).ok()
+
+    let results: Vec<Result<Vec<(Date, usize)>>> = std::thread::scope(|s| {
+        let handles: Vec<_> = paths
+            .iter()
+            .map(|path| {
+                s.spawn(move || -> Result<Vec<(Date, usize)>> {
+                    if !path.exists() {
+                        return Ok(vec![]);
+                    }
+                    let content = std::fs::read_to_string(path)
+                        .with_context(|| format!("Failed to read {}", path.display()))?;
+                    Ok(parse::parse_entries(&content)
+                        .into_iter()
+                        .filter(|(day, _)| *day >= from && *day <= to)
+                        .map(|(day, text)| (day, text.chars().count()))
+                        .collect())
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| {
+                h.join()
+                    .unwrap_or_else(|_| Err(anyhow::anyhow!("thread panicked")))
+            })
+            .collect()
+    });
+
+    let mut map = HashMap::new();
+    for result in results {
+        map.extend(result?);
+    }
+    Ok(map)
 }
 
 fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
