@@ -13,9 +13,14 @@ export interface Entry {
   html: string;
 }
 
+let cachedKeys: string[] | undefined;
+
 export async function getRandomEntry(): Promise<Entry | null> {
-  const indexJson = await env.KV.get<KvIndex>("__index", "json");
-  const keys = indexJson?.keys ?? [];
+  if (cachedKeys === undefined) {
+    const indexJson = await env.KV.get<KvIndex>("__index", "json");
+    cachedKeys = indexJson?.keys ?? [];
+  }
+  const keys = cachedKeys;
   if (keys.length === 0) {
     return null;
   }
