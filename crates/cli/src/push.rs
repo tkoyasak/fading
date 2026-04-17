@@ -1,67 +1,12 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, Result};
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Push};
+use crate::{Cmd, Push, parse};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
-
-/// Parse a monthly entry file into (date, content) pairs.
-/// Skips the TOML frontmatter and empty days.
-fn parse_entries(content: &str) -> Vec<(String, String)> {
-    let opts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
-    let mut entries = Vec::new();
-    let mut current_date: Option<String> = None;
-    let mut content_start: usize = 0;
-    let mut in_h6 = false;
-    let mut heading_text = String::new();
-
-    for (event, range) in Parser::new_ext(content, opts).into_offset_iter() {
-        match event {
-            // Skip frontmatter; set content_start to just after the closing +++
-            Event::End(TagEnd::MetadataBlock(_)) => {
-                content_start = range.end;
-            }
-            Event::Start(Tag::Heading {
-                level: HeadingLevel::H6,
-                ..
-            }) => {
-                if let Some(date) = current_date.take() {
-                    let trimmed = content[content_start..range.start].trim();
-                    if !trimmed.is_empty() && trimmed != "<!-- -->" {
-                        entries.push((date, trimmed.to_string()));
-                    }
-                }
-                in_h6 = true;
-                heading_text.clear();
-            }
-            Event::Text(text) if in_h6 => {
-                heading_text.push_str(&text);
-            }
-            Event::End(TagEnd::Heading(_)) if in_h6 => {
-                in_h6 = false;
-                // Convert YYYY-MM-DD (first 10 chars) to YYYYMMDD for KV key
-                current_date = heading_text
-                    .get(..10)
-                    .map(|s| format!("{}{}{}", &s[..4], &s[5..7], &s[8..10]));
-                content_start = range.end;
-            }
-            _ => {}
-        }
-    }
-
-    if let Some(date) = current_date {
-        let trimmed = content[content_start..].trim();
-        if !trimmed.is_empty() && trimmed != "<!-- -->" {
-            entries.push((date, trimmed.to_string()));
-        }
-    }
-
-    entries
-}
 
 /// Read all entry files at HEAD and return (date, content) pairs sorted by date.
 fn parse_all_entries(sh: &Shell, repo_dir: &str) -> Result<Vec<(String, String)>> {
@@ -74,7 +19,11 @@ fn parse_all_entries(sh: &Shell, repo_dir: &str) -> Result<Vec<(String, String)>
         let content = cmd!(sh, "git -C {repo_dir} show HEAD:{name}")
             .read()
             .with_context(|| format!("Failed to read {name} at HEAD"))?;
-        all_entries.extend(parse_entries(&content));
+        all_entries.extend(
+            parse::parse_entries(&content)
+                .into_iter()
+                .map(|(date, text)| (date.strftime("%Y%m%d").to_string(), text)),
+        );
     }
     Ok(all_entries)
 }
@@ -291,85 +240,5 @@ impl Cmd for Push {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_entries_skips_empty_days() {
-        let content = r#"+++
-id = "2026-01"
-created = 2026-01-01
-modified = 2026-01-01
-+++
-
-###### 2026-01-01 Thu
-
-
-###### 2026-01-02 Fri
-
-今日は良い日だった。
-
-###### 2026-01-03 Sat
-
-"#;
-        let entries = parse_entries(content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, "20260102");
-        assert_eq!(entries[0].1, "今日は良い日だった。");
-    }
-
-    #[test]
-    fn test_parse_entries_skips_placeholder() {
-        let content = r#"+++
-id = "2026-01"
-created = 2026-01-01
-modified = 2026-01-01
-+++
-
-###### 2026-01-01 Thu
-
-<!-- -->
-
-###### 2026-01-02 Fri
-
-今日は良い日だった。
-
-###### 2026-01-03 Sat
-
-<!-- -->
-"#;
-        let entries = parse_entries(content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, "20260102");
-        assert_eq!(entries[0].1, "今日は良い日だった。");
-    }
-
-    #[test]
-    fn test_parse_entries_multiple() {
-        let content = r#"+++
-id = "2026-01"
-created = 2026-01-01
-modified = 2026-01-01
-+++
-
-###### 2026-01-01 Thu
-
-一行目。
-
-###### 2026-01-02 Fri
-
-二行目。
-続き。
-"#;
-        let entries = parse_entries(content);
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].0, "20260101");
-        assert_eq!(entries[0].1, "一行目。");
-        assert_eq!(entries[1].0, "20260102");
-        assert_eq!(entries[1].1, "二行目。\n続き。");
     }
 }
