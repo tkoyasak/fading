@@ -100,7 +100,6 @@ bun run types     # Regenerate worker-configuration.d.ts
 - `FADING_CLI_R2_SECRET_ACCESS_KEY` env var is required for `push r2` (R2 API token secret key)
 - `FADING_CLI_CF_API_TOKEN` env var is required for `push kv` (Cloudflare API token)
 - `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push kv` (KV namespace ID)
-- `stats` and `push kv` share a local cache at `$FADING_HOME/.cache/fading-cli.json` (keyed by HEAD commit hash; rebuilt automatically on commit change)
 
 ### Language Server (`fading-ls`)
 

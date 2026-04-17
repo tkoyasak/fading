@@ -86,6 +86,3 @@ R2 and KV operations run independently — if one fails, the other continues.
 
 Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`
 
-## Cache
-
-`stats` and `push kv` share a local cache at `${FADING_HOME}/.cache/fading-cli.json`, keyed by git HEAD commit hash. The cache is rebuilt automatically when the commit changes. Add `.cache/` to `${FADING_HOME}/.gitignore` to avoid committing it.
