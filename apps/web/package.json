@@ -16,7 +16,8 @@
     "lucide-react": "1.8.0",
     "marked": "18.0.0",
     "react": "19.3.0-canary-705268dc-20260409",
-    "react-dom": "19.3.0-canary-705268dc-20260409"
+    "react-dom": "19.3.0-canary-705268dc-20260409",
+    "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.31.2",
@@ -24,7 +25,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.1",
-    "@vitejs/plugin-rsc": "0.5.23",
+    "@vitejs/plugin-rsc": "0.5.24",
     "rsc-html-stream": "0.0.7",
     "tailwindcss": "4.2.2",
     "typescript": "6.0.2",
