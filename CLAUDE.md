@@ -54,6 +54,7 @@ cargo run -p fading-cli -- ls
 cargo run -p fading-cli -- open
 cargo run -p fading-cli -- new
 cargo run -p fading-cli -- new 2026-04
+# Note: negative offsets require -- separator: `cargo run -p fading-cli -- stats -- -1`
 cargo run -p fading-cli -- push
 cargo run -p fading-cli -- push r2
 cargo run -p fading-cli -- push kv --full

@@ -26,7 +26,7 @@ Create a new monthly entry file.
 fading new              # Current month
 fading new today        # Current month
 fading new +1           # 1 month in the future
-fading new -12          # 12 months in the past
+fading new -- -12       # 12 months in the past (-- required for negative offsets)
 fading new 2025-01      # Specific month
 ```
 
@@ -40,7 +40,7 @@ Open a fading entry file in Helix editor.
 fading open              # Current month, jump to today's heading
 fading open today        # Current month, jump to today's heading
 fading open +1           # 1 month in the future
-fading open -12          # 12 months in the past
+fading open -- -12       # 12 months in the past (-- required for negative offsets)
 fading open 2025-01      # Specific month
 ```
 
@@ -52,7 +52,7 @@ Show a contribution calendar for the past 365 days of journal writing activity.
 fading stats             # Past year up to today
 fading stats today       # Past year up to today
 fading stats +1          # Past year up to 1 month in the future
-fading stats -1          # Past year up to 1 month in the past
+fading stats -- -1       # Past year up to 1 month in the past (-- required for negative offsets)
 fading stats 2025-01     # Past year up to 2025-01-31
 ```
 
