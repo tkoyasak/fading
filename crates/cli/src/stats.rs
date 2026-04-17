@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::path::Path;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
+use xshell::Shell;
 
-use crate::{Cmd, Stats, month::parse_month_arg, parse};
+use crate::{Cmd, Stats, month::parse_month_arg};
 
 impl Cmd for Stats {
     fn run(self) -> Result<()> {
         let home = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
-        let entries_dir = Path::new(&home).join("entries");
 
         let today = Zoned::now().date();
         let month_str = parse_month_arg(&self.month)?;
@@ -26,41 +25,32 @@ impl Cmd for Stats {
         };
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
-        let entries = find_entry_lengths(&entries_dir, from, to)?;
+        let sh = Shell::new()?;
+        let cache = crate::cache::load(&sh, &home, &home)?;
+
+        let mut entries: HashMap<Date, usize> = HashMap::new();
+        for (yyyymmdd, text) in &cache.entries {
+            if let Some(date) = parse_yyyymmdd(yyyymmdd)
+                && date >= from
+                && date <= to
+            {
+                entries.insert(date, text.chars().count());
+            }
+        }
+
         render_grid(&entries, from, to);
         Ok(())
     }
 }
 
-/// Returns a map of date → char count for days with actual content.
-fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
-    let mut map = HashMap::new();
-
-    let mut month = from.first_of_month();
-    loop {
-        let month_str = format!("{:04}-{:02}", month.year(), month.month());
-        let path = entries_dir.join(format!("{month_str}.md"));
-
-        if path.exists() {
-            let content = std::fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            for (day, text) in parse::parse_entries(&content) {
-                if day >= from && day <= to {
-                    map.insert(day, text.chars().count());
-                }
-            }
-        }
-
-        if month.year() == to.year() && month.month() == to.month() {
-            break;
-        }
-        month = month
-            .checked_add(1.months())
-            .context("date arithmetic")?
-            .first_of_month();
+fn parse_yyyymmdd(s: &str) -> Option<Date> {
+    if s.len() != 8 {
+        return None;
     }
-
-    Ok(map)
+    let year: i16 = s[..4].parse().ok()?;
+    let month: i8 = s[4..6].parse().ok()?;
+    let day: i8 = s[6..8].parse().ok()?;
+    Date::new(year, month, day).ok()
 }
 
 fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {

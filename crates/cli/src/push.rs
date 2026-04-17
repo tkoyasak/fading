@@ -4,29 +4,9 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Push, parse};
+use crate::{Cmd, Push};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
-
-/// Read all entry files at HEAD and return (date, content) pairs sorted by date.
-fn parse_all_entries(sh: &Shell, repo_dir: &str) -> Result<Vec<(String, String)>> {
-    let names = cmd!(sh, "git -C {repo_dir} ls-tree --name-only HEAD -- entries/")
-        .read()
-        .context("Failed to list entries at HEAD")?;
-
-    let mut all_entries = Vec::new();
-    for name in names.lines().filter(|f| f.ends_with(".md")) {
-        let content = cmd!(sh, "git -C {repo_dir} show HEAD:{name}")
-            .read()
-            .with_context(|| format!("Failed to read {name} at HEAD"))?;
-        all_entries.extend(
-            parse::parse_entries(&content)
-                .into_iter()
-                .map(|(date, text)| (date.strftime("%Y%m%d").to_string(), text)),
-        );
-    }
-    Ok(all_entries)
-}
 
 fn push_r2(
     sh: &Shell,
@@ -90,20 +70,20 @@ fn push_kv(
     api_token: &str,
     full: bool,
 ) -> Result<()> {
-    let head = cmd!(sh, "git -C {repo_dir} rev-parse HEAD")
-        .read()
-        .context("Failed to get HEAD commit")?;
-    let head = head.trim();
-
-    let all_entries = parse_all_entries(sh, repo_dir)?;
+    let cache = crate::cache::load(sh, repo_dir, repo_dir)?;
+    let head = cache.commit.as_str();
+    let all_entries = &cache.entries;
 
     let base_url = format!(
         "https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{ns_id}"
     );
     let bearer = format!("Bearer {api_token}");
 
-    let entries_to_sync: Vec<&(String, String)> = if full {
-        all_entries.iter().collect()
+    let entries_to_sync: Vec<(&str, &str)> = if full {
+        all_entries
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect()
     } else {
         let index_result = ureq::get(&format!("{base_url}/values/__index"))
             .header("Authorization", &bearer)
@@ -143,20 +123,28 @@ fn push_kv(
                             let month = format!("{}-{}", &date[..4], &date[4..6]);
                             changed_months.contains(month.as_str())
                         })
+                        .map(|(k, v)| (k.as_str(), v.as_str()))
                         .collect()
                 } else {
-                    all_entries.iter().collect()
+                    all_entries
+                        .iter()
+                        .map(|(k, v)| (k.as_str(), v.as_str()))
+                        .collect()
                 }
             }
             Err(e) => {
                 eprintln!("KV: failed to fetch index, falling back to full sync: {e}");
-                all_entries.iter().collect()
+                all_entries
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect()
             }
         }
     };
 
     // Build bulk payload: entries to sync + __index
-    let all_keys: Vec<&str> = all_entries.iter().map(|(k, _)| k.as_str()).collect();
+    let mut all_keys: Vec<&str> = all_entries.keys().map(|k| k.as_str()).collect();
+    all_keys.sort_unstable();
     let index = json!({ "keys": all_keys, "commit": head });
     let index_str = serde_json::to_string(&index)?;
 
