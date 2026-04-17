@@ -5,6 +5,7 @@ mod notify;
 mod open;
 mod push;
 mod sigv4;
+mod stats;
 
 xflags::xflags! {
     /// CLI for the `fading` language
@@ -35,6 +36,12 @@ xflags::xflags! {
             /// Sync all KV entries (ignore last synced commit)
             optional -f, --full
         }
+
+        /// Show a contribution calendar for the past year up to the given month
+        cmd stats {
+            /// Month: empty/today (current), +N/-N (offset), or YYYY-MM (direct)
+            optional month: String
+        }
     }
 }
 
@@ -51,6 +58,7 @@ fn main() {
         FadingCmd::Notify(notify) => notify.run(),
         FadingCmd::Open(open) => open.run(),
         FadingCmd::Push(push) => push.run(),
+        FadingCmd::Stats(stats) => stats.run(),
     };
 
     if let Err(err) = result {
