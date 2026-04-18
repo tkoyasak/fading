@@ -54,12 +54,12 @@ cargo run -p fading-cli -- ls
 cargo run -p fading-cli -- open
 cargo run -p fading-cli -- new
 cargo run -p fading-cli -- new 2026-04
-# Note: negative offsets require -- separator: `cargo run -p fading-cli -- stats -- -1`
 cargo run -p fading-cli -- push
 cargo run -p fading-cli -- push r2
 cargo run -p fading-cli -- push kv --full
 cargo run -p fading-cli -- stats
 cargo run -p fading-cli -- stats 2026-04
+cargo run -p fading-cli -- stats 1   # 1 month back
 
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```

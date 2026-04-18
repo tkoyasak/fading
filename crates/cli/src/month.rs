@@ -10,14 +10,14 @@ pub(crate) fn parse_month_arg(month: &Option<String>) -> Result<String> {
     match month {
         None => Ok(current_month()),
         Some(arg) if arg == "today" => Ok(current_month()),
-        Some(arg) if arg.starts_with('+') || arg.starts_with('-') => {
-            // Offset: +N or -N months
-            let offset: i64 = arg
+        Some(arg) if arg.bytes().all(|b| b.is_ascii_digit()) => {
+            // Offset: N months back
+            let n: i64 = arg
                 .parse()
                 .with_context(|| format!("Invalid offset: {arg}"))?;
             let target = Zoned::now()
-                .checked_add(Span::new().months(offset))
-                .with_context(|| format!("Failed to add {offset} months"))?;
+                .checked_add(Span::new().months(-n))
+                .with_context(|| format!("Failed to subtract {n} months"))?;
             Ok(target.strftime("%Y-%m").to_string())
         }
         Some(arg) => {
@@ -68,20 +68,9 @@ mod tests {
             (year(), invalid_month()).prop_map(|(y, m)| format!("{:04}-{:02}", y, m))
         }
 
-        /// Generate month offset (-1000 to +1000)
-        pub(super) fn month_offset() -> impl Strategy<Value = i64> {
-            -1000i64..=1000
-        }
-
-        /// Generate offset string (+N or -N)
+        /// Generate offset string (N, non-negative)
         pub(super) fn offset_str() -> impl Strategy<Value = String> {
-            month_offset().prop_map(|offset| {
-                if offset >= 0 {
-                    format!("+{}", offset)
-                } else {
-                    format!("{}", offset)
-                }
-            })
+            (0i64..=1000).prop_map(|n| format!("{}", n))
         }
     }
 
@@ -107,16 +96,11 @@ mod tests {
             prop_assert_eq!(month.len(), 7);
         }
 
-        /// parse_month_arg with valid offset succeeds
+        /// parse_month_arg with N (months back) succeeds
         #[test]
         fn prop_parse_month_offset(offset_str in strategies::offset_str()) {
-            let result = parse_month_arg(&Some(offset_str.clone()));
-            // Should succeed for reasonable offsets
-            if let Ok(offset) = offset_str.parse::<i64>() {
-                if offset.abs() < 12000 {
-                    prop_assert!(result.is_ok());
-                }
-            }
+            let result = parse_month_arg(&Some(offset_str));
+            prop_assert!(result.is_ok());
         }
 
         /// parse_month_arg with valid YYYY-MM succeeds
