@@ -69,9 +69,7 @@ end tell"#
 impl Cmd for Open {
     fn run(self) -> Result<()> {
         let sh = Shell::new()?;
-        let repo_dir = sh
-            .var("FADING_HOME")
-            .context("FADING_HOME env is not set")?;
+        let repo_dir = sh.var("FADING_HOME")?;
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 

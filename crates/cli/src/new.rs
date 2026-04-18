@@ -42,9 +42,7 @@ modified = {today}
 impl Cmd for New {
     fn run(self) -> Result<()> {
         let sh = Shell::new()?;
-        let repo_dir = sh
-            .var("FADING_HOME")
-            .context("FADING_HOME env is not set")?;
+        let repo_dir = sh.var("FADING_HOME")?;
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 
@@ -54,8 +52,7 @@ impl Cmd for New {
         }
 
         let content = generate_entry(&month_str)?;
-        sh.write_file(&path, &content)
-            .with_context(|| format!("Failed to write entry: {path}"))?;
+        sh.write_file(&path, &content)?;
         println!("Created entry: {path}");
         Ok(())
     }

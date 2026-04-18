@@ -10,9 +10,7 @@ use crate::{Cmd, Stats, month::parse_month_arg, parse};
 impl Cmd for Stats {
     fn run(self) -> Result<()> {
         let sh = Shell::new()?;
-        let home = sh
-            .var("FADING_HOME")
-            .context("FADING_HOME env is not set")?;
+        let home = sh.var("FADING_HOME")?;
         let entries_dir = Path::new(&home).join("entries");
 
         let today = Zoned::now().date();
@@ -60,9 +58,7 @@ fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMa
                     if !sh.path_exists(path) {
                         return Ok(vec![]);
                     }
-                    let content = sh
-                        .read_file(path)
-                        .with_context(|| format!("Failed to read {}", path.display()))?;
+                    let content = sh.read_file(path)?;
                     Ok(parse::parse_entries(&content)
                         .into_iter()
                         .filter(|(day, _)| *day >= from && *day <= to)

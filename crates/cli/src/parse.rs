@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use jiff::civil::Date;
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use xshell::{Shell, cmd};
@@ -58,12 +58,8 @@ pub(crate) fn parse_entries(content: &str) -> Vec<(Date, String)> {
 /// Read and parse all entry files from git HEAD in parallel.
 /// Returns a map of YYYYMMDD → entry content.
 pub(crate) fn read_all_entries(repo_dir: &str) -> Result<HashMap<String, String>> {
-    let sh = Shell::new()
-        .context("Failed to create shell")?
-        .with_current_dir(repo_dir);
-    let names = cmd!(sh, "git ls-tree --name-only HEAD -- entries/")
-        .read()
-        .context("Failed to list entries at HEAD")?;
+    let sh = Shell::new()?.with_current_dir(repo_dir);
+    let names = cmd!(sh, "git ls-tree --name-only HEAD -- entries/").read()?;
 
     let names: Vec<String> = names
         .lines()
