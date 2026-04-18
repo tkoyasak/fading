@@ -16,18 +16,16 @@ fn push_r2(
     access_key_id: &str,
     secret_access_key: &str,
 ) -> Result<()> {
+    let sh = sh.clone().with_current_dir(repo_dir);
     let temp = sh.create_temp_dir().context("Failed to create temp dir")?;
     let bundle_path = temp.path().join(R2_OBJECT_KEY);
     let bundle_path_str = bundle_path
         .to_str()
         .context("Bundle path is not valid UTF-8")?;
 
-    cmd!(
-        sh,
-        "git -C {repo_dir} bundle create {bundle_path_str} --all"
-    )
-    .run()
-    .context("Failed to create git bundle")?;
+    cmd!(sh, "git bundle create {bundle_path_str} --all")
+        .run()
+        .context("Failed to create git bundle")?;
 
     let body = sh
         .read_binary_file(&bundle_path)
@@ -70,7 +68,8 @@ fn push_kv(
     api_token: &str,
     full: bool,
 ) -> Result<()> {
-    let head = cmd!(sh, "git -C {repo_dir} rev-parse HEAD")
+    let sh = sh.clone().with_current_dir(repo_dir);
+    let head = cmd!(sh, "git rev-parse HEAD")
         .read()
         .context("Failed to get HEAD commit")?;
     let head = head.trim();
@@ -105,12 +104,9 @@ fn push_kv(
                         return Ok(());
                     }
 
-                    let changed = cmd!(
-                        sh,
-                        "git -C {repo_dir} diff --name-only {last_commit} {head} -- entries/"
-                    )
-                    .read()
-                    .context("Failed to get changed files")?;
+                    let changed = cmd!(sh, "git diff --name-only {last_commit} {head} -- entries/")
+                        .read()
+                        .context("Failed to get changed files")?;
 
                     let changed_months: HashSet<&str> = changed
                         .lines()
@@ -175,7 +171,10 @@ fn push_kv(
 
 impl Cmd for Push {
     fn run(self) -> Result<()> {
-        let repo_dir = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
+        let sh = Shell::new()?;
+        let repo_dir = sh
+            .var("FADING_HOME")
+            .context("FADING_HOME env is not set")?;
 
         let target = self.target.as_deref();
         let do_r2 = matches!(target, None | Some("r2"));
@@ -187,19 +186,21 @@ impl Cmd for Push {
                 self.target.unwrap_or_default()
             );
         }
-
-        let sh = Shell::new()?;
         let mut ok = true;
 
-        let account_id = std::env::var("FADING_CLI_CF_ACCOUNT_ID")
+        let account_id = sh
+            .var("FADING_CLI_CF_ACCOUNT_ID")
             .context("FADING_CLI_CF_ACCOUNT_ID env is not set")?;
 
         if do_r2 {
-            let bucket = std::env::var("FADING_CLI_R2_BUCKET")
+            let bucket = sh
+                .var("FADING_CLI_R2_BUCKET")
                 .context("FADING_CLI_R2_BUCKET env is not set")?;
-            let access_key_id = std::env::var("FADING_CLI_R2_ACCESS_KEY_ID")
+            let access_key_id = sh
+                .var("FADING_CLI_R2_ACCESS_KEY_ID")
                 .context("FADING_CLI_R2_ACCESS_KEY_ID env is not set")?;
-            let secret_access_key = std::env::var("FADING_CLI_R2_SECRET_ACCESS_KEY")
+            let secret_access_key = sh
+                .var("FADING_CLI_R2_SECRET_ACCESS_KEY")
                 .context("FADING_CLI_R2_SECRET_ACCESS_KEY env is not set")?;
             if let Err(e) = push_r2(
                 &sh,
@@ -215,9 +216,11 @@ impl Cmd for Push {
         }
 
         if do_kv {
-            let api_token = std::env::var("FADING_CLI_CF_API_TOKEN")
+            let api_token = sh
+                .var("FADING_CLI_CF_API_TOKEN")
                 .context("FADING_CLI_CF_API_TOKEN env is not set")?;
-            let ns_id = std::env::var("FADING_CLI_KV_NAMESPACE_ID")
+            let ns_id = sh
+                .var("FADING_CLI_KV_NAMESPACE_ID")
                 .context("FADING_CLI_KV_NAMESPACE_ID env is not set")?;
             if let Err(e) = push_kv(&sh, &repo_dir, &account_id, &ns_id, &api_token, self.full) {
                 eprintln!("KV error: {e:?}");

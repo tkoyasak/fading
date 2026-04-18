@@ -58,8 +58,10 @@ pub(crate) fn parse_entries(content: &str) -> Vec<(Date, String)> {
 /// Read and parse all entry files from git HEAD in parallel.
 /// Returns a map of YYYYMMDD → entry content.
 pub(crate) fn read_all_entries(repo_dir: &str) -> Result<HashMap<String, String>> {
-    let sh = Shell::new().context("Failed to create shell")?;
-    let names = cmd!(sh, "git -C {repo_dir} ls-tree --name-only HEAD -- entries/")
+    let sh = Shell::new()
+        .context("Failed to create shell")?
+        .with_current_dir(repo_dir);
+    let names = cmd!(sh, "git ls-tree --name-only HEAD -- entries/")
         .read()
         .context("Failed to list entries at HEAD")?;
 
@@ -78,8 +80,8 @@ fn read_files_parallel(repo_dir: &str, names: &[String]) -> Result<HashMap<Strin
             .iter()
             .map(|name| {
                 s.spawn(move || -> Result<Vec<(String, String)>> {
-                    let sh = Shell::new()?;
-                    let content = match cmd!(sh, "git -C {repo_dir} show HEAD:{name}").read() {
+                    let sh = Shell::new()?.with_current_dir(repo_dir);
+                    let content = match cmd!(sh, "git show HEAD:{name}").read() {
                         Ok(c) => c,
                         Err(_) => return Ok(vec![]), // file absent at HEAD
                     };

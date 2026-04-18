@@ -3,12 +3,16 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
+use xshell::Shell;
 
 use crate::{Cmd, Stats, month::parse_month_arg, parse};
 
 impl Cmd for Stats {
     fn run(self) -> Result<()> {
-        let home = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
+        let sh = Shell::new()?;
+        let home = sh
+            .var("FADING_HOME")
+            .context("FADING_HOME env is not set")?;
         let entries_dir = Path::new(&home).join("entries");
 
         let today = Zoned::now().date();
@@ -52,10 +56,12 @@ fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMa
             .iter()
             .map(|path| {
                 s.spawn(move || -> Result<Vec<(Date, usize)>> {
-                    if !path.exists() {
+                    let sh = Shell::new()?;
+                    if !sh.path_exists(path) {
                         return Ok(vec![]);
                     }
-                    let content = std::fs::read_to_string(path)
+                    let content = sh
+                        .read_file(path)
                         .with_context(|| format!("Failed to read {}", path.display()))?;
                     Ok(parse::parse_entries(&content)
                         .into_iter()

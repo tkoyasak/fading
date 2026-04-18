@@ -5,10 +5,10 @@ use xshell::{Shell, cmd};
 use crate::{Cmd, Open, month::parse_month_arg};
 
 /// Find the 1-indexed line number of today's heading in the file, if present.
-fn find_today_line(path: &str) -> Option<usize> {
+fn find_today_line(sh: &Shell, path: &str) -> Option<usize> {
     let today = Zoned::now().strftime("%Y-%m-%d").to_string();
     let prefix = format!("###### {today}");
-    let content = std::fs::read_to_string(path).ok()?;
+    let content = sh.read_file(path).ok()?;
     content
         .lines()
         .enumerate()
@@ -68,16 +68,19 @@ end tell"#
 
 impl Cmd for Open {
     fn run(self) -> Result<()> {
-        let repo_dir = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
+        let sh = Shell::new()?;
+        let repo_dir = sh
+            .var("FADING_HOME")
+            .context("FADING_HOME env is not set")?;
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 
-        if !std::path::Path::new(&path).exists() {
+        if !sh.path_exists(&path) {
             bail!("File not found: {path}");
         }
 
         let jump_to_today = matches!(self.month.as_deref(), None | Some("today"));
-        let line = jump_to_today.then(|| find_today_line(&path)).flatten();
+        let line = jump_to_today.then(|| find_today_line(&sh, &path)).flatten();
         open_in_ghostty(&path, &repo_dir, line)
     }
 }

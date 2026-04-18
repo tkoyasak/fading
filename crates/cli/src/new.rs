@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
+use xshell::Shell;
 
 use crate::{Cmd, New, month::parse_month_arg};
 
@@ -40,17 +41,21 @@ modified = {today}
 
 impl Cmd for New {
     fn run(self) -> Result<()> {
-        let repo_dir = std::env::var("FADING_HOME").context("FADING_HOME env is not set")?;
+        let sh = Shell::new()?;
+        let repo_dir = sh
+            .var("FADING_HOME")
+            .context("FADING_HOME env is not set")?;
         let month_str = parse_month_arg(&self.month)?;
         let path = format!("{repo_dir}/entries/{month_str}.md");
 
-        if std::path::Path::new(&path).exists() {
+        if sh.path_exists(&path) {
             println!("Entry already exists: {path}");
             return Ok(());
         }
 
         let content = generate_entry(&month_str)?;
-        std::fs::write(&path, content).with_context(|| format!("Failed to write entry: {path}"))?;
+        sh.write_file(&path, &content)
+            .with_context(|| format!("Failed to write entry: {path}"))?;
         println!("Created entry: {path}");
         Ok(())
     }
