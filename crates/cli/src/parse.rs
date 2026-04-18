@@ -57,8 +57,7 @@ pub(crate) fn parse_entries(content: &str) -> Vec<(Date, String)> {
 
 /// Read and parse all entry files from git HEAD in parallel.
 /// Returns a map of YYYYMMDD → entry content.
-pub(crate) fn read_all_entries(repo_dir: &str) -> Result<HashMap<String, String>> {
-    let sh = Shell::new()?.with_current_dir(repo_dir);
+pub(crate) fn read_all_entries(sh: &Shell) -> Result<HashMap<String, String>> {
     let names = cmd!(sh, "git ls-tree --name-only HEAD -- entries/").read()?;
 
     let names: Vec<String> = names
@@ -67,16 +66,16 @@ pub(crate) fn read_all_entries(repo_dir: &str) -> Result<HashMap<String, String>
         .map(|s| s.to_string())
         .collect();
 
-    read_files_parallel(repo_dir, &names)
+    read_files_parallel(sh, &names)
 }
 
-fn read_files_parallel(repo_dir: &str, names: &[String]) -> Result<HashMap<String, String>> {
+fn read_files_parallel(sh: &Shell, names: &[String]) -> Result<HashMap<String, String>> {
     let results: Vec<Result<Vec<(String, String)>>> = std::thread::scope(|s| {
         let handles: Vec<_> = names
             .iter()
             .map(|name| {
+                let sh = sh.clone();
                 s.spawn(move || -> Result<Vec<(String, String)>> {
-                    let sh = Shell::new()?.with_current_dir(repo_dir);
                     let content = match cmd!(sh, "git show HEAD:{name}").read() {
                         Ok(c) => c,
                         Err(_) => return Ok(vec![]), // file absent at HEAD

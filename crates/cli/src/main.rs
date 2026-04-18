@@ -47,22 +47,29 @@ xflags::xflags! {
 }
 
 pub trait Cmd {
-    fn run(self) -> anyhow::Result<()>;
+    fn run(self, sh: xshell::Shell) -> anyhow::Result<()>;
+}
+
+fn cmd_run() -> anyhow::Result<()> {
+    let sh = {
+        let sh = xshell::Shell::new()?;
+        let home = sh.var("FADING_HOME")?;
+        sh.with_current_dir(home)
+    };
+
+    let flags = Fading::from_env_or_exit();
+    match flags.subcommand {
+        FadingCmd::Ls(ls) => ls.run(sh),
+        FadingCmd::New(new) => new.run(sh),
+        FadingCmd::Notify(notify) => notify.run(sh),
+        FadingCmd::Open(open) => open.run(sh),
+        FadingCmd::Push(push) => push.run(sh),
+        FadingCmd::Stats(stats) => stats.run(sh),
+    }
 }
 
 fn main() {
-    let flags = Fading::from_env_or_exit();
-
-    let result = match flags.subcommand {
-        FadingCmd::Ls(ls) => ls.run(),
-        FadingCmd::New(new) => new.run(),
-        FadingCmd::Notify(notify) => notify.run(),
-        FadingCmd::Open(open) => open.run(),
-        FadingCmd::Push(push) => push.run(),
-        FadingCmd::Stats(stats) => stats.run(),
-    };
-
-    if let Err(err) = result {
+    if let Err(err) = cmd_run() {
         eprintln!("error: {err:?}");
         std::process::exit(1);
     }

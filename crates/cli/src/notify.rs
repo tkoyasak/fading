@@ -8,9 +8,7 @@ fn format_notification_body(date: &str) -> String {
 }
 
 impl Cmd for Notify {
-    fn run(self) -> anyhow::Result<()> {
-        let sh = Shell::new()?;
-
+    fn run(self, sh: Shell) -> anyhow::Result<()> {
         let title = "\"fading\"";
         let date = Zoned::now().strftime("%Y-%m-%d").to_string();
         let body = format_notification_body(&date);

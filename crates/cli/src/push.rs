@@ -10,13 +10,11 @@ const R2_OBJECT_KEY: &str = "fading.bundle";
 
 fn push_r2(
     sh: &Shell,
-    repo_dir: &str,
     account_id: &str,
     bucket: &str,
     access_key_id: &str,
     secret_access_key: &str,
 ) -> Result<()> {
-    let sh = sh.clone().with_current_dir(repo_dir);
     let temp = sh.create_temp_dir()?;
     let bundle_path = temp.path().join(R2_OBJECT_KEY);
     let bundle_path_str = bundle_path
@@ -56,18 +54,10 @@ fn push_r2(
     Ok(())
 }
 
-fn push_kv(
-    sh: &Shell,
-    repo_dir: &str,
-    account_id: &str,
-    ns_id: &str,
-    api_token: &str,
-    full: bool,
-) -> Result<()> {
-    let sh = sh.clone().with_current_dir(repo_dir);
+fn push_kv(sh: &Shell, account_id: &str, ns_id: &str, api_token: &str, full: bool) -> Result<()> {
     let head = cmd!(sh, "git rev-parse HEAD").read()?;
     let head = head.trim();
-    let all_entries = crate::parse::read_all_entries(repo_dir)?;
+    let all_entries = crate::parse::read_all_entries(sh)?;
 
     let base_url = format!(
         "https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{ns_id}"
@@ -163,10 +153,7 @@ fn push_kv(
 }
 
 impl Cmd for Push {
-    fn run(self) -> Result<()> {
-        let sh = Shell::new()?;
-        let repo_dir = sh.var("FADING_HOME")?;
-
+    fn run(self, sh: Shell) -> Result<()> {
         let target = self.target.as_deref();
         let do_r2 = matches!(target, None | Some("r2"));
         let do_kv = matches!(target, None | Some("kv"));
@@ -187,7 +174,6 @@ impl Cmd for Push {
             let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
             if let Err(e) = push_r2(
                 &sh,
-                &repo_dir,
                 &account_id,
                 &bucket,
                 &access_key_id,
@@ -201,7 +187,7 @@ impl Cmd for Push {
         if do_kv {
             let api_token = sh.var("FADING_CLI_CF_API_TOKEN")?;
             let ns_id = sh.var("FADING_CLI_KV_NAMESPACE_ID")?;
-            if let Err(e) = push_kv(&sh, &repo_dir, &account_id, &ns_id, &api_token, self.full) {
+            if let Err(e) = push_kv(&sh, &account_id, &ns_id, &api_token, self.full) {
                 eprintln!("KV error: {e:?}");
                 ok = false;
             }

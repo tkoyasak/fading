@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::Path;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
@@ -8,11 +7,7 @@ use xshell::Shell;
 use crate::{Cmd, Stats, month::parse_month_arg, parse};
 
 impl Cmd for Stats {
-    fn run(self) -> Result<()> {
-        let sh = Shell::new()?;
-        let home = sh.var("FADING_HOME")?;
-        let entries_dir = Path::new(&home).join("entries");
-
+    fn run(self, sh: Shell) -> Result<()> {
         let today = Zoned::now().date();
         let month_str = parse_month_arg(&self.month)?;
         let to = if self.month.is_none() {
@@ -28,18 +23,18 @@ impl Cmd for Stats {
         };
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
-        let entries = find_entry_lengths(&entries_dir, from, to)?;
+        let entries = find_entry_lengths(&sh, from, to)?;
         render_grid(&entries, from, to);
         Ok(())
     }
 }
 
-fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
+fn find_entry_lengths(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
     let mut paths = Vec::new();
     let mut month = from.first_of_month();
     loop {
         let month_str = format!("{:04}-{:02}", month.year(), month.month());
-        paths.push(entries_dir.join(format!("{month_str}.md")));
+        paths.push(format!("entries/{month_str}.md"));
         if month.year() == to.year() && month.month() == to.month() {
             break;
         }
@@ -53,12 +48,13 @@ fn find_entry_lengths(entries_dir: &Path, from: Date, to: Date) -> Result<HashMa
         let handles: Vec<_> = paths
             .iter()
             .map(|path| {
+                let sh = sh.clone();
+                let path = path.clone();
                 s.spawn(move || -> Result<Vec<(Date, usize)>> {
-                    let sh = Shell::new()?;
-                    if !sh.path_exists(path) {
+                    if !sh.path_exists(&path) {
                         return Ok(vec![]);
                     }
-                    let content = sh.read_file(path)?;
+                    let content = sh.read_file(&path)?;
                     Ok(parse::parse_entries(&content)
                         .into_iter()
                         .filter(|(day, _)| *day >= from && *day <= to)

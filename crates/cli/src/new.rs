@@ -40,20 +40,21 @@ modified = {today}
 }
 
 impl Cmd for New {
-    fn run(self) -> Result<()> {
-        let sh = Shell::new()?;
-        let repo_dir = sh.var("FADING_HOME")?;
+    fn run(self, sh: Shell) -> Result<()> {
         let month_str = parse_month_arg(&self.month)?;
-        let path = format!("{repo_dir}/entries/{month_str}.md");
+        let path = format!("entries/{month_str}.md");
 
         if sh.path_exists(&path) {
-            println!("Entry already exists: {path}");
+            println!(
+                "Entry already exists: {}",
+                sh.current_dir().join(&path).display()
+            );
             return Ok(());
         }
 
         let content = generate_entry(&month_str)?;
         sh.write_file(&path, &content)?;
-        println!("Created entry: {path}");
+        println!("Created entry: {}", sh.current_dir().join(&path).display());
         Ok(())
     }
 }
