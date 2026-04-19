@@ -16,7 +16,7 @@
     "lucide-react": "1.8.0",
     "marked": "18.0.0",
     "react": "19.3.0-canary-705268dc-20260409",
-    "react-dom": "19.3.0-canary-705268dc-20260409",
+    "react-dom": "19.3.0-canary-56824423-20260414",
     "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409"
   },
   "devDependencies": {
