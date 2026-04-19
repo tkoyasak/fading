@@ -17,7 +17,7 @@
         "marked": "18.0.0",
         "react": "19.3.0-canary-705268dc-20260409",
         "react-dom": "19.3.0-canary-705268dc-20260409",
-        "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409",
+        "react-server-dom-webpack": "19.3.0-canary-56824423-20260414",
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "1.31.2",
@@ -537,7 +537,7 @@
 
     "react-dom": ["react-dom@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react-dom/-/react-dom-19.3.0-canary-705268dc-20260409.tgz", { "dependencies": { "scheduler": "0.28.0-canary-705268dc-20260409" }, "peerDependencies": { "react": "19.3.0-canary-705268dc-20260409" } }, "sha512-0pKR3tAa+nKtVS1gaTeXCqSzKgORLaehtR805ggTk+akqOZN/UeYoOXALvRhaPlGY32cBXrm4536b2gIivyAqw=="],
 
-    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react-server-dom-webpack/-/react-server-dom-webpack-19.3.0-canary-705268dc-20260409.tgz", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-705268dc-20260409", "react-dom": "19.3.0-canary-705268dc-20260409", "webpack": "^5.59.0" } }, "sha512-JlrHz9meu3U1gUo2l4P0+fClvwltMQkw0AGvcqxBvDvfJnyA/GSs9WKAgSdS/pLE5c92UFEY/iye+tfpsrfsVQ=="],
+    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-56824423-20260414", "", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-56824423-20260414", "react-dom": "19.3.0-canary-56824423-20260414", "webpack": "^5.59.0" } }, "sha512-5tAcFEiLqAvvrHhjMcOox+tpqNmlqPD4CqzxT542A0wsRiGs4TCWYPiP4qUWEPtvWeF+kAQVpsGcnZD9Psd4qQ=="],
 
     "require-from-string": ["require-from-string@2.0.2", "https://npm.flatt.tech/require-from-string/-/require-from-string-2.0.2.tgz", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
