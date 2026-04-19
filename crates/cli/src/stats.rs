@@ -90,6 +90,13 @@ fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) {
     // Inactive
     const CDOT: &str = "\x1b[38;2;70;70;70m";
 
+    println!(
+        "  {DIM}{} –> {}{R}",
+        from.strftime("%Y-%m-%d"),
+        to.strftime("%Y-%m-%d")
+    );
+    println!();
+
     // Compute quartile thresholds from written days
     let mut values: Vec<usize> = char_counts.values().copied().collect();
     values.sort_unstable();
