@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Stats, month::parse_month, parse};
+use crate::{Cmd, Stats, month::parse_month};
 
 impl Cmd for Stats {
     fn run(self, sh: Shell) -> Result<()> {
@@ -55,11 +55,7 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
                         return Ok(vec![]);
                     }
                     let content = sh.read_file(&path)?;
-                    Ok(parse::parse_entries(&content)
-                        .into_iter()
-                        .filter(|(day, _)| *day >= from && *day <= to)
-                        .map(|(day, text)| (day, text.chars().count()))
-                        .collect())
+                    Ok(count_chars_by_day(&content, from, to))
                 })
             })
             .collect();
@@ -77,6 +73,35 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
         map.extend(result?);
     }
     Ok(map)
+}
+
+fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
+    let mut results = Vec::new();
+    let mut current_date: Option<Date> = None;
+    let mut chars = 0usize;
+
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("###### ") {
+            if let Some(date) = current_date.take() {
+                if chars > 0 && date >= from && date <= to {
+                    results.push((date, chars));
+                }
+                chars = 0;
+            }
+            current_date = rest.get(..10).and_then(|s| s.parse().ok());
+        } else if current_date.is_some() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && trimmed != "<!-- -->" {
+                chars += trimmed.chars().count();
+            }
+        }
+    }
+    if let Some(date) = current_date {
+        if chars > 0 && date >= from && date <= to {
+            results.push((date, chars));
+        }
+    }
+    results
 }
 
 fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) {

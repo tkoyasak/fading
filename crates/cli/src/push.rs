@@ -1,6 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result};
+use jiff::civil::Date;
+use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
@@ -106,7 +108,7 @@ fn push_r2(
 fn push_kv(sh: &Shell, account_id: &str, ns_id: &str, api_token: &str, full: bool) -> Result<()> {
     let head = cmd!(sh, "git rev-parse HEAD").read()?;
     let head = head.trim();
-    let all_entries = crate::parse::read_all_entries(sh)?;
+    let all_entries = read_all_entries(sh)?;
 
     let base_url = format!(
         "https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{ns_id}"
@@ -199,4 +201,97 @@ fn push_kv(sh: &Shell, account_id: &str, ns_id: &str, api_token: &str, full: boo
         &head[..8]
     );
     Ok(())
+}
+
+fn read_all_entries(sh: &Shell) -> Result<HashMap<String, String>> {
+    let names = cmd!(sh, "git ls-tree --name-only HEAD -- entries/").read()?;
+
+    let names: Vec<String> = names
+        .lines()
+        .filter(|f| f.ends_with(".md"))
+        .map(|s| s.to_string())
+        .collect();
+
+    let results: Vec<Result<Vec<(String, String)>>> = std::thread::scope(|s| {
+        let handles: Vec<_> = names
+            .iter()
+            .map(|name| {
+                let sh = sh.clone();
+                s.spawn(move || -> Result<Vec<(String, String)>> {
+                    let content = match cmd!(sh, "git show HEAD:{name}").read() {
+                        Ok(c) => c,
+                        Err(_) => return Ok(vec![]), // file absent at HEAD
+                    };
+                    Ok(parse_entries(&content)
+                        .into_iter()
+                        .map(|(date, text)| (date.strftime("%Y%m%d").to_string(), text))
+                        .collect())
+                })
+            })
+            .collect();
+
+        handles
+            .into_iter()
+            .map(|h| {
+                h.join()
+                    .unwrap_or_else(|_| Err(anyhow::anyhow!("thread panicked")))
+            })
+            .collect()
+    });
+
+    let mut entries = HashMap::new();
+    for result in results {
+        for (date, text) in result? {
+            entries.insert(date, text);
+        }
+    }
+    Ok(entries)
+}
+
+fn parse_entries(content: &str) -> Vec<(Date, String)> {
+    let opts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
+    let mut entries = Vec::new();
+    let mut current_date: Option<Date> = None;
+    let mut content_start: usize = 0;
+    let mut in_h6 = false;
+    let mut heading_text = String::new();
+
+    for (event, range) in Parser::new_ext(content, opts).into_offset_iter() {
+        match event {
+            Event::End(TagEnd::MetadataBlock(_)) => {
+                content_start = range.end;
+            }
+            Event::Start(Tag::Heading {
+                level: HeadingLevel::H6,
+                ..
+            }) => {
+                if let Some(date) = current_date.take() {
+                    let trimmed = content[content_start..range.start].trim();
+                    if !trimmed.is_empty() && trimmed != "<!-- -->" {
+                        entries.push((date, trimmed.to_string()));
+                    }
+                }
+                in_h6 = true;
+                heading_text.clear();
+            }
+            Event::Text(text) if in_h6 => {
+                heading_text.push_str(&text);
+            }
+            Event::End(TagEnd::Heading(_)) if in_h6 => {
+                in_h6 = false;
+                current_date = heading_text.get(..10).and_then(|s| s.parse().ok());
+                content_start = range.end;
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(date) = current_date {
+        let trimmed = content[content_start..].trim();
+        if !trimmed.is_empty() && trimmed != "<!-- -->" {
+            entries.push((date, trimmed.to_string()));
+        }
+    }
+
+    entries
 }

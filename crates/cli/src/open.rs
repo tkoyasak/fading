@@ -43,6 +43,7 @@ fn open_in_ghostty(sh: &Shell, rel_path: &str, line: Option<usize>) -> Result<()
     let hx_running = cmd!(sh, "pgrep -f {abs_path}").read().is_ok();
 
     let script = if hx_running {
+        // Helix is already open with this file — just focus the existing Ghostty window.
         format!(
             r#"tell application "Ghostty"
     activate
@@ -65,6 +66,7 @@ fn open_in_ghostty(sh: &Shell, rel_path: &str, line: Option<usize>) -> Result<()
 end tell"#
         )
     } else {
+        // Helix is not running — open a new Ghostty window and launch Helix.
         let hx_target = match line {
             Some(n) => format!("{abs_path}:{n}"),
             None => abs_path.clone(),

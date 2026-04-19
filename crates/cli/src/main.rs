@@ -3,7 +3,6 @@ mod month;
 mod new;
 mod notify;
 mod open;
-mod parse;
 mod push;
 mod sigv4;
 mod stats;
