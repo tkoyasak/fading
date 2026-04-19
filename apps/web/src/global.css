@@ -73,9 +73,43 @@
   }
 }
 
+@keyframes bar-ping {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
 .audio-wave rect {
   y: 10.5px;
   height: 3px;
+}
+
+.audio-wave .bar-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bar-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.audio-wave .bar-ping:nth-child(8) {
+  animation-delay: 0.15s;
+}
+.audio-wave .bar-ping:nth-child(9) {
+  animation-delay: 0.3s;
+}
+.audio-wave .bar-ping:nth-child(10) {
+  animation-delay: 0.1s;
+}
+.audio-wave .bar-ping:nth-child(11) {
+  animation-delay: 0.25s;
+}
+.audio-wave .bar-ping:nth-child(12) {
+  animation-delay: 0.2s;
 }
 
 .audio-wave.animating {

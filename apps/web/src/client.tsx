@@ -142,6 +142,16 @@ function AudioWaveIcon({ size, animating }: AudioWaveIconProps) {
       <rect x="13" width="2" rx="1" />
       <rect x="17" width="2" rx="1" />
       <rect x="21" width="2" rx="1" />
+      {isAnimating && (
+        <>
+          <rect className="bar-ping" x="1" width="2" rx="1" />
+          <rect className="bar-ping" x="5" width="2" rx="1" />
+          <rect className="bar-ping" x="9" width="2" rx="1" />
+          <rect className="bar-ping" x="13" width="2" rx="1" />
+          <rect className="bar-ping" x="17" width="2" rx="1" />
+          <rect className="bar-ping" x="21" width="2" rx="1" />
+        </>
+      )}
     </svg>
   );
 }
