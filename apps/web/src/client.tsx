@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRight, LoaderCircle } from "lucide-react";
 import React from "react";
 import type { Entry } from "./action.tsx";
 
@@ -83,15 +82,8 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
         onClick={onClick}
         className="flex items-center gap-1"
       >
-        <span className="leading-none [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]">
-          next
-        </span>
         <React.ViewTransition>
-          {isPending ? (
-            <LoaderCircle size={16} className="animate-spin" />
-          ) : (
-            <ArrowRight size={16} />
-          )}
+          <AudioWaveIcon size={24} animating={isPending} />
         </React.ViewTransition>
       </button>
     </div>
@@ -101,7 +93,65 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
 function FallbackFooter() {
   return (
     <div className="flex justify-end">
-      <LoaderCircle size={16} className="animate-spin" />
+      <AudioWaveIcon size={24} animating />
     </div>
+  );
+}
+
+interface AudioWaveIconProps {
+  size: number;
+  animating: boolean;
+}
+
+const BAR_COUNT = 6;
+
+function AudioWaveIcon({ size, animating }: AudioWaveIconProps) {
+  const [isAnimating, setIsAnimating] = React.useState(animating);
+  const completedRef = React.useRef(0);
+
+  React.useEffect(() => {
+    if (animating) {
+      setIsAnimating(true);
+      completedRef.current = 0;
+    }
+  }, [animating]);
+
+  // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop
+  function handleIteration() {
+    if (!animating) {
+      completedRef.current += 1;
+      if (completedRef.current >= BAR_COUNT) {
+        setIsAnimating(false);
+        completedRef.current = 0;
+      }
+    }
+  }
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={isAnimating ? "audio-wave animating" : "audio-wave"}
+      onAnimationIteration={handleIteration}
+    >
+      <rect x="1" width="2" rx="1" />
+      <rect x="5" width="2" rx="1" />
+      <rect x="9" width="2" rx="1" />
+      <rect x="13" width="2" rx="1" />
+      <rect x="17" width="2" rx="1" />
+      <rect x="21" width="2" rx="1" />
+      {isAnimating && (
+        <>
+          <rect className="bar-ping" x="1" width="2" rx="1" />
+          <rect className="bar-ping" x="5" width="2" rx="1" />
+          <rect className="bar-ping" x="9" width="2" rx="1" />
+          <rect className="bar-ping" x="13" width="2" rx="1" />
+          <rect className="bar-ping" x="17" width="2" rx="1" />
+          <rect className="bar-ping" x="21" width="2" rx="1" />
+        </>
+      )}
+    </svg>
   );
 }
