@@ -1,4 +1,10 @@
 version: 2
+
+registries:
+  flatt-npm:
+    type: npm-registry
+    url: https://npm.flatt.tech
+
 updates:
   - package-ecosystem: cargo
     directory: /
@@ -17,6 +23,8 @@ updates:
 
   - package-ecosystem: bun
     directory: /
+    registries:
+      - flatt-npm
     schedule:
       interval: weekly
     cooldown:
