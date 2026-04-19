@@ -24,6 +24,12 @@ updates:
     allow:
       - dependency-type: all
     groups:
+      react:
+        applies-to: version-updates
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-server-dom-webpack"
       bun-dependencies:
         applies-to: version-updates
         update-types:
