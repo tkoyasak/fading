@@ -1,21 +1,30 @@
 version: 2
-
 updates:
   - package-ecosystem: cargo
-
     directory: /
-
     schedule:
       interval: weekly
-
-    # cooldown:
-    #   default-days: 7
-
+    cooldown:
+      default-days: 3
     allow:
       - dependency-type: all
-
     groups:
-      dependencies:
+      cargo-dependencies:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    allow:
+      - dependency-type: all
+    groups:
+      bun-dependencies:
         applies-to: version-updates
         update-types:
           - minor
