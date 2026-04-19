@@ -20,7 +20,7 @@
     "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.31.2",
+    "@cloudflare/vite-plugin": "1.32.3",
     "@tailwindcss/vite": "4.2.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
@@ -30,7 +30,7 @@
     "tailwindcss": "4.2.2",
     "typescript": "6.0.2",
     "vite": "8.0.8",
-    "wrangler": "4.81.1"
+    "wrangler": "4.83.0"
   },
   "overrides": {
     "vite": "$vite"
