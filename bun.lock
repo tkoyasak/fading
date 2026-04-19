@@ -15,7 +15,7 @@
       "dependencies": {
         "lucide-react": "1.8.0",
         "marked": "18.0.0",
-        "react": "19.3.0-canary-705268dc-20260409",
+        "react": "19.3.0-canary-56824423-20260414",
         "react-dom": "19.3.0-canary-705268dc-20260409",
         "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409",
       },
@@ -533,7 +533,7 @@
 
     "postcss": ["postcss@8.5.9", "https://npm.flatt.tech/postcss/-/postcss-8.5.9.tgz", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-7a70Nsot+EMX9fFU3064K/kdHWZqGVY+BADLyXc8Dfv+mTLLVl6JzJpPaCZ2kQL9gIJvKXSLMHhqdRRjwQeFtw=="],
 
-    "react": ["react@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react/-/react-19.3.0-canary-705268dc-20260409.tgz", {}, "sha512-Ay9xVDBDMSpoAivT70kb376v17IG9sJ8WUdgz0hhps2Pwj0ViOmm+7d1tisHFMIploZUNmGAITI9C3JkqDfC1A=="],
+    "react": ["react@19.3.0-canary-56824423-20260414", "", {}, "sha512-OKBrhemVpiVAsRCwFekueR0N7EEYsWt0WQIUCBMfQcDXcGKUd6hYFWPLqzGr7P5hBKceVEu6WT8OKdFNod63nw=="],
 
     "react-dom": ["react-dom@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react-dom/-/react-dom-19.3.0-canary-705268dc-20260409.tgz", { "dependencies": { "scheduler": "0.28.0-canary-705268dc-20260409" }, "peerDependencies": { "react": "19.3.0-canary-705268dc-20260409" } }, "sha512-0pKR3tAa+nKtVS1gaTeXCqSzKgORLaehtR805ggTk+akqOZN/UeYoOXALvRhaPlGY32cBXrm4536b2gIivyAqw=="],
 
