@@ -14,9 +14,9 @@
       "name": "vite-rsc-starter",
       "dependencies": {
         "marked": "18.0.0",
-        "react": "19.3.0-canary-705268dc-20260409",
-        "react-dom": "19.3.0-canary-705268dc-20260409",
-        "react-server-dom-webpack": "19.3.0-canary-705268dc-20260409",
+        "react": "19.3.0-canary-56824423-20260414",
+        "react-dom": "19.3.0-canary-56824423-20260414",
+        "react-server-dom-webpack": "19.3.0-canary-56824423-20260414",
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "1.32.3",
@@ -526,11 +526,11 @@
 
     "postcss": ["postcss@8.5.9", "https://npm.flatt.tech/postcss/-/postcss-8.5.9.tgz", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-7a70Nsot+EMX9fFU3064K/kdHWZqGVY+BADLyXc8Dfv+mTLLVl6JzJpPaCZ2kQL9gIJvKXSLMHhqdRRjwQeFtw=="],
 
-    "react": ["react@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react/-/react-19.3.0-canary-705268dc-20260409.tgz", {}, "sha512-Ay9xVDBDMSpoAivT70kb376v17IG9sJ8WUdgz0hhps2Pwj0ViOmm+7d1tisHFMIploZUNmGAITI9C3JkqDfC1A=="],
+    "react": ["react@19.3.0-canary-56824423-20260414", "", {}, "sha512-OKBrhemVpiVAsRCwFekueR0N7EEYsWt0WQIUCBMfQcDXcGKUd6hYFWPLqzGr7P5hBKceVEu6WT8OKdFNod63nw=="],
 
-    "react-dom": ["react-dom@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react-dom/-/react-dom-19.3.0-canary-705268dc-20260409.tgz", { "dependencies": { "scheduler": "0.28.0-canary-705268dc-20260409" }, "peerDependencies": { "react": "19.3.0-canary-705268dc-20260409" } }, "sha512-0pKR3tAa+nKtVS1gaTeXCqSzKgORLaehtR805ggTk+akqOZN/UeYoOXALvRhaPlGY32cBXrm4536b2gIivyAqw=="],
+    "react-dom": ["react-dom@19.3.0-canary-56824423-20260414", "", { "dependencies": { "scheduler": "0.28.0-canary-56824423-20260414" }, "peerDependencies": { "react": "19.3.0-canary-56824423-20260414" } }, "sha512-9JnsjDcc3jcVvAYqL03ypPQKpaW/cda8LsIDr5yHXEg19bfA0ewIKwCllY9a3TCYUQ68lQ5Sos0AQZcGcfICPg=="],
 
-    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-705268dc-20260409", "https://npm.flatt.tech/react-server-dom-webpack/-/react-server-dom-webpack-19.3.0-canary-705268dc-20260409.tgz", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-705268dc-20260409", "react-dom": "19.3.0-canary-705268dc-20260409", "webpack": "^5.59.0" } }, "sha512-JlrHz9meu3U1gUo2l4P0+fClvwltMQkw0AGvcqxBvDvfJnyA/GSs9WKAgSdS/pLE5c92UFEY/iye+tfpsrfsVQ=="],
+    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-56824423-20260414", "", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-56824423-20260414", "react-dom": "19.3.0-canary-56824423-20260414", "webpack": "^5.59.0" } }, "sha512-5tAcFEiLqAvvrHhjMcOox+tpqNmlqPD4CqzxT542A0wsRiGs4TCWYPiP4qUWEPtvWeF+kAQVpsGcnZD9Psd4qQ=="],
 
     "require-from-string": ["require-from-string@2.0.2", "https://npm.flatt.tech/require-from-string/-/require-from-string-2.0.2.tgz", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
@@ -538,7 +538,7 @@
 
     "rsc-html-stream": ["rsc-html-stream@0.0.7", "https://npm.flatt.tech/rsc-html-stream/-/rsc-html-stream-0.0.7.tgz", {}, "sha512-v9+fuY7usTgvXdNl8JmfXCvSsQbq2YMd60kOeeMIqCJFZ69fViuIxztHei7v5mlMMa2h3SqS+v44Gu9i9xANZA=="],
 
-    "scheduler": ["scheduler@0.28.0-canary-705268dc-20260409", "https://npm.flatt.tech/scheduler/-/scheduler-0.28.0-canary-705268dc-20260409.tgz", {}, "sha512-PXxwjLKTWRhZR9nbbkfybMcJ9uRT4f7G7IbgSErIIFN06h1iWzGePEtSAW1i6yjl82/Z0/sQk8iDrQvJV5HtIg=="],
+    "scheduler": ["scheduler@0.28.0-canary-56824423-20260414", "", {}, "sha512-IUlVFNpuOLEFw04u6aNOLdgp3jq37H9tE8bwli870OveiWSn5oGWZO6rO+aZ10ZqEEBcmT5uIua2f03aWIzkGg=="],
 
     "schema-utils": ["schema-utils@4.3.3", "https://npm.flatt.tech/schema-utils/-/schema-utils-4.3.3.tgz", { "dependencies": { "@types/json-schema": "^7.0.9", "ajv": "^8.9.0", "ajv-formats": "^2.1.1", "ajv-keywords": "^5.1.0" } }, "sha512-eflK8wEtyOE6+hsaRVPxvUKYCpRgzLqDTb8krvAsRIwOGlHoSgYLgBXoubGgLd2fT41/OUYdb48v4k4WWHQurA=="],
 
