@@ -1,140 +1,6 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
-@keyframes bar-1 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 9px;
-    height: 6px;
-  }
-}
-
-@keyframes bar-2 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 6.5px;
-    height: 11px;
-  }
-}
-
-@keyframes bar-3 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 3px;
-    height: 18px;
-  }
-}
-
-@keyframes bar-4 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 8.5px;
-    height: 7px;
-  }
-}
-
-@keyframes bar-5 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 5.5px;
-    height: 13px;
-  }
-}
-
-@keyframes bar-6 {
-  0%,
-  100% {
-    y: 10.5px;
-    height: 3px;
-  }
-  50% {
-    y: 9px;
-    height: 6px;
-  }
-}
-
-@keyframes bar-ping {
-  0% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-  75%,
-  100% {
-    opacity: 0;
-    transform: scale(3);
-  }
-}
-
-.audio-wave rect {
-  y: 10.5px;
-  height: 3px;
-}
-
-.audio-wave .bar-ping {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: bar-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-.audio-wave .bar-ping:nth-child(8) {
-  animation-delay: 0.15s;
-}
-.audio-wave .bar-ping:nth-child(9) {
-  animation-delay: 0.3s;
-}
-.audio-wave .bar-ping:nth-child(10) {
-  animation-delay: 0.1s;
-}
-.audio-wave .bar-ping:nth-child(11) {
-  animation-delay: 0.25s;
-}
-.audio-wave .bar-ping:nth-child(12) {
-  animation-delay: 0.2s;
-}
-
-.audio-wave.animating {
-  color: #008bbe;
-}
-
-.audio-wave.animating rect:nth-child(1) {
-  animation: bar-1 0.8s ease-in-out infinite;
-}
-.audio-wave.animating rect:nth-child(2) {
-  animation: bar-2 1.5s ease-in-out infinite;
-}
-.audio-wave.animating rect:nth-child(3) {
-  animation: bar-3 1s ease-in-out infinite;
-}
-.audio-wave.animating rect:nth-child(4) {
-  animation: bar-4 0.8s ease-in-out infinite;
-}
-.audio-wave.animating rect:nth-child(5) {
-  animation: bar-5 1.5s ease-in-out infinite;
-}
-.audio-wave.animating rect:nth-child(6) {
-  animation: bar-6 0.8s ease-in-out infinite;
-}
-
 @layer base {
   *,
   ::after,
@@ -224,4 +90,138 @@
   padding: 0.75em 1.25em;
   margin-left: 0;
   margin-bottom: 1.5em;
+}
+
+@keyframes bar-1 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 9px;
+    height: 6px;
+  }
+}
+
+@keyframes bar-2 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 6.5px;
+    height: 11px;
+  }
+}
+
+@keyframes bar-3 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 3px;
+    height: 18px;
+  }
+}
+
+@keyframes bar-4 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 8.5px;
+    height: 7px;
+  }
+}
+
+@keyframes bar-5 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 5.5px;
+    height: 13px;
+  }
+}
+
+@keyframes bar-6 {
+  0%,
+  100% {
+    y: 10.5px;
+    height: 3px;
+  }
+  50% {
+    y: 9px;
+    height: 6px;
+  }
+}
+
+.audio-wave rect {
+  y: 10.5px;
+  height: 3px;
+}
+
+.audio-wave.animating {
+  color: #008bbe;
+}
+
+.audio-wave.animating rect:nth-child(1) {
+  animation: bar-1 0.8s ease-in-out infinite;
+}
+.audio-wave.animating rect:nth-child(2) {
+  animation: bar-2 1.5s ease-in-out infinite;
+}
+.audio-wave.animating rect:nth-child(3) {
+  animation: bar-3 1s ease-in-out infinite;
+}
+.audio-wave.animating rect:nth-child(4) {
+  animation: bar-4 0.8s ease-in-out infinite;
+}
+.audio-wave.animating rect:nth-child(5) {
+  animation: bar-5 1.5s ease-in-out infinite;
+}
+.audio-wave.animating rect:nth-child(6) {
+  animation: bar-6 0.8s ease-in-out infinite;
+}
+
+@keyframes bar-ping {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+.audio-wave .bar-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bar-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.audio-wave .bar-ping:nth-child(8) {
+  animation-delay: 0.15s;
+}
+.audio-wave .bar-ping:nth-child(9) {
+  animation-delay: 0.3s;
+}
+.audio-wave .bar-ping:nth-child(10) {
+  animation-delay: 0.1s;
+}
+.audio-wave .bar-ping:nth-child(11) {
+  animation-delay: 0.25s;
+}
+.audio-wave .bar-ping:nth-child(12) {
+  animation-delay: 0.2s;
 }
