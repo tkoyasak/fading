@@ -1,12 +1,8 @@
 use anyhow::{Context, Result, bail};
 use jiff::{Span, Zoned, civil::Date};
 
-pub(crate) fn current_month() -> String {
-    Zoned::now().strftime("%Y-%m").to_string()
-}
-
-/// Parse month argument and return YYYY-MM string
-pub(crate) fn parse_month_arg(month: &Option<String>) -> Result<String> {
+/// Parse month argument and return YYYY-MM string.
+pub(crate) fn parse_month(month: &Option<String>) -> Result<String> {
     match month {
         None => Ok(current_month()),
         Some(arg) if arg == "today" => Ok(current_month()),
@@ -22,13 +18,16 @@ pub(crate) fn parse_month_arg(month: &Option<String>) -> Result<String> {
         }
         Some(arg) => {
             // Direct month specification (YYYY-MM)
-            // Validate by parsing as a date
             if format!("{arg}-01").parse::<Date>().is_err() {
                 bail!("Invalid month format: {arg} (expected YYYY-MM, e.g., 2025-01)");
             }
             Ok(arg.to_string())
         }
     }
+}
+
+fn current_month() -> String {
+    Zoned::now().strftime("%Y-%m").to_string()
 }
 
 #[cfg(test)]
@@ -77,43 +76,43 @@ mod tests {
     proptest! {
         #![proptest_config(proptest_config())]
 
-        /// parse_month_arg(None) returns current month
+        /// parse_month(None) returns current month
         #[test]
         fn prop_parse_month_none(_seed in 0u32..100) {
-            let result = parse_month_arg(&None);
+            let result = parse_month(&None);
             prop_assert!(result.is_ok());
             let month = result.unwrap();
             prop_assert_eq!(month.len(), 7);
             prop_assert!(month.contains('-'));
         }
 
-        /// parse_month_arg(Some("today")) returns current month
+        /// parse_month(Some("today")) returns current month
         #[test]
         fn prop_parse_month_today(_seed in 0u32..100) {
-            let result = parse_month_arg(&Some("today".to_string()));
+            let result = parse_month(&Some("today".to_string()));
             prop_assert!(result.is_ok());
             let month = result.unwrap();
             prop_assert_eq!(month.len(), 7);
         }
 
-        /// parse_month_arg with N (months back) succeeds
+        /// parse_month with N (months back) succeeds
         #[test]
         fn prop_parse_month_offset(offset_str in strategies::offset_str()) {
-            let result = parse_month_arg(&Some(offset_str));
+            let result = parse_month(&Some(offset_str));
             prop_assert!(result.is_ok());
         }
 
-        /// parse_month_arg with valid YYYY-MM succeeds
+        /// parse_month with valid YYYY-MM succeeds
         #[test]
         fn prop_parse_month_valid(month_str in strategies::valid_month_str()) {
-            let result = parse_month_arg(&Some(month_str));
+            let result = parse_month(&Some(month_str));
             prop_assert!(result.is_ok());
         }
 
-        /// parse_month_arg with invalid YYYY-MM fails
+        /// parse_month with invalid YYYY-MM fails
         #[test]
         fn prop_parse_month_invalid(month_str in strategies::invalid_month_str()) {
-            let result = parse_month_arg(&Some(month_str));
+            let result = parse_month(&Some(month_str));
             prop_assert!(result.is_err());
         }
     }

@@ -4,16 +4,16 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Stats, month::parse_month_arg, parse};
+use crate::{Cmd, Stats, month::parse_month, parse};
 
 impl Cmd for Stats {
     fn run(self, sh: Shell) -> Result<()> {
+        let id = parse_month(&self.month)?;
         let today = Zoned::now().date();
-        let month_str = parse_month_arg(&self.month)?;
         let to = if self.month.is_none() {
             today
         } else {
-            let last: Date = format!("{month_str}-01").parse().context("date parse")?;
+            let last: Date = format!("{id}-01").parse().context("date parse")?;
             let last = last
                 .checked_add(1.months())
                 .context("date arithmetic")?
@@ -23,22 +23,22 @@ impl Cmd for Stats {
         };
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
-        let entries = find_entry_lengths(&sh, from, to)?;
-        render_grid(&entries, from, to);
+        let char_counts = find_char_counts(&sh, from, to)?;
+        render_grid(&char_counts, from, to);
         Ok(())
     }
 }
 
-fn find_entry_lengths(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
+fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
     let mut paths = Vec::new();
-    let mut month = from.first_of_month();
+    let mut cursor = from.first_of_month();
     loop {
-        let month_str = format!("{:04}-{:02}", month.year(), month.month());
-        paths.push(format!("entries/{month_str}.md"));
-        if month.year() == to.year() && month.month() == to.month() {
+        let (y, m) = (cursor.year(), cursor.month());
+        paths.push(format!("entries/{y:04}-{m:02}.md"));
+        if y == to.year() && m == to.month() {
             break;
         }
-        month = month
+        cursor = cursor
             .checked_add(1.months())
             .context("date arithmetic")?
             .first_of_month();
@@ -79,7 +79,7 @@ fn find_entry_lengths(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, 
     Ok(map)
 }
 
-fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
+fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) {
     const R: &str = "\x1b[0m";
     const DIM: &str = "\x1b[38;2;130;130;130m";
     // Activity level colors (orange gradient)
@@ -91,40 +91,40 @@ fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
     const CDOT: &str = "\x1b[38;2;70;70;70m";
 
     // Compute quartile thresholds from written days
-    let mut lens: Vec<usize> = entries.values().copied().collect();
-    lens.sort_unstable();
+    let mut values: Vec<usize> = char_counts.values().copied().collect();
+    values.sort_unstable();
     let pct = |p: f64| -> usize {
-        if lens.is_empty() {
+        if values.is_empty() {
             return 0;
         }
-        let i = ((lens.len() as f64 * p) as usize).min(lens.len() - 1);
-        lens[i]
+        let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
+        values[i]
     };
     let (p25, p50, p75) = (pct(0.25), pct(0.50), pct(0.75));
 
-    let activity_cell = |len: usize| -> &'static str {
-        if len == 0 {
+    let activity_cell = |size: usize| -> &'static str {
+        if size == 0 {
             return "·";
         }
-        if len <= p25 {
+        if size <= p25 {
             "░"
-        } else if len <= p50 {
+        } else if size <= p50 {
             "▒"
-        } else if len <= p75 {
+        } else if size <= p75 {
             "▓"
         } else {
             "█"
         }
     };
-    let activity_color = |len: usize| -> &'static str {
-        if len == 0 {
+    let activity_color = |size: usize| -> &'static str {
+        if size == 0 {
             return CDOT;
         }
-        if len <= p25 {
+        if size <= p25 {
             C1
-        } else if len <= p50 {
+        } else if size <= p50 {
             C2
-        } else if len <= p75 {
+        } else if size <= p75 {
             C3
         } else {
             C4
@@ -177,9 +177,9 @@ fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
         for week in &weeks {
             match week[row] {
                 Some(d) => {
-                    let len = entries.get(&d).copied().unwrap_or(0);
-                    let col = activity_color(len);
-                    let ch = activity_cell(len);
+                    let size = char_counts.get(&d).copied().unwrap_or(0);
+                    let col = activity_color(size);
+                    let ch = activity_cell(size);
                     print!("{col}{ch}{R}");
                 }
                 None => print!(" "),
@@ -190,7 +190,7 @@ fn render_grid(entries: &HashMap<Date, usize>, from: Date, to: Date) {
 
     // Legend + summary
     let total_days = (from.series(1.days())).take_while(|d| *d <= to).count();
-    let written_days = entries.len();
+    let written_days = char_counts.len();
     println!();
     println!("      {DIM}Less{R} {C1}░{R} {C2}▒{R} {C3}▓{R} {C4}█{R} {DIM}More{R}");
     println!();

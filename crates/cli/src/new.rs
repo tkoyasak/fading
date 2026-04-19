@@ -4,12 +4,12 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, New, month::parse_month_arg};
+use crate::{Cmd, New, month::parse_month};
 
 impl Cmd for New {
     fn run(self, sh: Shell) -> Result<()> {
-        let month_str = parse_month_arg(&self.month)?;
-        let path = format!("entries/{month_str}.md");
+        let id = parse_month(&self.month)?;
+        let path = format!("entries/{id}.md");
 
         if sh.path_exists(&path) {
             println!(
@@ -19,17 +19,17 @@ impl Cmd for New {
             return Ok(());
         }
 
-        let content = generate_entry(&month_str)?;
+        let content = generate_entry(&id)?;
         sh.write_file(&path, &content)?;
         println!("Created entry: {}", sh.current_dir().join(&path).display());
         Ok(())
     }
 }
 
-fn generate_entry(month_str: &str) -> Result<String> {
-    let id: Date = format!("{month_str}-01")
+fn generate_entry(id: &str) -> Result<String> {
+    let start: Date = format!("{id}-01")
         .parse()
-        .with_context(|| format!("Invalid month: {month_str}"))?;
+        .with_context(|| format!("Invalid month: {id}"))?;
 
     let today = Zoned::now().strftime("%Y-%m-%d");
     let mut content = String::with_capacity(1_000);
@@ -37,14 +37,14 @@ fn generate_entry(month_str: &str) -> Result<String> {
     write!(
         content,
         r#"+++
-id = "{month_str}"
+id = "{id}"
 created = {today}
 modified = {today}
 +++
 "#
     )?;
 
-    for date in id.series(1.days()).take(id.days_in_month() as usize) {
+    for date in start.series(1.days()).take(start.days_in_month() as usize) {
         write!(
             content,
             r"
@@ -97,8 +97,8 @@ mod tests {
             prop_assert!(content.contains("modified = "));
 
             // Day count
-            let id: Date = format!("{month_str}-01").parse().unwrap();
-            let expected_days = id.days_in_month() as usize;
+            let first_day: Date = format!("{month_str}-01").parse().unwrap();
+            let expected_days = first_day.days_in_month() as usize;
             let prefix = format!("###### {month_str}-");
             prop_assert_eq!(content.matches(&prefix).count(), expected_days);
 

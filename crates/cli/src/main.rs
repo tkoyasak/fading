@@ -17,7 +17,7 @@ xflags::xflags! {
 
         /// Create a new monthly entry (default: current month)
         cmd new {
-            /// Month: empty/today (current), N (N months back), or YYYY-MM (direct)
+            /// Month: today (current), N (N months back), or YYYY-MM (direct)
             optional month: String
         }
 
@@ -26,7 +26,7 @@ xflags::xflags! {
 
         /// Open an entry in Helix (default: current month)
         cmd open {
-            /// Month to open: empty/today (current), N (N months back), or YYYY-MM (direct)
+            /// Month to open: today (current), N (N months back), or YYYY-MM (direct)
             optional month: String
         }
 
@@ -40,7 +40,7 @@ xflags::xflags! {
 
         /// Show a contribution calendar for the past year up to the given month
         cmd stats {
-            /// Month: empty/today (current), N (N months back), or YYYY-MM (direct)
+            /// Month: today (current), N (N months back), or YYYY-MM (direct)
             optional month: String
         }
     }

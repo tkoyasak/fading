@@ -66,11 +66,11 @@ fn push_r2(
 ) -> Result<()> {
     let temp = sh.create_temp_dir()?;
     let bundle_path = temp.path().join(R2_OBJECT_KEY);
-    let bundle_path_str = bundle_path
+    let path = bundle_path
         .to_str()
         .context("Bundle path is not valid UTF-8")?;
 
-    cmd!(sh, "git bundle create {bundle_path_str} --all").run()?;
+    cmd!(sh, "git bundle create {path} --all").run()?;
 
     let body = sh.read_binary_file(&bundle_path)?;
 

@@ -2,12 +2,12 @@ use anyhow::{Context, Result, bail};
 use jiff::Zoned;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Open, month::parse_month_arg};
+use crate::{Cmd, Open, month::parse_month};
 
 impl Cmd for Open {
     fn run(self, sh: Shell) -> Result<()> {
-        let month_str = parse_month_arg(&self.month)?;
-        let path = format!("entries/{month_str}.md");
+        let id = parse_month(&self.month)?;
+        let path = format!("entries/{id}.md");
 
         if !sh.path_exists(&path) {
             bail!("File not found: {path}");
