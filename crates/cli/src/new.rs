@@ -6,6 +6,26 @@ use xshell::Shell;
 
 use crate::{Cmd, New, month::parse_month_arg};
 
+impl Cmd for New {
+    fn run(self, sh: Shell) -> Result<()> {
+        let month_str = parse_month_arg(&self.month)?;
+        let path = format!("entries/{month_str}.md");
+
+        if sh.path_exists(&path) {
+            println!(
+                "Entry already exists: {}",
+                sh.current_dir().join(&path).display()
+            );
+            return Ok(());
+        }
+
+        let content = generate_entry(&month_str)?;
+        sh.write_file(&path, &content)?;
+        println!("Created entry: {}", sh.current_dir().join(&path).display());
+        Ok(())
+    }
+}
+
 fn generate_entry(month_str: &str) -> Result<String> {
     let id: Date = format!("{month_str}-01")
         .parse()
@@ -37,26 +57,6 @@ modified = {today}
     }
 
     Ok(content)
-}
-
-impl Cmd for New {
-    fn run(self, sh: Shell) -> Result<()> {
-        let month_str = parse_month_arg(&self.month)?;
-        let path = format!("entries/{month_str}.md");
-
-        if sh.path_exists(&path) {
-            println!(
-                "Entry already exists: {}",
-                sh.current_dir().join(&path).display()
-            );
-            return Ok(());
-        }
-
-        let content = generate_entry(&month_str)?;
-        sh.write_file(&path, &content)?;
-        println!("Created entry: {}", sh.current_dir().join(&path).display());
-        Ok(())
-    }
 }
 
 #[cfg(test)]

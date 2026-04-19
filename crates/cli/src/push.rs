@@ -8,6 +8,55 @@ use crate::{Cmd, Push};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
+impl Cmd for Push {
+    fn run(self, sh: Shell) -> Result<()> {
+        let target = self.target.as_deref();
+        let do_r2 = matches!(target, None | Some("r2"));
+        let do_kv = matches!(target, None | Some("kv"));
+
+        if !do_r2 && !do_kv {
+            anyhow::bail!(
+                "Unknown target: '{}' (expected: r2, kv)",
+                self.target.unwrap_or_default()
+            );
+        }
+        let mut ok = true;
+
+        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
+
+        if do_r2 {
+            let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
+            let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
+            let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
+            if let Err(e) = push_r2(
+                &sh,
+                &account_id,
+                &bucket,
+                &access_key_id,
+                &secret_access_key,
+            ) {
+                eprintln!("R2 error: {e:?}");
+                ok = false;
+            }
+        }
+
+        if do_kv {
+            let api_token = sh.var("FADING_CLI_CF_API_TOKEN")?;
+            let ns_id = sh.var("FADING_CLI_KV_NAMESPACE_ID")?;
+            if let Err(e) = push_kv(&sh, &account_id, &ns_id, &api_token, self.full) {
+                eprintln!("KV error: {e:?}");
+                ok = false;
+            }
+        }
+
+        if !ok {
+            anyhow::bail!("One or more push operations failed");
+        }
+
+        Ok(())
+    }
+}
+
 fn push_r2(
     sh: &Shell,
     account_id: &str,
@@ -150,53 +199,4 @@ fn push_kv(sh: &Shell, account_id: &str, ns_id: &str, api_token: &str, full: boo
         &head[..8]
     );
     Ok(())
-}
-
-impl Cmd for Push {
-    fn run(self, sh: Shell) -> Result<()> {
-        let target = self.target.as_deref();
-        let do_r2 = matches!(target, None | Some("r2"));
-        let do_kv = matches!(target, None | Some("kv"));
-
-        if !do_r2 && !do_kv {
-            anyhow::bail!(
-                "Unknown target: '{}' (expected: r2, kv)",
-                self.target.unwrap_or_default()
-            );
-        }
-        let mut ok = true;
-
-        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
-
-        if do_r2 {
-            let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
-            let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
-            let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
-            if let Err(e) = push_r2(
-                &sh,
-                &account_id,
-                &bucket,
-                &access_key_id,
-                &secret_access_key,
-            ) {
-                eprintln!("R2 error: {e:?}");
-                ok = false;
-            }
-        }
-
-        if do_kv {
-            let api_token = sh.var("FADING_CLI_CF_API_TOKEN")?;
-            let ns_id = sh.var("FADING_CLI_KV_NAMESPACE_ID")?;
-            if let Err(e) = push_kv(&sh, &account_id, &ns_id, &api_token, self.full) {
-                eprintln!("KV error: {e:?}");
-                ok = false;
-            }
-        }
-
-        if !ok {
-            anyhow::bail!("One or more push operations failed");
-        }
-
-        Ok(())
-    }
 }

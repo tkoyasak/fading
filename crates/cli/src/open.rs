@@ -4,6 +4,21 @@ use xshell::{Shell, cmd};
 
 use crate::{Cmd, Open, month::parse_month_arg};
 
+impl Cmd for Open {
+    fn run(self, sh: Shell) -> Result<()> {
+        let month_str = parse_month_arg(&self.month)?;
+        let path = format!("entries/{month_str}.md");
+
+        if !sh.path_exists(&path) {
+            bail!("File not found: {path}");
+        }
+
+        let jump_to_today = matches!(self.month.as_deref(), None | Some("today"));
+        let line = jump_to_today.then(|| find_today_line(&sh, &path)).flatten();
+        open_in_ghostty(&sh, &path, line)
+    }
+}
+
 /// Find the 1-indexed line number of today's heading in the file, if present.
 fn find_today_line(sh: &Shell, path: &str) -> Option<usize> {
     let today = Zoned::now().strftime("%Y-%m-%d").to_string();
@@ -68,19 +83,4 @@ end tell"#
     cmd!(sh, "osascript -e {script}")
         .run()
         .context("Failed to open Ghostty")
-}
-
-impl Cmd for Open {
-    fn run(self, sh: Shell) -> Result<()> {
-        let month_str = parse_month_arg(&self.month)?;
-        let path = format!("entries/{month_str}.md");
-
-        if !sh.path_exists(&path) {
-            bail!("File not found: {path}");
-        }
-
-        let jump_to_today = matches!(self.month.as_deref(), None | Some("today"));
-        let line = jump_to_today.then(|| find_today_line(&sh, &path)).flatten();
-        open_in_ghostty(&sh, &path, line)
-    }
 }
