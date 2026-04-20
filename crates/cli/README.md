@@ -82,4 +82,3 @@ R2 and KV operations run independently — if one fails, the other continues.
 | `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID   |
 
 Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`
-
