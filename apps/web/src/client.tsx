@@ -71,11 +71,26 @@ interface FooterProps extends EntryProps {
 
 function Footer({ entryPromise, isPending, onClick }: FooterProps) {
   const entry = React.use(entryPromise);
+  const date = entry?.date ?? "";
   return (
     <div className="flex items-center justify-between">
-      <React.ViewTransition>
-        <span>{entry?.date}</span>
-      </React.ViewTransition>
+      <div className="flex lining-nums tabular-nums">
+        <span>{date[0]}</span>
+        <span>{date[1]}</span>
+        <span>{date[2]}</span>
+        <span>{date[3]}</span>
+        <span>-</span>
+        <span>{date[5]}</span>
+        <span>{date[6]}</span>
+        <span>-</span>
+        <span>{date[8]}</span>
+        <span>{date[9]}</span>
+        <span className="ml-1">
+          {date[11]}
+          {date[12]}
+          {date[13]}
+        </span>
+      </div>
       <button
         type="button"
         disabled={isPending}
