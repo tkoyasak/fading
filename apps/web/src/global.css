@@ -164,31 +164,31 @@
   }
 }
 
-.audio-wave rect {
+.audio-lines {
+  color: #008bbe;
+}
+
+.audio-lines rect {
   y: 10.5px;
   height: 3px;
 }
 
-.audio-wave.animating {
-  color: #008bbe;
-}
-
-.audio-wave.animating rect:nth-child(1) {
+.audio-lines.animating rect:nth-child(1) {
   animation: bar-1 0.8s ease-in-out infinite;
 }
-.audio-wave.animating rect:nth-child(2) {
+.audio-lines.animating rect:nth-child(2) {
   animation: bar-2 1.5s ease-in-out infinite;
 }
-.audio-wave.animating rect:nth-child(3) {
+.audio-lines.animating rect:nth-child(3) {
   animation: bar-3 1s ease-in-out infinite;
 }
-.audio-wave.animating rect:nth-child(4) {
+.audio-lines.animating rect:nth-child(4) {
   animation: bar-4 0.8s ease-in-out infinite;
 }
-.audio-wave.animating rect:nth-child(5) {
+.audio-lines.animating rect:nth-child(5) {
   animation: bar-5 1.5s ease-in-out infinite;
 }
-.audio-wave.animating rect:nth-child(6) {
+.audio-lines.animating rect:nth-child(6) {
   animation: bar-6 0.8s ease-in-out infinite;
 }
 
@@ -204,24 +204,24 @@
   }
 }
 
-.audio-wave .bar-ping {
+.audio-lines .bar-ping {
   transform-box: fill-box;
   transform-origin: center;
   animation: bar-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-.audio-wave .bar-ping:nth-child(8) {
+.audio-lines .bar-ping:nth-child(8) {
   animation-delay: 0.15s;
 }
-.audio-wave .bar-ping:nth-child(9) {
+.audio-lines .bar-ping:nth-child(9) {
   animation-delay: 0.3s;
 }
-.audio-wave .bar-ping:nth-child(10) {
+.audio-lines .bar-ping:nth-child(10) {
   animation-delay: 0.1s;
 }
-.audio-wave .bar-ping:nth-child(11) {
+.audio-lines .bar-ping:nth-child(11) {
   animation-delay: 0.25s;
 }
-.audio-wave .bar-ping:nth-child(12) {
+.audio-lines .bar-ping:nth-child(12) {
   animation-delay: 0.2s;
 }

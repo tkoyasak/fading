@@ -74,7 +74,7 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
   return (
     <div className="flex items-center justify-between">
       <React.ViewTransition>
-        <span className="tabular-nums">{entry?.date}</span>
+        <span>{entry?.date}</span>
       </React.ViewTransition>
       <button
         type="button"
@@ -83,7 +83,7 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
         className="flex items-center gap-1"
       >
         <React.ViewTransition>
-          <AudioWaveIcon size={24} animating={isPending} />
+          <AudioLinesIcon size={24} animating={isPending} />
         </React.ViewTransition>
       </button>
     </div>
@@ -93,19 +93,19 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
 function FallbackFooter() {
   return (
     <div className="flex justify-end">
-      <AudioWaveIcon size={24} animating />
+      <AudioLinesIcon size={24} animating />
     </div>
   );
 }
 
-interface AudioWaveIconProps {
+interface AudioLinesIconProps {
   size: number;
   animating: boolean;
 }
 
-const BAR_COUNT = 6;
+const BAR_COUNT = 8;
 
-function AudioWaveIcon({ size, animating }: AudioWaveIconProps) {
+function AudioLinesIcon({ size, animating }: AudioLinesIconProps) {
   const [isAnimating, setIsAnimating] = React.useState(animating);
   const completedRef = React.useRef(0);
 
@@ -120,9 +120,11 @@ function AudioWaveIcon({ size, animating }: AudioWaveIconProps) {
   function handleIteration() {
     if (!animating) {
       completedRef.current += 1;
-      if (completedRef.current >= BAR_COUNT) {
-        setIsAnimating(false);
-        completedRef.current = 0;
+      if (completedRef.current > BAR_COUNT) {
+        React.startTransition(() => {
+          setIsAnimating(false);
+          completedRef.current = 0;
+        });
       }
     }
   }
@@ -133,7 +135,7 @@ function AudioWaveIcon({ size, animating }: AudioWaveIconProps) {
       height={size}
       viewBox="0 0 24 24"
       fill="currentColor"
-      className={isAnimating ? "audio-wave animating" : "audio-wave"}
+      className={isAnimating ? "audio-lines animating" : "audio-lines"}
       onAnimationIteration={handleIteration}
     >
       <rect x="1" width="2" rx="1" />
