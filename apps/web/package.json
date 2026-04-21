@@ -7,7 +7,7 @@
     "build": "CLOUDFLARE_ENV=dev vite build",
     "build:prod": "vite build",
     "preview": "vite preview",
-    "upload": "CLOUDFLARE_ENV=dev vite build && wrangler versions upload",
+    "upload": "CLOUDFLARE_ENV=dev vite build && wrangler versions upload --env dev",
     "release": "vite build && wrangler deploy --strict",
     "check": "tsc",
     "types": "wrangler types"

@@ -35,8 +35,10 @@ async function handler(request: Request): Promise<Response> {
       const formData = await request.formData();
       const decodedAction = await decodeAction(formData);
       try {
-        // oxlint-disable-next-line typescript/no-confusing-void-expression -- `decodeAction` returns void per type, but the value is passed to `decodeFormState` per the RSC progressive-enhancement API
-        const result = await decodedAction();
+        // cast: plugin-rsc types `decodeAction` as returning `() => void`, but the React source
+        // types it as `() => T` — the return value is the action's result, which `decodeFormState` needs.
+        // https://github.com/facebook/react/blob/306a01b4e0242e9379ba971c8925670651f16818/packages/react-server/src/ReactFlightActionServer.js#L107-L164
+        const result = await (decodedAction as () => unknown)();
         formState = await decodeFormState(result, formData);
       } catch {
         // there's no single general obvious way to surface this error,
