@@ -96,10 +96,12 @@ fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)>
             }
         }
     }
-    if let Some(date) = current_date {
-        if chars > 0 && date >= from && date <= to {
-            results.push((date, chars));
-        }
+    if let Some(date) = current_date
+        && chars > 0
+        && date >= from
+        && date <= to
+    {
+        results.push((date, chars));
     }
     results
 }
