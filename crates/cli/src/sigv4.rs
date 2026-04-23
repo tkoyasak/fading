@@ -20,9 +20,54 @@ pub(crate) struct R2SignHeaders {
     pub x_amz_content_sha256: String,
 }
 
+/// Sign an S3 GET request for Cloudflare R2 using AWS Signature Version 4.
+/// `datetime` must be in the format `"20260410T120000Z"`.
+pub(crate) fn sign_r2_get(
+    account_id: &str,
+    access_key_id: &str,
+    secret_access_key: &str,
+    bucket: &str,
+    key: &str,
+    datetime: &str,
+) -> R2SignHeaders {
+    sign_r2(
+        "GET",
+        account_id,
+        access_key_id,
+        secret_access_key,
+        bucket,
+        key,
+        &[],
+        datetime,
+    )
+}
+
 /// Sign an S3 PUT request for Cloudflare R2 using AWS Signature Version 4.
 /// `datetime` must be in the format `"20260410T120000Z"`.
 pub(crate) fn sign_r2_put(
+    account_id: &str,
+    access_key_id: &str,
+    secret_access_key: &str,
+    bucket: &str,
+    key: &str,
+    body: &[u8],
+    datetime: &str,
+) -> R2SignHeaders {
+    sign_r2(
+        "PUT",
+        account_id,
+        access_key_id,
+        secret_access_key,
+        bucket,
+        key,
+        body,
+        datetime,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sign_r2(
+    method: &str,
     account_id: &str,
     access_key_id: &str,
     secret_access_key: &str,
@@ -40,7 +85,7 @@ pub(crate) fn sign_r2_put(
     // https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     let body_hash = sha256_hex(body);
     let canonical_request = format!(
-        r"PUT
+        r"{method}
 /{bucket}/{key}
 
 host:{host}
@@ -76,7 +121,7 @@ host;x-amz-content-sha256;x-amz-date
     let signature = encode_string(&hmac_sha256(&signing_key, string_to_sign.as_bytes()));
     let signed_headers = "host;x-amz-content-sha256;x-amz-date";
     let authorization = format!(
-        "AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}"
+        r"AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}"
     );
 
     R2SignHeaders {
