@@ -21,19 +21,15 @@ impl Cmd for Push {
 
         cmd!(sh, "git bundle create {path} --all").run()?;
 
+        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
         let body = sh.read_binary_file(&bundle_path)?;
-        let body = match sh.var("FADING_CLI_ENCRYPTION_KEY") {
-            Ok(key_hex) => {
-                let encrypted = encrypt(&key_hex, &body)?;
-                println!(
-                    "R2: bundle encrypted ({} B → {} B)",
-                    body.len(),
-                    encrypted.len()
-                );
-                encrypted
-            }
-            Err(_) => body,
-        };
+        let encrypted = encrypt(&key_hex, &body)?;
+        println!(
+            "R2: bundle encrypted ({} B → {} B)",
+            body.len(),
+            encrypted.len()
+        );
+        let body = encrypted;
 
         let datetime = jiff::Timestamp::now()
             .to_zoned(jiff::tz::TimeZone::UTC)
@@ -104,14 +100,10 @@ impl Cmd for Pull {
             .read_to_end(&mut body)
             .context("Failed to read response body")?;
 
-        let body = match sh.var("FADING_CLI_ENCRYPTION_KEY") {
-            Ok(key_hex) => {
-                let decrypted = decrypt(&key_hex, &body)?;
-                println!("R2: bundle decrypted ({} B → {} B)", body.len(), decrypted.len());
-                decrypted
-            }
-            Err(_) => body,
-        };
+        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
+        let decrypted = decrypt(&key_hex, &body)?;
+        println!("R2: bundle decrypted ({} B → {} B)", body.len(), decrypted.len());
+        let body = decrypted;
 
         let temp = sh.create_temp_dir()?;
         let bundle_path = temp.path().join(R2_OBJECT_KEY);
