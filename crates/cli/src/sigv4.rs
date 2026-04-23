@@ -53,7 +53,16 @@ pub(crate) fn sign_r2_put(
     body: &[u8],
     datetime: &str,
 ) -> R2SignHeaders {
-    sign_r2("PUT", account_id, access_key_id, secret_access_key, bucket, key, body, datetime)
+    sign_r2(
+        "PUT",
+        account_id,
+        access_key_id,
+        secret_access_key,
+        bucket,
+        key,
+        body,
+        datetime,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -82,9 +91,8 @@ fn sign_r2(
     // Step 2: String to sign
     let credential_scope = format!("{datestamp}/{region}/{service}/aws4_request");
     let canonical_request_hash = sha256_hex(canonical_request.as_bytes());
-    let string_to_sign = format!(
-        "AWS4-HMAC-SHA256\n{datetime}\n{credential_scope}\n{canonical_request_hash}"
-    );
+    let string_to_sign =
+        format!("AWS4-HMAC-SHA256\n{datetime}\n{credential_scope}\n{canonical_request_hash}");
 
     // Step 3: Signing key — derived by chaining HMAC over date/region/service
     let signing_key = {
