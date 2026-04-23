@@ -100,6 +100,7 @@ bun run types     # Regenerate worker-configuration.d.ts
 - `FADING_CLI_R2_SECRET_ACCESS_KEY` env var is required for `push r2` (R2 API token secret key)
 - `FADING_CLI_CF_API_TOKEN` env var is required for `push kv` (Cloudflare API token)
 - `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push kv` (KV namespace ID)
+- `FADING_CLI_ENCRYPTION_KEY` env var is optional for `push r2` (64 hex chars = 32-byte AES-256-GCM key; generate with `openssl rand -hex 32`)
 
 ### Language Server (`fading-ls`)
 

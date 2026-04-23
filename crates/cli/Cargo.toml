@@ -12,6 +12,7 @@ path = "src/main.rs"
 fading-ls.workspace = true
 
 anyhow.workspace = true
+aes-gcm.workspace = true
 base16ct.workspace = true
 hmac.workspace = true
 jiff.workspace = true

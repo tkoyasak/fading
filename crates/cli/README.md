@@ -16,7 +16,7 @@ Start the fading language server.
 
 ### `fading notify`
 
-Display a notification with the current date (macOS only, uses `osascript`).
+Display a macOS notification. Clicking "Open" opens today's entry in Helix.
 
 ### `fading new [month]`
 
@@ -71,14 +71,15 @@ R2 and KV operations run independently — if one fails, the other continues.
 
 ## Configuration
 
-| Variable                          | Required    | Description                  |
-| --------------------------------- | ----------- | ---------------------------- |
-| `FADING_HOME`                     | Yes         | Path to the fading directory |
-| `FADING_CLI_CF_ACCOUNT_ID`        | `push`      | Cloudflare account ID        |
-| `FADING_CLI_R2_BUCKET`            | `push` (R2) | Cloudflare R2 bucket name    |
-| `FADING_CLI_R2_ACCESS_KEY_ID`     | `push` (R2) | R2 API token access key      |
-| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `push` (R2) | R2 API token secret key      |
-| `FADING_CLI_CF_API_TOKEN`         | `push` (KV) | Cloudflare API token         |
-| `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID   |
+| Variable                          | Required    | Description                                                          |
+| --------------------------------- | ----------- | -------------------------------------------------------------------- |
+| `FADING_HOME`                     | Yes         | Path to the fading directory                                         |
+| `FADING_CLI_CF_ACCOUNT_ID`        | `push`      | Cloudflare account ID                                                |
+| `FADING_CLI_R2_BUCKET`            | `push` (R2) | Cloudflare R2 bucket name                                            |
+| `FADING_CLI_R2_ACCESS_KEY_ID`     | `push` (R2) | R2 API token access key                                              |
+| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `push` (R2) | R2 API token secret key                                              |
+| `FADING_CLI_CF_API_TOKEN`         | `push` (KV) | Cloudflare API token                                                 |
+| `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID                                           |
+| `FADING_CLI_ENCRYPTION_KEY`       | No          | AES-256-GCM key for R2 bundle (64 hex chars; `openssl rand -hex 32`) |
 
 Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`

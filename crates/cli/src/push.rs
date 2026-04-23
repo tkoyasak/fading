@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use aes_gcm::Aes256Gcm;
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
 use anyhow::{Context, Result};
 use jiff::civil::Date;
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
@@ -59,6 +61,25 @@ impl Cmd for Push {
     }
 }
 
+/// Encrypt `plaintext` with AES-256-GCM using a 32-byte key derived from a 64-char hex string.
+/// Output format: `[nonce (12 B)][ciphertext + tag (16 B)]`.
+fn encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
+    let mut key_bytes = [0u8; 32];
+    base16ct::lower::decode(key_hex.trim(), &mut key_bytes)
+        .context("FADING_CLI_ENCRYPTION_KEY must be exactly 64 lowercase hex characters")?;
+
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+        .map_err(|_| anyhow::anyhow!("FADING_CLI_ENCRYPTION_KEY must be exactly 32 bytes"))?;
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let ciphertext = cipher
+        .encrypt(&nonce, plaintext)
+        .map_err(|_| anyhow::anyhow!("Encryption failed"))?;
+
+    let mut out = nonce.to_vec();
+    out.extend_from_slice(&ciphertext);
+    Ok(out)
+}
+
 fn push_r2(
     sh: &Shell,
     account_id: &str,
@@ -75,6 +96,18 @@ fn push_r2(
     cmd!(sh, "git bundle create {path} --all").run()?;
 
     let body = sh.read_binary_file(&bundle_path)?;
+    let body = match sh.var("FADING_CLI_ENCRYPTION_KEY") {
+        Ok(key_hex) => {
+            let encrypted = encrypt(&key_hex, &body)?;
+            println!(
+                "R2: bundle encrypted ({} B → {} B)",
+                body.len(),
+                encrypted.len()
+            );
+            encrypted
+        }
+        Err(_) => body,
+    };
 
     let datetime = jiff::Timestamp::now()
         .to_zoned(jiff::tz::TimeZone::UTC)

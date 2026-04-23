@@ -13,6 +13,7 @@ fading-ls = { path = "crates/ls" }
 
 # non-local crates
 anyhow = { version = "1.0.102" }
+aes-gcm = { version = "0.10.3" }
 base16ct = { version = "1.0.0", features = ["alloc"] }
 crop = { version = "0.4.3" }
 hmac = { version = "0.13.0" }
