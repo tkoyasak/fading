@@ -419,7 +419,6 @@ dependencies = [
  "hmac",
  "jiff",
  "mac-notification-sys",
- "proptest",
  "pulldown-cmark",
  "serde_json",
  "sha2",
