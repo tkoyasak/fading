@@ -8,7 +8,7 @@ use crate::{Cmd, New, month::parse_month};
 
 impl Cmd for New {
     fn run(self, sh: Shell) -> Result<()> {
-        let id = parse_month(&self.month)?;
+        let id = parse_month(self.month.as_deref())?;
         let path = format!("entries/{id}.md");
 
         if sh.path_exists(&path) {

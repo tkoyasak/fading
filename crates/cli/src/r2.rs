@@ -2,17 +2,59 @@ use anyhow::{Context, Result};
 use xshell::{Shell, cmd};
 
 use crate::crypto::{decrypt, encrypt};
+use crate::sigv4::R2SignRequest;
 use crate::{Cmd, Pull, Push};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
+struct R2Config {
+    account_id: String,
+    bucket: String,
+    access_key_id: String,
+    secret_access_key: String,
+    encryption_key: String,
+}
+
+impl R2Config {
+    fn from_env(sh: &Shell) -> Result<Self> {
+        Ok(Self {
+            account_id: sh.var("FADING_CLI_CF_ACCOUNT_ID")?,
+            bucket: sh.var("FADING_CLI_R2_BUCKET")?,
+            access_key_id: sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?,
+            secret_access_key: sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?,
+            encryption_key: sh.var("FADING_CLI_ENCRYPTION_KEY")?,
+        })
+    }
+
+    fn url(&self) -> String {
+        format!(
+            "https://{}.r2.cloudflarestorage.com/{}/{R2_OBJECT_KEY}",
+            self.account_id, self.bucket
+        )
+    }
+
+    fn sign_request<'a>(&'a self, datetime: &'a str) -> R2SignRequest<'a> {
+        R2SignRequest {
+            account_id: &self.account_id,
+            access_key_id: &self.access_key_id,
+            secret_access_key: &self.secret_access_key,
+            bucket: &self.bucket,
+            key: R2_OBJECT_KEY,
+            datetime,
+        }
+    }
+}
+
+fn datetime_now() -> String {
+    jiff::Timestamp::now()
+        .to_zoned(jiff::tz::TimeZone::UTC)
+        .strftime("%Y%m%dT%H%M%SZ")
+        .to_string()
+}
+
 impl Cmd for Push {
     fn run(self, sh: Shell) -> Result<()> {
-        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
-        let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
-        let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
-        let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
-        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
+        let cfg = R2Config::from_env(&sh)?;
 
         let temp = sh.create_temp_dir()?;
         let bundle_path = temp.path().join(R2_OBJECT_KEY);
@@ -23,7 +65,7 @@ impl Cmd for Push {
         cmd!(sh, "git bundle create {path} --all").run()?;
 
         let body = sh.read_binary_file(&bundle_path)?;
-        let encrypted = encrypt(&key_hex, &body)?;
+        let encrypted = encrypt(&cfg.encryption_key, &body)?;
         println!(
             "R2: bundle encrypted ({} B → {} B)",
             body.len(),
@@ -31,22 +73,9 @@ impl Cmd for Push {
         );
         let body = encrypted;
 
-        let datetime = jiff::Timestamp::now()
-            .to_zoned(jiff::tz::TimeZone::UTC)
-            .strftime("%Y%m%dT%H%M%SZ")
-            .to_string();
-
-        let signed = crate::sigv4::sign_r2_put(
-            &account_id,
-            &access_key_id,
-            &secret_access_key,
-            &bucket,
-            R2_OBJECT_KEY,
-            &body,
-            &datetime,
-        );
-
-        let url = format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
+        let datetime = datetime_now();
+        let signed = crate::sigv4::sign_r2_put(&cfg.sign_request(&datetime), &body)?;
+        let url = cfg.url();
 
         ureq::put(&url)
             .header("Authorization", &signed.authorization)
@@ -56,34 +85,18 @@ impl Cmd for Push {
             .send(&body[..])
             .context("Failed to upload bundle to R2")?;
 
-        println!("R2: uploaded {bucket}/{R2_OBJECT_KEY}");
+        println!("R2: uploaded {}/{R2_OBJECT_KEY}", cfg.bucket);
         Ok(())
     }
 }
 
 impl Cmd for Pull {
     fn run(self, sh: Shell) -> Result<()> {
-        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
-        let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
-        let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
-        let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
-        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
+        let cfg = R2Config::from_env(&sh)?;
 
-        let datetime = jiff::Timestamp::now()
-            .to_zoned(jiff::tz::TimeZone::UTC)
-            .strftime("%Y%m%dT%H%M%SZ")
-            .to_string();
-
-        let signed = crate::sigv4::sign_r2_get(
-            &account_id,
-            &access_key_id,
-            &secret_access_key,
-            &bucket,
-            R2_OBJECT_KEY,
-            &datetime,
-        );
-
-        let url = format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
+        let datetime = datetime_now();
+        let signed = crate::sigv4::sign_r2_get(&cfg.sign_request(&datetime))?;
+        let url = cfg.url();
 
         let mut resp = ureq::get(&url)
             .header("Authorization", &signed.authorization)
@@ -92,7 +105,7 @@ impl Cmd for Pull {
             .call()
             .context("Failed to download bundle from R2")?;
 
-        const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024; // 500 MB
+        const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024;
 
         let mut body = Vec::new();
         use std::io::Read;
@@ -102,7 +115,7 @@ impl Cmd for Pull {
             .read_to_end(&mut body)
             .context("Failed to read response body")?;
 
-        let decrypted = decrypt(&key_hex, &body)?;
+        let decrypted = decrypt(&cfg.encryption_key, &body)?;
         println!(
             "R2: bundle decrypted ({} B → {} B)",
             body.len(),
@@ -120,7 +133,7 @@ impl Cmd for Pull {
         cmd!(sh, "git bundle verify {path}").run()?;
         cmd!(sh, "git fetch {path}").run()?;
 
-        println!("R2: fetched from {bucket}/{R2_OBJECT_KEY}");
+        println!("R2: fetched from {}/{R2_OBJECT_KEY}", cfg.bucket);
         Ok(())
     }
 }

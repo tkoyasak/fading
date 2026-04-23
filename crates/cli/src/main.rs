@@ -1,4 +1,5 @@
 mod crypto;
+mod entry;
 mod kv;
 mod ls;
 mod month;
