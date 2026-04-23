@@ -3,7 +3,7 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use anyhow::{Context, Result};
 
 /// Encrypt `plaintext` with AES-256-GCM.
-/// `key_hex` must be exactly 64 lowercase hex characters (32 bytes).
+/// `key_hex` must be exactly 64 hex characters (32 bytes).
 /// Output format: `[nonce (12 B)][ciphertext + tag (16 B)]`.
 pub(crate) fn encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
     let cipher = build_cipher(key_hex)?;
@@ -18,7 +18,7 @@ pub(crate) fn encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Decrypt data produced by [`encrypt`].
-/// `key_hex` must be exactly 64 lowercase hex characters (32 bytes).
+/// `key_hex` must be exactly 64 hex characters (32 bytes).
 pub(crate) fn decrypt(key_hex: &str, data: &[u8]) -> Result<Vec<u8>> {
     const NONCE_LEN: usize = 12;
     if data.len() < NONCE_LEN {
@@ -36,11 +36,11 @@ fn build_cipher(key_hex: &str) -> Result<Aes256Gcm> {
     let hex = key_hex.trim();
     anyhow::ensure!(
         hex.len() == 64,
-        "FADING_CLI_ENCRYPTION_KEY must be exactly 64 lowercase hex characters"
+        "FADING_CLI_ENCRYPTION_KEY must be exactly 64 hex characters"
     );
     let mut key_bytes = [0u8; 32];
-    base16ct::lower::decode(hex, &mut key_bytes)
-        .context("FADING_CLI_ENCRYPTION_KEY must be exactly 64 lowercase hex characters")?;
+    base16ct::mixed::decode(hex, &mut key_bytes)
+        .context("FADING_CLI_ENCRYPTION_KEY must be exactly 64 hex characters")?;
     Aes256Gcm::new_from_slice(&key_bytes)
         .map_err(|_| anyhow::anyhow!("FADING_CLI_ENCRYPTION_KEY must be exactly 32 bytes"))
 }
