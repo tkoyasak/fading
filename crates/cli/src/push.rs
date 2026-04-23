@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use aes_gcm::Aes256Gcm;
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
 use anyhow::{Context, Result};
 use jiff::civil::Date;
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
+use crate::crypto::encrypt;
 use crate::{Cmd, Push};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
@@ -59,25 +58,6 @@ impl Cmd for Push {
 
         Ok(())
     }
-}
-
-/// Encrypt `plaintext` with AES-256-GCM using a 32-byte key derived from a 64-char hex string.
-/// Output format: `[nonce (12 B)][ciphertext + tag (16 B)]`.
-fn encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
-    let mut key_bytes = [0u8; 32];
-    base16ct::lower::decode(key_hex.trim(), &mut key_bytes)
-        .context("FADING_CLI_ENCRYPTION_KEY must be exactly 64 lowercase hex characters")?;
-
-    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
-        .map_err(|_| anyhow::anyhow!("FADING_CLI_ENCRYPTION_KEY must be exactly 32 bytes"))?;
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-    let ciphertext = cipher
-        .encrypt(&nonce, plaintext)
-        .map_err(|_| anyhow::anyhow!("Encryption failed"))?;
-
-    let mut out = nonce.to_vec();
-    out.extend_from_slice(&ciphertext);
-    Ok(out)
 }
 
 fn push_r2(

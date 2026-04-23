@@ -1,8 +1,10 @@
+mod crypto;
 mod ls;
 mod month;
 mod new;
 mod notify;
 mod open;
+mod pull;
 mod push;
 mod sigv4;
 mod stats;
@@ -28,6 +30,9 @@ xflags::xflags! {
             /// Month to open: today (current), N (N months back), or YYYY-MM (direct)
             optional month: String
         }
+
+        /// Pull and restore the R2 bundle into the local repository
+        cmd pull {}
 
         /// Push to Cloudflare (R2 backup and/or KV sync)
         cmd push {
@@ -62,6 +67,7 @@ fn cmd_run() -> anyhow::Result<()> {
         FadingCmd::New(new) => new.run(sh),
         FadingCmd::Notify(notify) => notify.run(sh),
         FadingCmd::Open(open) => open.run(sh),
+        FadingCmd::Pull(pull) => pull.run(sh),
         FadingCmd::Push(push) => push.run(sh),
         FadingCmd::Stats(stats) => stats.run(sh),
     }

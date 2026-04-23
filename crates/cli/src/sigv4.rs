@@ -20,9 +20,45 @@ pub(crate) struct R2SignHeaders {
     pub x_amz_content_sha256: String,
 }
 
+/// Sign an S3 GET request for Cloudflare R2 using AWS Signature Version 4.
+/// `datetime` must be in the format `"20260410T120000Z"`.
+pub(crate) fn sign_r2_get(
+    account_id: &str,
+    access_key_id: &str,
+    secret_access_key: &str,
+    bucket: &str,
+    key: &str,
+    datetime: &str,
+) -> R2SignHeaders {
+    sign_r2(
+        "GET",
+        account_id,
+        access_key_id,
+        secret_access_key,
+        bucket,
+        key,
+        &[],
+        datetime,
+    )
+}
+
 /// Sign an S3 PUT request for Cloudflare R2 using AWS Signature Version 4.
 /// `datetime` must be in the format `"20260410T120000Z"`.
 pub(crate) fn sign_r2_put(
+    account_id: &str,
+    access_key_id: &str,
+    secret_access_key: &str,
+    bucket: &str,
+    key: &str,
+    body: &[u8],
+    datetime: &str,
+) -> R2SignHeaders {
+    sign_r2("PUT", account_id, access_key_id, secret_access_key, bucket, key, body, datetime)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sign_r2(
+    method: &str,
     account_id: &str,
     access_key_id: &str,
     secret_access_key: &str,
@@ -40,25 +76,14 @@ pub(crate) fn sign_r2_put(
     // https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     let body_hash = sha256_hex(body);
     let canonical_request = format!(
-        r"PUT
-/{bucket}/{key}
-
-host:{host}
-x-amz-content-sha256:{body_hash}
-x-amz-date:{datetime}
-
-host;x-amz-content-sha256;x-amz-date
-{body_hash}"
+        "{method}\n/{bucket}/{key}\n\nhost:{host}\nx-amz-content-sha256:{body_hash}\nx-amz-date:{datetime}\n\nhost;x-amz-content-sha256;x-amz-date\n{body_hash}"
     );
 
     // Step 2: String to sign
     let credential_scope = format!("{datestamp}/{region}/{service}/aws4_request");
     let canonical_request_hash = sha256_hex(canonical_request.as_bytes());
     let string_to_sign = format!(
-        r"AWS4-HMAC-SHA256
-{datetime}
-{credential_scope}
-{canonical_request_hash}"
+        "AWS4-HMAC-SHA256\n{datetime}\n{credential_scope}\n{canonical_request_hash}"
     );
 
     // Step 3: Signing key — derived by chaining HMAC over date/region/service
