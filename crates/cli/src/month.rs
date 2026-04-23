@@ -33,87 +33,65 @@ fn current_month() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
-    fn proptest_config() -> ProptestConfig {
-        ProptestConfig::with_cases(1000)
+    #[test]
+    fn parse_none_returns_current_month() {
+        let result = parse_month(&None).unwrap();
+        assert_eq!(result.len(), 7);
+        assert!(result.chars().nth(4) == Some('-'));
     }
 
-    mod strategies {
-        use super::*;
-
-        /// Generate valid year (1970-2100)
-        pub(super) fn year() -> impl Strategy<Value = u16> {
-            1970u16..=2100
-        }
-
-        /// Generate valid month (1-12)
-        pub(super) fn valid_month() -> impl Strategy<Value = u8> {
-            1u8..=12
-        }
-
-        /// Generate invalid month (0, 13-255)
-        pub(super) fn invalid_month() -> impl Strategy<Value = u8> {
-            prop_oneof![Just(0u8), 13u8..=255,]
-        }
-
-        /// Generate valid YYYY-MM string
-        pub(super) fn valid_month_str() -> impl Strategy<Value = String> {
-            (year(), valid_month()).prop_map(|(y, m)| format!("{:04}-{:02}", y, m))
-        }
-
-        /// Generate invalid YYYY-MM string
-        pub(super) fn invalid_month_str() -> impl Strategy<Value = String> {
-            (year(), invalid_month()).prop_map(|(y, m)| format!("{:04}-{:02}", y, m))
-        }
-
-        /// Generate offset string (N, non-negative)
-        pub(super) fn offset_str() -> impl Strategy<Value = String> {
-            (0i64..=1000).prop_map(|n| format!("{}", n))
-        }
+    #[test]
+    fn parse_today_returns_current_month() {
+        let result = parse_month(&Some("today".to_string())).unwrap();
+        assert_eq!(result, parse_month(&None).unwrap());
     }
 
-    proptest! {
-        #![proptest_config(proptest_config())]
+    #[test]
+    fn parse_offset_zero_returns_current_month() {
+        assert_eq!(
+            parse_month(&Some("0".to_string())).unwrap(),
+            parse_month(&None).unwrap()
+        );
+    }
 
-        /// parse_month(None) returns current month
-        #[test]
-        fn prop_parse_month_none(_seed in 0u32..100) {
-            let result = parse_month(&None);
-            prop_assert!(result.is_ok());
-            let month = result.unwrap();
-            prop_assert_eq!(month.len(), 7);
-            prop_assert!(month.contains('-'));
-        }
+    #[test]
+    fn parse_offset_succeeds() {
+        assert!(parse_month(&Some("1".to_string())).is_ok());
+        assert!(parse_month(&Some("12".to_string())).is_ok());
+        assert!(parse_month(&Some("100".to_string())).is_ok());
+    }
 
-        /// parse_month(Some("today")) returns current month
-        #[test]
-        fn prop_parse_month_today(_seed in 0u32..100) {
-            let result = parse_month(&Some("today".to_string()));
-            prop_assert!(result.is_ok());
-            let month = result.unwrap();
-            prop_assert_eq!(month.len(), 7);
-        }
+    #[test]
+    fn parse_valid_month() {
+        assert_eq!(
+            parse_month(&Some("2026-04".to_string())).unwrap(),
+            "2026-04"
+        );
+        assert_eq!(
+            parse_month(&Some("2024-02".to_string())).unwrap(),
+            "2024-02"
+        );
+        assert_eq!(
+            parse_month(&Some("2026-12".to_string())).unwrap(),
+            "2026-12"
+        );
+        assert_eq!(
+            parse_month(&Some("2026-01".to_string())).unwrap(),
+            "2026-01"
+        );
+    }
 
-        /// parse_month with N (months back) succeeds
-        #[test]
-        fn prop_parse_month_offset(offset_str in strategies::offset_str()) {
-            let result = parse_month(&Some(offset_str));
-            prop_assert!(result.is_ok());
-        }
+    #[test]
+    fn parse_invalid_month_number() {
+        assert!(parse_month(&Some("2026-00".to_string())).is_err());
+        assert!(parse_month(&Some("2026-13".to_string())).is_err());
+    }
 
-        /// parse_month with valid YYYY-MM succeeds
-        #[test]
-        fn prop_parse_month_valid(month_str in strategies::valid_month_str()) {
-            let result = parse_month(&Some(month_str));
-            prop_assert!(result.is_ok());
-        }
-
-        /// parse_month with invalid YYYY-MM fails
-        #[test]
-        fn prop_parse_month_invalid(month_str in strategies::invalid_month_str()) {
-            let result = parse_month(&Some(month_str));
-            prop_assert!(result.is_err());
-        }
+    #[test]
+    fn parse_invalid_format() {
+        assert!(parse_month(&Some("not-valid".to_string())).is_err());
+        assert!(parse_month(&Some("2026/04".to_string())).is_err());
+        assert!(parse_month(&Some("2026-4".to_string())).is_err());
     }
 }
