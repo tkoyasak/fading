@@ -13,6 +13,15 @@ xflags::xflags! {
     /// CLI for the `fading` language
     cmd fading {
 
+        /// Manage Cloudflare KV entries
+        cmd kv {
+            /// Sync entries to KV
+            cmd sync {
+                /// Sync all entries (ignore last synced commit)
+                optional -f, --full
+            }
+        }
+
         /// Start the language server
         cmd ls {}
 
@@ -33,20 +42,11 @@ xflags::xflags! {
 
         /// Manage the R2 bundle backup
         cmd r2 {
-            /// Upload the git bundle to R2
-            cmd push {}
-
             /// Download the git bundle from R2 and fetch into the local repository
             cmd pull {}
-        }
 
-        /// Manage Cloudflare KV entries
-        cmd kv {
-            /// Sync entries to KV
-            cmd sync {
-                /// Sync all entries (ignore last synced commit)
-                optional -f, --full
-            }
+            /// Upload the git bundle to R2
+            cmd push {}
         }
 
         /// Show a contribution calendar for the past year up to the given month
@@ -70,16 +70,16 @@ fn cmd_run() -> anyhow::Result<()> {
 
     let flags = Fading::from_env_or_exit();
     match flags.subcommand {
+        FadingCmd::Kv(kv) => match kv.subcommand {
+            KvCmd::Sync(sync) => sync.run(sh),
+        },
         FadingCmd::Ls(ls) => ls.run(sh),
         FadingCmd::New(new) => new.run(sh),
         FadingCmd::Notify(notify) => notify.run(sh),
         FadingCmd::Open(open) => open.run(sh),
         FadingCmd::R2(r2) => match r2.subcommand {
-            R2Cmd::Push(push) => push.run(sh),
             R2Cmd::Pull(pull) => pull.run(sh),
-        },
-        FadingCmd::Kv(kv) => match kv.subcommand {
-            KvCmd::Sync(sync) => sync.run(sh),
+            R2Cmd::Push(push) => push.run(sh),
         },
         FadingCmd::Stats(stats) => stats.run(sh),
     }
