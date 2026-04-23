@@ -92,10 +92,13 @@ impl Cmd for Pull {
             .call()
             .context("Failed to download bundle from R2")?;
 
+        const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024; // 500 MB
+
         let mut body = Vec::new();
         use std::io::Read;
         resp.body_mut()
             .as_reader()
+            .take(MAX_BUNDLE_SIZE)
             .read_to_end(&mut body)
             .context("Failed to read response body")?;
 
