@@ -248,3 +248,83 @@ fn month_abbr(month: i8) -> &'static str {
         _ => "???",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jiff::civil::date;
+
+    #[test]
+    fn empty_content_returns_empty() {
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        assert!(count_chars_by_day("", from, to).is_empty());
+    }
+
+    #[test]
+    fn single_day_counted() {
+        let content = "###### 2026-01-01 Thu\n\nhello\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], (date(2026, 1, 1), 5));
+    }
+
+    #[test]
+    fn placeholder_not_counted() {
+        let content = "###### 2026-01-01 Thu\n\n<!-- -->\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        assert!(count_chars_by_day(content, from, to).is_empty());
+    }
+
+    #[test]
+    fn date_before_range_excluded() {
+        let content = "###### 2025-12-31 Wed\n\nhello\n\n###### 2026-01-01 Thu\n\nworld\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, date(2026, 1, 1));
+    }
+
+    #[test]
+    fn counts_unicode_chars_not_bytes() {
+        // "こんにちは" = 5 chars, 15 bytes
+        let content = "###### 2026-01-01 Thu\n\nこんにちは\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result[0].1, 5);
+    }
+
+    #[test]
+    fn multiple_lines_summed() {
+        let content = "###### 2026-01-01 Thu\n\nhello\nworld\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result[0].1, 10); // "hello" + "world"
+    }
+
+    #[test]
+    fn zero_char_day_excluded() {
+        // heading exists but no content lines → not returned
+        let content = "###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, date(2026, 1, 2));
+    }
+
+    #[test]
+    fn boundary_dates_included() {
+        let content = "###### 2026-01-01 Thu\n\nfirst\n\n###### 2026-01-31 Sat\n\nlast\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 2);
+    }
+}

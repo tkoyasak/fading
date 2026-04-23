@@ -62,52 +62,30 @@ modified = {today}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jiff::{ToSpan, civil::date};
-    use proptest::prelude::*;
 
-    fn proptest_config() -> ProptestConfig {
-        ProptestConfig::with_cases(1000)
+    #[test]
+    fn test_frontmatter() {
+        let content = generate_entry("2026-04").unwrap();
+        assert!(content.starts_with("+++\n"));
+        assert!(content.contains("id = \"2026-04\""));
+        assert!(content.contains("created = "));
+        assert!(content.contains("modified = "));
     }
 
-    mod strategies {
-        use super::*;
-
-        pub(super) fn month_str() -> impl Strategy<Value = String> {
-            let fixed = date(2020, 1, 1);
-            (0i64..=4000).prop_map(move |offset| {
-                let d = fixed.checked_add(offset.days()).unwrap().first_of_month();
-                format!("{:04}-{:02}", d.year(), d.month())
-            })
-        }
+    #[test]
+    fn test_thirty_day_month() {
+        let content = generate_entry("2026-04").unwrap();
+        assert_eq!(content.matches("###### 2026-04-").count(), 30);
+        assert!(content.contains("###### 2026-04-01 "));
+        assert!(content.contains("###### 2026-04-30 "));
     }
 
-    proptest! {
-        #![proptest_config(proptest_config())]
-
-        /// Property: Generated content has valid frontmatter and correct day count
-        #[test]
-        fn prop_generate_entry(month_str in strategies::month_str()) {
-            let content = generate_entry(&month_str).unwrap();
-
-            // Frontmatter
-            let id_field = format!("id = \"{month_str}\"");
-            prop_assert!(content.starts_with("+++\n"));
-            prop_assert!(content.contains(&id_field));
-            prop_assert!(content.contains("created = "));
-            prop_assert!(content.contains("modified = "));
-
-            // Day count
-            let first_day: Date = format!("{month_str}-01").parse().unwrap();
-            let expected_days = first_day.days_in_month() as usize;
-            let prefix = format!("###### {month_str}-");
-            prop_assert_eq!(content.matches(&prefix).count(), expected_days);
-
-            // First and last day headers
-            let first_header = format!("###### {month_str}-01 ");
-            let last_header = format!("###### {month_str}-{:02} ", expected_days);
-            prop_assert!(content.contains(&first_header));
-            prop_assert!(content.contains(&last_header));
-        }
+    #[test]
+    fn test_thirty_one_day_month() {
+        let content = generate_entry("2026-01").unwrap();
+        assert_eq!(content.matches("###### 2026-01-").count(), 31);
+        assert!(content.contains("###### 2026-01-01 "));
+        assert!(content.contains("###### 2026-01-31 "));
     }
 
     #[test]

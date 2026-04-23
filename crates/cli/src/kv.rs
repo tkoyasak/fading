@@ -219,3 +219,73 @@ fn parse_entries(content: &str) -> Vec<(Date, String)> {
 
     entries
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jiff::civil::date;
+
+    const FRONTMATTER: &str =
+        "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-01\n+++\n";
+
+    #[test]
+    fn empty_content_returns_no_entries() {
+        assert!(parse_entries("").is_empty());
+    }
+
+    #[test]
+    fn only_frontmatter_returns_no_entries() {
+        assert!(parse_entries(FRONTMATTER).is_empty());
+    }
+
+    #[test]
+    fn single_entry_with_content() {
+        let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n");
+        let entries = parse_entries(&content);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, date(2026, 1, 1));
+        assert_eq!(entries[0].1, "hello");
+    }
+
+    #[test]
+    fn placeholder_entry_excluded() {
+        let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n<!-- -->\n");
+        assert!(parse_entries(&content).is_empty());
+    }
+
+    #[test]
+    fn empty_entry_excluded() {
+        let content =
+            format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n");
+        let entries = parse_entries(&content);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, date(2026, 1, 2));
+    }
+
+    #[test]
+    fn multiple_entries() {
+        let content = format!(
+            "{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n\n###### 2026-01-02 Fri\n\nworld\n"
+        );
+        let entries = parse_entries(&content);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].1, "hello");
+        assert_eq!(entries[1].1, "world");
+    }
+
+    #[test]
+    fn is_git_sha_valid() {
+        assert!(is_git_sha("0123456789abcdef0123456789abcdef01234567"));
+        assert!(is_git_sha("0123456789ABCDEF0123456789ABCDEF01234567")); // uppercase
+        assert!(is_git_sha(&"a".repeat(40)));
+    }
+
+    #[test]
+    fn is_git_sha_invalid() {
+        assert!(!is_git_sha("")); // empty
+        assert!(!is_git_sha(&"a".repeat(39))); // too short
+        assert!(!is_git_sha(&"a".repeat(41))); // too long
+        assert!(!is_git_sha(&"g".repeat(40))); // 'g' is not hex
+        assert!(!is_git_sha("not-a-sha-at-all-and-definitely-not-40c")); // contains '-'
+    }
+}

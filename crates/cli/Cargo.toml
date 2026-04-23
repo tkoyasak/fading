@@ -24,6 +24,3 @@ pulldown-cmark.workspace = true
 ureq.workspace = true
 xflags.workspace = true
 xshell.workspace = true
-
-[dev-dependencies]
-proptest.workspace = true

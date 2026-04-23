@@ -84,4 +84,12 @@ mod tests {
         let ciphertext = encrypt(KEY, b"secret").unwrap();
         assert!(decrypt(other_key, &ciphertext).is_err());
     }
+
+    #[test]
+    fn uppercase_hex_key_accepted() {
+        let upper = KEY.to_uppercase();
+        let ciphertext = encrypt(&upper, b"hello").unwrap();
+        let recovered = decrypt(&upper, &ciphertext).unwrap();
+        assert_eq!(recovered, b"hello");
+    }
 }
