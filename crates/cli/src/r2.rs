@@ -12,6 +12,7 @@ impl Cmd for Push {
         let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
         let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
         let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
+        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
 
         let temp = sh.create_temp_dir()?;
         let bundle_path = temp.path().join(R2_OBJECT_KEY);
@@ -21,7 +22,6 @@ impl Cmd for Push {
 
         cmd!(sh, "git bundle create {path} --all").run()?;
 
-        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
         let body = sh.read_binary_file(&bundle_path)?;
         let encrypted = encrypt(&key_hex, &body)?;
         println!(
@@ -46,8 +46,7 @@ impl Cmd for Push {
             &datetime,
         );
 
-        let url =
-            format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
+        let url = format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
 
         ureq::put(&url)
             .header("Authorization", &signed.authorization)
@@ -68,6 +67,7 @@ impl Cmd for Pull {
         let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
         let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
         let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
+        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
 
         let datetime = jiff::Timestamp::now()
             .to_zoned(jiff::tz::TimeZone::UTC)
@@ -83,8 +83,7 @@ impl Cmd for Pull {
             &datetime,
         );
 
-        let url =
-            format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
+        let url = format!("https://{account_id}.r2.cloudflarestorage.com/{bucket}/{R2_OBJECT_KEY}");
 
         let mut resp = ureq::get(&url)
             .header("Authorization", &signed.authorization)
@@ -100,9 +99,12 @@ impl Cmd for Pull {
             .read_to_end(&mut body)
             .context("Failed to read response body")?;
 
-        let key_hex = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
         let decrypted = decrypt(&key_hex, &body)?;
-        println!("R2: bundle decrypted ({} B → {} B)", body.len(), decrypted.len());
+        println!(
+            "R2: bundle decrypted ({} B → {} B)",
+            body.len(),
+            decrypted.len()
+        );
         let body = decrypted;
 
         let temp = sh.create_temp_dir()?;
