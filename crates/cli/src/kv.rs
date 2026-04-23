@@ -47,25 +47,35 @@ impl Cmd for Sync {
                             return Ok(());
                         }
 
-                        let changed =
-                            cmd!(sh, "git diff --name-only {last_commit} {head} -- entries/")
-                                .read()?;
+                        if !is_git_sha(last_commit) {
+                            eprintln!(
+                                "KV: index has invalid commit hash, falling back to full sync"
+                            );
+                            all_entries
+                                .iter()
+                                .map(|(k, v)| (k.as_str(), v.as_str()))
+                                .collect()
+                        } else {
+                            let changed =
+                                cmd!(sh, "git diff --name-only {last_commit} {head} -- entries/")
+                                    .read()?;
 
-                        let changed_months: HashSet<&str> = changed
-                            .lines()
-                            .filter_map(|f| f.strip_prefix("entries/"))
-                            .filter_map(|f| f.strip_suffix(".md"))
-                            .collect();
+                            let changed_months: HashSet<&str> = changed
+                                .lines()
+                                .filter_map(|f| f.strip_prefix("entries/"))
+                                .filter_map(|f| f.strip_suffix(".md"))
+                                .collect();
 
-                        all_entries
-                            .iter()
-                            .filter(|(date, _)| {
-                                // date is YYYYMMDD; changed_months are YYYY-MM
-                                let month = format!("{}-{}", &date[..4], &date[4..6]);
-                                changed_months.contains(month.as_str())
-                            })
-                            .map(|(k, v)| (k.as_str(), v.as_str()))
-                            .collect()
+                            all_entries
+                                .iter()
+                                .filter(|(date, _)| {
+                                    // date is YYYYMMDD; changed_months are YYYY-MM
+                                    let month = format!("{}-{}", &date[..4], &date[4..6]);
+                                    changed_months.contains(month.as_str())
+                                })
+                                .map(|(k, v)| (k.as_str(), v.as_str()))
+                                .collect()
+                        }
                     } else {
                         all_entries
                             .iter()
@@ -111,6 +121,10 @@ impl Cmd for Sync {
         );
         Ok(())
     }
+}
+
+fn is_git_sha(s: &str) -> bool {
+    s.len() == 40 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 fn read_all_entries(sh: &Shell) -> Result<HashMap<String, String>> {
