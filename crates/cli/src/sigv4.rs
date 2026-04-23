@@ -85,14 +85,26 @@ fn sign_r2(
     // https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     let body_hash = sha256_hex(body);
     let canonical_request = format!(
-        "{method}\n/{bucket}/{key}\n\nhost:{host}\nx-amz-content-sha256:{body_hash}\nx-amz-date:{datetime}\n\nhost;x-amz-content-sha256;x-amz-date\n{body_hash}"
+        r"{method}
+/{bucket}/{key}
+
+host:{host}
+x-amz-content-sha256:{body_hash}
+x-amz-date:{datetime}
+
+host;x-amz-content-sha256;x-amz-date
+{body_hash}"
     );
 
     // Step 2: String to sign
     let credential_scope = format!("{datestamp}/{region}/{service}/aws4_request");
     let canonical_request_hash = sha256_hex(canonical_request.as_bytes());
-    let string_to_sign =
-        format!("AWS4-HMAC-SHA256\n{datetime}\n{credential_scope}\n{canonical_request_hash}");
+    let string_to_sign = format!(
+        r"AWS4-HMAC-SHA256
+{datetime}
+{credential_scope}
+{canonical_request_hash}"
+    );
 
     // Step 3: Signing key — derived by chaining HMAC over date/region/service
     let signing_key = {
@@ -109,7 +121,7 @@ fn sign_r2(
     let signature = encode_string(&hmac_sha256(&signing_key, string_to_sign.as_bytes()));
     let signed_headers = "host;x-amz-content-sha256;x-amz-date";
     let authorization = format!(
-        "AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}"
+        r"AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}"
     );
 
     R2SignHeaders {
