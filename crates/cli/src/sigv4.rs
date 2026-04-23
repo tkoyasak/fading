@@ -130,3 +130,76 @@ host;x-amz-content-sha256;x-amz-date
         x_amz_content_sha256: body_hash,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // SHA-256 of empty string
+    const EMPTY_HASH: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+    #[test]
+    fn get_passthrough_date_and_empty_hash() {
+        let signed = sign_r2_get(
+            "testaccount",
+            "AKIDEXAMPLE",
+            "secret",
+            "bucket",
+            "fading.bundle",
+            "20260424T120000Z",
+        );
+        assert_eq!(signed.x_amz_date, "20260424T120000Z");
+        assert_eq!(signed.x_amz_content_sha256, EMPTY_HASH);
+    }
+
+    #[test]
+    fn get_authorization_format() {
+        let signed = sign_r2_get(
+            "testaccount",
+            "AKIDEXAMPLE",
+            "secret",
+            "bucket",
+            "fading.bundle",
+            "20260424T120000Z",
+        );
+        assert!(signed
+            .authorization
+            .starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260424/auto/s3/aws4_request,"));
+        assert!(signed
+            .authorization
+            .contains("SignedHeaders=host;x-amz-content-sha256;x-amz-date,"));
+        assert!(signed.authorization.contains("Signature="));
+        // Signature is 64 lowercase hex chars
+        let sig = signed.authorization.split("Signature=").nth(1).unwrap();
+        assert_eq!(sig.len(), 64);
+        assert!(sig.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')));
+    }
+
+    #[test]
+    fn put_hashes_body() {
+        let body = b"hello";
+        let signed = sign_r2_put(
+            "testaccount",
+            "AKIDEXAMPLE",
+            "secret",
+            "bucket",
+            "fading.bundle",
+            body,
+            "20260424T120000Z",
+        );
+        // SHA-256 of "hello"
+        assert_eq!(
+            signed.x_amz_content_sha256,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+        assert_ne!(signed.x_amz_content_sha256, EMPTY_HASH);
+    }
+
+    #[test]
+    fn get_and_put_produce_different_signatures() {
+        let args = ("acc", "keyid", "secret", "bucket", "fading.bundle", "20260424T120000Z");
+        let get = sign_r2_get(args.0, args.1, args.2, args.3, args.4, args.5);
+        let put = sign_r2_put(args.0, args.1, args.2, args.3, args.4, b"data", args.5);
+        assert_ne!(get.authorization, put.authorization);
+    }
+}

@@ -298,4 +298,33 @@ mod tests {
         let result = count_chars_by_day(content, from, to);
         assert_eq!(result[0].1, 5);
     }
+
+    #[test]
+    fn multiple_lines_summed() {
+        let content = "###### 2026-01-01 Thu\n\nhello\nworld\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result[0].1, 10); // "hello" + "world"
+    }
+
+    #[test]
+    fn zero_char_day_excluded() {
+        // heading exists but no content lines → not returned
+        let content = "###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, date(2026, 1, 2));
+    }
+
+    #[test]
+    fn boundary_dates_included() {
+        let content = "###### 2026-01-01 Thu\n\nfirst\n\n###### 2026-01-31 Sat\n\nlast\n";
+        let from = date(2026, 1, 1);
+        let to = date(2026, 1, 31);
+        let result = count_chars_by_day(content, from, to);
+        assert_eq!(result.len(), 2);
+    }
 }

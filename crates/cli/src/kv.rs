@@ -272,4 +272,20 @@ mod tests {
         assert_eq!(entries[0].1, "hello");
         assert_eq!(entries[1].1, "world");
     }
+
+    #[test]
+    fn is_git_sha_valid() {
+        assert!(is_git_sha("0123456789abcdef0123456789abcdef01234567"));
+        assert!(is_git_sha("0123456789ABCDEF0123456789ABCDEF01234567")); // uppercase
+        assert!(is_git_sha(&"a".repeat(40)));
+    }
+
+    #[test]
+    fn is_git_sha_invalid() {
+        assert!(!is_git_sha("")); // empty
+        assert!(!is_git_sha(&"a".repeat(39))); // too short
+        assert!(!is_git_sha(&"a".repeat(41))); // too long
+        assert!(!is_git_sha(&"g".repeat(40))); // 'g' is not hex
+        assert!(!is_git_sha("not-a-sha-at-all-and-definitely-not-40c")); // contains '-'
+    }
 }
