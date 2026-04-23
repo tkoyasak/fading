@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result};
-use jiff::civil::Date;
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
+use crate::entry::parse_entries;
 use crate::{Cmd, Sync};
 
 impl Cmd for Sync {
@@ -23,74 +22,15 @@ impl Cmd for Sync {
         );
         let bearer = format!("Bearer {api_token}");
 
-        let entries_to_sync: Vec<(&str, &str)> = if self.full {
-            all_entries
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.as_str()))
-                .collect()
+        let entries_to_sync = if self.full {
+            Some(all_as_pairs(&all_entries))
         } else {
-            let index_result = ureq::get(&format!("{base_url}/values/__index"))
-                .header("Authorization", &bearer)
-                .call();
+            determine_sync_entries(&sh, &all_entries, head, &base_url, &bearer)?
+        };
 
-            match index_result {
-                Ok(mut resp) => {
-                    let json_str = resp.body_mut().read_to_string().unwrap_or_else(|e| {
-                        eprintln!("KV: failed to read index response: {e}");
-                        String::new()
-                    });
-                    if let Ok(index) = serde_json::from_str::<Value>(&json_str) {
-                        let last_commit = index["commit"].as_str().unwrap_or("");
-
-                        if last_commit == head {
-                            println!("KV: no changes since last sync ({head})");
-                            return Ok(());
-                        }
-
-                        if !is_git_sha(last_commit) {
-                            eprintln!(
-                                "KV: index has invalid commit hash, falling back to full sync"
-                            );
-                            all_entries
-                                .iter()
-                                .map(|(k, v)| (k.as_str(), v.as_str()))
-                                .collect()
-                        } else {
-                            let changed =
-                                cmd!(sh, "git diff --name-only {last_commit} {head} -- entries/")
-                                    .read()?;
-
-                            let changed_months: HashSet<&str> = changed
-                                .lines()
-                                .filter_map(|f| f.strip_prefix("entries/"))
-                                .filter_map(|f| f.strip_suffix(".md"))
-                                .collect();
-
-                            all_entries
-                                .iter()
-                                .filter(|(date, _)| {
-                                    // date is YYYYMMDD; changed_months are YYYY-MM
-                                    let month = format!("{}-{}", &date[..4], &date[4..6]);
-                                    changed_months.contains(month.as_str())
-                                })
-                                .map(|(k, v)| (k.as_str(), v.as_str()))
-                                .collect()
-                        }
-                    } else {
-                        all_entries
-                            .iter()
-                            .map(|(k, v)| (k.as_str(), v.as_str()))
-                            .collect()
-                    }
-                }
-                Err(e) => {
-                    eprintln!("KV: failed to fetch index, falling back to full sync: {e}");
-                    all_entries
-                        .iter()
-                        .map(|(k, v)| (k.as_str(), v.as_str()))
-                        .collect()
-                }
-            }
+        let Some(entries_to_sync) = entries_to_sync else {
+            println!("KV: no changes since last sync ({head})");
+            return Ok(());
         };
 
         // Build bulk payload: entries to sync + __index
@@ -121,6 +61,75 @@ impl Cmd for Sync {
         );
         Ok(())
     }
+}
+
+/// Returns `None` when no changes since last sync (skip entirely).
+/// Returns `Some(entries)` for the entries that need syncing.
+fn determine_sync_entries<'a>(
+    sh: &Shell,
+    all_entries: &'a HashMap<String, String>,
+    head: &str,
+    base_url: &str,
+    bearer: &str,
+) -> Result<Option<Vec<(&'a str, &'a str)>>> {
+    let last_commit = match fetch_last_commit(base_url, bearer) {
+        Ok(commit) => commit,
+        Err(e) => {
+            eprintln!("KV: failed to fetch index, falling back to full sync: {e}");
+            return Ok(Some(all_as_pairs(all_entries)));
+        }
+    };
+
+    if last_commit == head {
+        return Ok(None);
+    }
+
+    if !is_git_sha(&last_commit) {
+        eprintln!("KV: index has invalid commit hash, falling back to full sync");
+        return Ok(Some(all_as_pairs(all_entries)));
+    }
+
+    let changed = cmd!(sh, "git diff --name-only {last_commit} {head} -- entries/").read()?;
+    let changed_months: HashSet<&str> = changed
+        .lines()
+        .filter_map(|f| f.strip_prefix("entries/"))
+        .filter_map(|f| f.strip_suffix(".md"))
+        .collect();
+
+    Ok(Some(
+        all_entries
+            .iter()
+            .filter(|(date, _)| {
+                // date is YYYYMMDD; changed_months are YYYY-MM
+                let month = format!("{}-{}", &date[..4], &date[4..6]);
+                changed_months.contains(month.as_str())
+            })
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect(),
+    ))
+}
+
+fn fetch_last_commit(base_url: &str, bearer: &str) -> Result<String> {
+    let mut resp = ureq::get(&format!("{base_url}/values/__index"))
+        .header("Authorization", bearer)
+        .call()
+        .context("Failed to fetch index")?;
+
+    let json_str = resp
+        .body_mut()
+        .read_to_string()
+        .context("Failed to read index response")?;
+
+    let index: Value = serde_json::from_str(&json_str).context("Failed to parse index JSON")?;
+
+    Ok(index["commit"].as_str().unwrap_or("").to_string())
+}
+
+fn all_as_pairs(entries: &HashMap<String, String>) -> Vec<(&str, &str)> {
+    entries
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect()
 }
 
 fn is_git_sha(s: &str) -> bool {
@@ -172,106 +181,9 @@ fn read_all_entries(sh: &Shell) -> Result<HashMap<String, String>> {
     Ok(entries)
 }
 
-fn parse_entries(content: &str) -> Vec<(Date, String)> {
-    let opts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
-    let mut entries = Vec::new();
-    let mut current_date: Option<Date> = None;
-    let mut content_start: usize = 0;
-    let mut in_h6 = false;
-    let mut heading_text = String::new();
-
-    for (event, range) in Parser::new_ext(content, opts).into_offset_iter() {
-        match event {
-            Event::End(TagEnd::MetadataBlock(_)) => {
-                content_start = range.end;
-            }
-            Event::Start(Tag::Heading {
-                level: HeadingLevel::H6,
-                ..
-            }) => {
-                if let Some(date) = current_date.take() {
-                    let trimmed = content[content_start..range.start].trim();
-                    if !trimmed.is_empty() && trimmed != "<!-- -->" {
-                        entries.push((date, trimmed.to_string()));
-                    }
-                }
-                in_h6 = true;
-                heading_text.clear();
-            }
-            Event::Text(text) if in_h6 => {
-                heading_text.push_str(&text);
-            }
-            Event::End(TagEnd::Heading(_)) if in_h6 => {
-                in_h6 = false;
-                current_date = heading_text.get(..10).and_then(|s| s.parse().ok());
-                content_start = range.end;
-            }
-            _ => {}
-        }
-    }
-
-    if let Some(date) = current_date {
-        let trimmed = content[content_start..].trim();
-        if !trimmed.is_empty() && trimmed != "<!-- -->" {
-            entries.push((date, trimmed.to_string()));
-        }
-    }
-
-    entries
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jiff::civil::date;
-
-    const FRONTMATTER: &str =
-        "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-01\n+++\n";
-
-    #[test]
-    fn empty_content_returns_no_entries() {
-        assert!(parse_entries("").is_empty());
-    }
-
-    #[test]
-    fn only_frontmatter_returns_no_entries() {
-        assert!(parse_entries(FRONTMATTER).is_empty());
-    }
-
-    #[test]
-    fn single_entry_with_content() {
-        let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n");
-        let entries = parse_entries(&content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, date(2026, 1, 1));
-        assert_eq!(entries[0].1, "hello");
-    }
-
-    #[test]
-    fn placeholder_entry_excluded() {
-        let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n<!-- -->\n");
-        assert!(parse_entries(&content).is_empty());
-    }
-
-    #[test]
-    fn empty_entry_excluded() {
-        let content =
-            format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n");
-        let entries = parse_entries(&content);
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, date(2026, 1, 2));
-    }
-
-    #[test]
-    fn multiple_entries() {
-        let content = format!(
-            "{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n\n###### 2026-01-02 Fri\n\nworld\n"
-        );
-        let entries = parse_entries(&content);
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].1, "hello");
-        assert_eq!(entries[1].1, "world");
-    }
 
     #[test]
     fn is_git_sha_valid() {

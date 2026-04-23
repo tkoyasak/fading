@@ -6,7 +6,7 @@ use crate::{Cmd, Open, month::parse_month};
 
 impl Cmd for Open {
     fn run(self, sh: Shell) -> Result<()> {
-        let id = parse_month(&self.month)?;
+        let id = parse_month(self.month.as_deref())?;
         let path = format!("entries/{id}.md");
 
         if !sh.path_exists(&path) {
@@ -40,14 +40,17 @@ fn open_in_ghostty(sh: &Shell, rel_path: &str, line: Option<usize>) -> Result<()
         .context("FADING_HOME path is not valid UTF-8")?;
     let abs_path = format!("{home_str}/{rel_path}");
 
-    let hx_running = cmd!(sh, "pgrep -f {abs_path}").read().is_ok();
+    let hx_pattern = format!("hx {abs_path}");
+    let hx_running = cmd!(sh, "pgrep -f {hx_pattern}").read().is_ok();
 
+    let home_esc = escape_applescript(home_str);
+    let abs_esc = escape_applescript(&abs_path);
     let script = if hx_running {
         // Helix is already open with this file — just focus the existing Ghostty window.
         format!(
             r#"tell application "Ghostty"
     activate
-    set targetDir to "{home_str}"
+    set targetDir to "{home_esc}"
     set found to false
     repeat with win in windows
         repeat with tb in tabs of win
@@ -68,14 +71,14 @@ end tell"#
     } else {
         // Helix is not running — open a new Ghostty window and launch Helix.
         let hx_target = match line {
-            Some(n) => format!("{abs_path}:{n}"),
-            None => abs_path.clone(),
+            Some(n) => format!("{abs_esc}:{n}"),
+            None => abs_esc.clone(),
         };
         format!(
             r#"tell application "Ghostty"
     activate
     set cfg to new surface configuration
-    set initial working directory of cfg to "{home_str}"
+    set initial working directory of cfg to "{home_esc}"
     set initial input of cfg to "hx {hx_target}\n"
     set win to new window with configuration cfg
 end tell"#
@@ -85,4 +88,8 @@ end tell"#
     cmd!(sh, "osascript -e {script}")
         .run()
         .context("Failed to open Ghostty")
+}
+
+fn escape_applescript(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
 }
