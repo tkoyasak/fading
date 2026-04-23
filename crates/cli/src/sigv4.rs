@@ -1,10 +1,11 @@
+use base16ct::lower::encode_string;
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
 
 fn sha256_hex(data: &[u8]) -> String {
-    hex::encode(Sha256::digest(data))
+    encode_string(&Sha256::digest(data))
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
@@ -72,7 +73,7 @@ host;x-amz-content-sha256;x-amz-date
     };
 
     // Step 4: Signature and Authorization header
-    let signature = hex::encode(hmac_sha256(&signing_key, string_to_sign.as_bytes()));
+    let signature = encode_string(&hmac_sha256(&signing_key, string_to_sign.as_bytes()));
     let signed_headers = "host;x-amz-content-sha256;x-amz-date";
     let authorization = format!(
         "AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}"

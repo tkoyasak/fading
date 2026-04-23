@@ -12,7 +12,7 @@ path = "src/main.rs"
 fading-ls.workspace = true
 
 anyhow.workspace = true
-hex.workspace = true
+base16ct.workspace = true
 hmac.workspace = true
 jiff.workspace = true
 mac-notification-sys.workspace = true
