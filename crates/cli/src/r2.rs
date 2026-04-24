@@ -1,12 +1,14 @@
 use std::io::Read;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use shiguredo_s3::{Credential, S3Client, S3Config, S3Request};
 use xshell::cmd;
 
 use crate::{Cmd, Ctx, Get, Put, crypto::decrypt, crypto::encrypt};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
+const ERROR_CODE_REFERENCE: &str =
+    "https://developers.cloudflare.com/r2/api/error-codes/#error-code-reference";
 
 struct R2Config {
     bucket: String,
@@ -39,6 +41,15 @@ impl R2Config {
 fn request_url(req: &S3Request) -> String {
     assert!(req.https, "R2 requires HTTPS");
     format!("https://{}:{}{}", req.host, req.port, req.uri)
+}
+
+fn r2_error(e: ureq::Error, op: &str) -> anyhow::Error {
+    match e {
+        ureq::Error::StatusCode(code) => {
+            anyhow!("R2 {op} failed: HTTP {code}\nSee: {ERROR_CODE_REFERENCE}")
+        }
+        e => anyhow::Error::from(e),
+    }
 }
 
 impl Cmd for Put {
@@ -80,7 +91,7 @@ impl Cmd for Put {
         }
         builder
             .send(&req.body[..])
-            .context("Failed to upload bundle to R2")?;
+            .map_err(|e| r2_error(e, "upload"))?;
 
         println!("R2: uploaded {}/{R2_OBJECT_KEY}", cfg.bucket);
         Ok(())
@@ -106,9 +117,7 @@ impl Cmd for Get {
         for (name, value) in &req.headers {
             builder = builder.header(name, value);
         }
-        let mut resp = builder
-            .call()
-            .context("Failed to download bundle from R2")?;
+        let mut resp = builder.call().map_err(|e| r2_error(e, "download"))?;
 
         const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024;
         let mut body = Vec::new();
