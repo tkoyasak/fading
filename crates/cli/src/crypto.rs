@@ -41,7 +41,7 @@ fn build_cipher(key_hex: &str) -> Result<Aes256Gcm> {
     let mut key_bytes = [0u8; 32];
     base16ct::mixed::decode(hex, &mut key_bytes)
         .context("FADING_CLI_ENCRYPTION_KEY contains invalid hex characters")?;
-    Ok(Aes256Gcm::new_from_slice(&key_bytes).expect("32 bytes is valid for AES-256"))
+    Ok(Aes256Gcm::new(&key_bytes.into()))
 }
 
 #[cfg(test)]
