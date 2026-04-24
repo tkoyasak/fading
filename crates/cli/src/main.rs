@@ -7,7 +7,6 @@ mod new;
 mod notify;
 mod open;
 mod r2;
-mod sigv4;
 mod stats;
 
 xflags::xflags! {

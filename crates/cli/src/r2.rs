@@ -1,55 +1,45 @@
+use std::io::Read;
+
 use anyhow::{Context, Result};
+use shiguredo_s3::{Credential, S3Client, S3Config, S3Request};
 use xshell::{Shell, cmd};
 
 use crate::crypto::{decrypt, encrypt};
-use crate::sigv4::R2SignRequest;
 use crate::{Cmd, Pull, Push};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
 struct R2Config {
-    account_id: String,
     bucket: String,
-    access_key_id: String,
-    secret_access_key: String,
     encryption_key: String,
+    client: S3Client,
 }
 
 impl R2Config {
     fn from_env(sh: &Shell) -> Result<Self> {
+        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
+        let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
+        let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
+        let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
+        let encryption_key = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
+        let config = S3Config::builder()
+            .region("auto")
+            .credential(Credential::new(access_key_id, secret_access_key))
+            .endpoint(format!("https://{account_id}.r2.cloudflarestorage.com"))
+            .use_path_style(true)
+            .build()
+            .context("Failed to build S3 config")?;
         Ok(Self {
-            account_id: sh.var("FADING_CLI_CF_ACCOUNT_ID")?,
-            bucket: sh.var("FADING_CLI_R2_BUCKET")?,
-            access_key_id: sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?,
-            secret_access_key: sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?,
-            encryption_key: sh.var("FADING_CLI_ENCRYPTION_KEY")?,
+            bucket,
+            encryption_key,
+            client: S3Client::new(config),
         })
-    }
-
-    fn url(&self) -> String {
-        format!(
-            "https://{}.r2.cloudflarestorage.com/{}/{R2_OBJECT_KEY}",
-            self.account_id, self.bucket
-        )
-    }
-
-    fn sign_request<'a>(&'a self, datetime: &'a str) -> R2SignRequest<'a> {
-        R2SignRequest {
-            account_id: &self.account_id,
-            access_key_id: &self.access_key_id,
-            secret_access_key: &self.secret_access_key,
-            bucket: &self.bucket,
-            key: R2_OBJECT_KEY,
-            datetime,
-        }
     }
 }
 
-fn datetime_now() -> String {
-    jiff::Timestamp::now()
-        .to_zoned(jiff::tz::TimeZone::UTC)
-        .strftime("%Y%m%dT%H%M%SZ")
-        .to_string()
+fn request_url(req: &S3Request) -> String {
+    assert!(req.https, "R2 requires HTTPS");
+    format!("https://{}:{}{}", req.host, req.port, req.uri)
 }
 
 impl Cmd for Push {
@@ -71,18 +61,25 @@ impl Cmd for Push {
             body.len(),
             encrypted.len()
         );
-        let body = encrypted;
 
-        let datetime = datetime_now();
-        let signed = crate::sigv4::sign_r2_put(&cfg.sign_request(&datetime), &body)?;
-        let url = cfg.url();
+        let req = cfg
+            .client
+            .put_object()
+            .bucket(&cfg.bucket)
+            .key(R2_OBJECT_KEY)
+            .body(encrypted)
+            .content_type("application/octet-stream")
+            .checksum_algorithm("CRC64NVME")
+            .build_request()
+            .context("Failed to build PUT request")?;
 
-        ureq::put(&url)
-            .header("Authorization", &signed.authorization)
-            .header("x-amz-date", &signed.x_amz_date)
-            .header("x-amz-content-sha256", &signed.x_amz_content_sha256)
-            .header("Content-Type", "application/octet-stream")
-            .send(&body[..])
+        let url = request_url(&req);
+        let mut builder = ureq::put(&url);
+        for (name, value) in &req.headers {
+            builder = builder.header(name, value);
+        }
+        builder
+            .send(&req.body[..])
             .context("Failed to upload bundle to R2")?;
 
         println!("R2: uploaded {}/{R2_OBJECT_KEY}", cfg.bucket);
@@ -94,21 +91,26 @@ impl Cmd for Pull {
     fn run(self, sh: Shell) -> Result<()> {
         let cfg = R2Config::from_env(&sh)?;
 
-        let datetime = datetime_now();
-        let signed = crate::sigv4::sign_r2_get(&cfg.sign_request(&datetime))?;
-        let url = cfg.url();
+        let req = cfg
+            .client
+            .get_object()
+            .bucket(&cfg.bucket)
+            .key(R2_OBJECT_KEY)
+            .checksum_mode("ENABLED")
+            .build_request()
+            .context("Failed to build GET request")?;
 
-        let mut resp = ureq::get(&url)
-            .header("Authorization", &signed.authorization)
-            .header("x-amz-date", &signed.x_amz_date)
-            .header("x-amz-content-sha256", &signed.x_amz_content_sha256)
+        let url = request_url(&req);
+        let mut builder = ureq::get(&url);
+        for (name, value) in &req.headers {
+            builder = builder.header(name, value);
+        }
+        let mut resp = builder
             .call()
             .context("Failed to download bundle from R2")?;
 
         const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024;
-
         let mut body = Vec::new();
-        use std::io::Read;
         resp.body_mut()
             .as_reader()
             .take(MAX_BUNDLE_SIZE)
@@ -121,11 +123,10 @@ impl Cmd for Pull {
             body.len(),
             decrypted.len()
         );
-        let body = decrypted;
 
         let temp = sh.create_temp_dir()?;
         let bundle_path = temp.path().join(R2_OBJECT_KEY);
-        std::fs::write(&bundle_path, &body).context("Failed to write bundle to temp file")?;
+        sh.write_file(&bundle_path, &decrypted)?;
         let path = bundle_path
             .to_str()
             .context("Bundle path is not valid UTF-8")?;
