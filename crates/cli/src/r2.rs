@@ -38,8 +38,8 @@ impl R2Config {
 }
 
 fn request_url(req: &S3Request) -> String {
-    let scheme = if req.https { "https" } else { "http" };
-    format!("{scheme}://{}:{}{}", req.host, req.port, req.uri)
+    assert!(req.https, "R2 requires HTTPS");
+    format!("https://{}:{}{}", req.host, req.port, req.uri)
 }
 
 impl Cmd for Push {
