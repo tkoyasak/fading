@@ -5,9 +5,9 @@ use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
 use crate::entry::parse_entries;
-use crate::{Cmd, Sync};
+use crate::{Cmd, Push};
 
-impl Cmd for Sync {
+impl Cmd for Push {
     fn run(self, sh: Shell) -> Result<()> {
         let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
         let api_token = sh.var("FADING_CLI_CF_API_TOKEN")?;

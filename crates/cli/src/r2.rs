@@ -5,7 +5,7 @@ use shiguredo_s3::{Credential, S3Client, S3Config, S3Request};
 use xshell::{Shell, cmd};
 
 use crate::crypto::{decrypt, encrypt};
-use crate::{Cmd, Pull, Push};
+use crate::{Cmd, Get, Put};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
 
@@ -42,7 +42,7 @@ fn request_url(req: &S3Request) -> String {
     format!("https://{}:{}{}", req.host, req.port, req.uri)
 }
 
-impl Cmd for Push {
+impl Cmd for Put {
     fn run(self, sh: Shell) -> Result<()> {
         let cfg = R2Config::from_env(&sh)?;
 
@@ -87,7 +87,7 @@ impl Cmd for Push {
     }
 }
 
-impl Cmd for Pull {
+impl Cmd for Get {
     fn run(self, sh: Shell) -> Result<()> {
         let cfg = R2Config::from_env(&sh)?;
 
