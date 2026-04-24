@@ -3,12 +3,11 @@ use mac_notification_sys::{
     MainButton, Notification, NotificationResponse, get_bundle_identifier_or_default,
     set_application,
 };
-use xshell::Shell;
 
-use crate::{Cmd, Notify, Open};
+use crate::{Cmd, Ctx, Notify, Open};
 
 impl Cmd for Notify {
-    fn run(self, sh: Shell) -> Result<()> {
+    fn run(self, ctx: Ctx) -> Result<()> {
         let bundle = get_bundle_identifier_or_default("fading");
         set_application(&bundle)?;
 
@@ -19,7 +18,7 @@ impl Cmd for Notify {
             .send()?;
 
         if let NotificationResponse::ActionButton(_) = response {
-            Open { month: None }.run(sh)?;
+            Open { month: None }.run(ctx)?;
         }
 
         Ok(())

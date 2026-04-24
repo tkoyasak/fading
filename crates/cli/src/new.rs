@@ -2,12 +2,12 @@ use std::fmt::Write;
 
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
-use xshell::Shell;
 
-use crate::{Cmd, New, month::parse_month};
+use crate::{Cmd, Ctx, New, month::parse_month};
 
 impl Cmd for New {
-    fn run(self, sh: Shell) -> Result<()> {
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let sh = ctx.sh;
         let id = parse_month(self.month.as_deref())?;
         let path = format!("entries/{id}.md");
 
