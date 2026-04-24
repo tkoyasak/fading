@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result};
-use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
 use crate::{Cmd, Ctx, Push, entry::parse_entries};
@@ -36,16 +35,34 @@ impl Cmd for Push {
         // Build bulk payload: entries to sync + __index
         let mut all_keys: Vec<&str> = all_entries.keys().map(|k| k.as_str()).collect();
         all_keys.sort_unstable();
-        let index = json!({ "keys": all_keys, "commit": head });
-        let index_str = serde_json::to_string(&index)?;
+        let index_str = nojson::json(|f| {
+            f.object(|f| {
+                f.member("keys", &all_keys[..])?;
+                f.member("commit", head)
+            })
+        })
+        .to_string();
 
-        let mut bulk: Vec<Value> = entries_to_sync
-            .iter()
-            .map(|(k, v)| json!({ "key": k, "value": v }))
-            .collect();
-        bulk.push(json!({ "key": "__index", "value": index_str }));
-
-        let bulk_bytes = serde_json::to_vec(&bulk)?;
+        let bulk_bytes = nojson::json(|f| {
+            f.array(|f| {
+                for (k, v) in &entries_to_sync {
+                    f.element(nojson::json(|f| {
+                        f.object(|f| {
+                            f.member("key", k)?;
+                            f.member("value", v)
+                        })
+                    }))?;
+                }
+                f.element(nojson::json(|f| {
+                    f.object(|f| {
+                        f.member("key", "__index")?;
+                        f.member("value", index_str.as_str())
+                    })
+                }))
+            })
+        })
+        .to_string()
+        .into_bytes();
 
         ureq::put(&format!("{base_url}/bulk"))
             .header("Authorization", &bearer)
@@ -55,7 +72,7 @@ impl Cmd for Push {
 
         println!(
             "KV: {} entries, updated __index ({} keys, commit {})",
-            bulk.len() - 1,
+            entries_to_sync.len(),
             all_keys.len(),
             &head[..8]
         );
@@ -120,9 +137,15 @@ fn fetch_last_commit(base_url: &str, bearer: &str) -> Result<String> {
         .read_to_string()
         .context("Failed to read index response")?;
 
-    let index: Value = serde_json::from_str(&json_str).context("Failed to parse index JSON")?;
-
-    Ok(index["commit"].as_str().unwrap_or("").to_string())
+    let json = nojson::RawJson::parse(&json_str).context("Failed to parse index JSON")?;
+    let commit = json
+        .value()
+        .to_member("commit")?
+        .optional()
+        .map(String::try_from)
+        .transpose()?
+        .unwrap_or_default();
+    Ok(commit)
 }
 
 fn all_as_pairs(entries: &HashMap<String, String>) -> Vec<(&str, &str)> {
