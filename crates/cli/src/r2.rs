@@ -1,13 +1,14 @@
 use std::io::Read;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use shiguredo_s3::{Credential, S3Client, S3Config, S3Request};
-use xshell::{Shell, cmd};
+use xshell::cmd;
 
-use crate::crypto::{decrypt, encrypt};
-use crate::{Cmd, Get, Put};
+use crate::{Cmd, Ctx, Get, Put, crypto::decrypt, crypto::encrypt};
 
 const R2_OBJECT_KEY: &str = "fading.bundle";
+const ERROR_CODE_REFERENCE: &str =
+    "https://developers.cloudflare.com/r2/api/error-codes/#error-code-reference";
 
 struct R2Config {
     bucket: String,
@@ -16,12 +17,12 @@ struct R2Config {
 }
 
 impl R2Config {
-    fn from_env(sh: &Shell) -> Result<Self> {
-        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
-        let bucket = sh.var("FADING_CLI_R2_BUCKET")?;
-        let access_key_id = sh.var("FADING_CLI_R2_ACCESS_KEY_ID")?;
-        let secret_access_key = sh.var("FADING_CLI_R2_SECRET_ACCESS_KEY")?;
-        let encryption_key = sh.var("FADING_CLI_ENCRYPTION_KEY")?;
+    fn from_ctx(ctx: &Ctx) -> Result<Self> {
+        let account_id = ctx.cf_account_id()?;
+        let bucket = ctx.r2_bucket()?;
+        let access_key_id = ctx.r2_access_key_id()?;
+        let secret_access_key = ctx.r2_secret_access_key()?;
+        let encryption_key = ctx.encryption_key()?;
         let config = S3Config::builder()
             .region("auto")
             .credential(Credential::new(access_key_id, secret_access_key))
@@ -42,9 +43,19 @@ fn request_url(req: &S3Request) -> String {
     format!("https://{}:{}{}", req.host, req.port, req.uri)
 }
 
+fn r2_error(e: ureq::Error, op: &str) -> anyhow::Error {
+    match e {
+        ureq::Error::StatusCode(code) => {
+            anyhow!("R2 {op} failed: HTTP {code}\nSee: {ERROR_CODE_REFERENCE}")
+        }
+        e => anyhow::Error::from(e),
+    }
+}
+
 impl Cmd for Put {
-    fn run(self, sh: Shell) -> Result<()> {
-        let cfg = R2Config::from_env(&sh)?;
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let cfg = R2Config::from_ctx(&ctx)?;
+        let sh = ctx.sh;
 
         let temp = sh.create_temp_dir()?;
         let bundle_path = temp.path().join(R2_OBJECT_KEY);
@@ -80,7 +91,7 @@ impl Cmd for Put {
         }
         builder
             .send(&req.body[..])
-            .context("Failed to upload bundle to R2")?;
+            .map_err(|e| r2_error(e, "upload"))?;
 
         println!("R2: uploaded {}/{R2_OBJECT_KEY}", cfg.bucket);
         Ok(())
@@ -88,8 +99,9 @@ impl Cmd for Put {
 }
 
 impl Cmd for Get {
-    fn run(self, sh: Shell) -> Result<()> {
-        let cfg = R2Config::from_env(&sh)?;
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let cfg = R2Config::from_ctx(&ctx)?;
+        let sh = ctx.sh;
 
         let req = cfg
             .client
@@ -105,9 +117,7 @@ impl Cmd for Get {
         for (name, value) in &req.headers {
             builder = builder.header(name, value);
         }
-        let mut resp = builder
-            .call()
-            .context("Failed to download bundle from R2")?;
+        let mut resp = builder.call().map_err(|e| r2_error(e, "download"))?;
 
         const MAX_BUNDLE_SIZE: u64 = 500 * 1024 * 1024;
         let mut body = Vec::new();

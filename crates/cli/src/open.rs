@@ -2,10 +2,11 @@ use anyhow::{Context, Result, bail};
 use jiff::Zoned;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Open, month::parse_month};
+use crate::{Cmd, Ctx, Open, month::parse_month};
 
 impl Cmd for Open {
-    fn run(self, sh: Shell) -> Result<()> {
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let sh = ctx.sh;
         let id = parse_month(self.month.as_deref())?;
         let path = format!("entries/{id}.md");
 

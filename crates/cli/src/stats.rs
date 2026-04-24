@@ -4,10 +4,11 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Stats, month::parse_month};
+use crate::{Cmd, Ctx, Stats, month::parse_month};
 
 impl Cmd for Stats {
-    fn run(self, sh: Shell) -> Result<()> {
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let sh = ctx.sh;
         let id = parse_month(self.month.as_deref())?;
         let today = Zoned::now().date();
         let to = if self.month.is_none() {

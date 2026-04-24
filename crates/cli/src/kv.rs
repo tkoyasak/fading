@@ -4,14 +4,14 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use xshell::{Shell, cmd};
 
-use crate::entry::parse_entries;
-use crate::{Cmd, Push};
+use crate::{Cmd, Ctx, Push, entry::parse_entries};
 
 impl Cmd for Push {
-    fn run(self, sh: Shell) -> Result<()> {
-        let account_id = sh.var("FADING_CLI_CF_ACCOUNT_ID")?;
-        let api_token = sh.var("FADING_CLI_CF_API_TOKEN")?;
-        let ns_id = sh.var("FADING_CLI_KV_NAMESPACE_ID")?;
+    fn run(self, ctx: Ctx) -> Result<()> {
+        let account_id = ctx.cf_account_id()?;
+        let api_token = ctx.cf_api_token()?;
+        let ns_id = ctx.kv_namespace_id()?;
+        let sh = ctx.sh;
 
         let head = cmd!(sh, "git rev-parse HEAD").read()?;
         let head = head.trim();
