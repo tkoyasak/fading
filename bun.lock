@@ -13,7 +13,7 @@
     "apps/web": {
       "name": "vite-rsc-starter",
       "dependencies": {
-        "marked": "18.0.0",
+        "marked": "18.0.1",
         "react": "19.3.0-canary-56824423-20260414",
         "react-dom": "19.3.0-canary-56824423-20260414",
         "react-server-dom-webpack": "19.3.0-canary-56824423-20260414",
@@ -27,7 +27,7 @@
         "@vitejs/plugin-rsc": "0.5.24",
         "rsc-html-stream": "0.0.7",
         "tailwindcss": "4.2.2",
-        "typescript": "6.0.2",
+        "typescript": "6.0.3",
         "vite": "8.0.8",
         "wrangler": "4.83.0",
       },
@@ -496,7 +496,7 @@
 
     "magic-string": ["magic-string@0.30.21", "https://npm.flatt.tech/magic-string/-/magic-string-0.30.21.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
-    "marked": ["marked@18.0.0", "https://npm.flatt.tech/marked/-/marked-18.0.0.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-2e7Qiv/HJSXj8rDEpgTvGKsP8yYtI9xXHKDnrftrmnrJPaFNM7VRb2YCzWaX4BP1iCJ/XPduzDJZMFoqTCcIMA=="],
+    "marked": ["marked@18.0.1", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-IILJE4Aap/KIGu4ZRCzQcYMxkhumblXnbqfQe+HAD4f982wrRAsJEGKGM653yAioS6g3Yq3yOhjrUebcrtOgRA=="],
 
     "merge-stream": ["merge-stream@2.0.0", "https://npm.flatt.tech/merge-stream/-/merge-stream-2.0.0.tgz", {}, "sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w=="],
 
@@ -574,7 +574,7 @@
 
     "turbo-stream": ["turbo-stream@3.2.0", "https://npm.flatt.tech/turbo-stream/-/turbo-stream-3.2.0.tgz", {}, "sha512-EK+bZ9UVrVh7JLslVFOV0GEMsociOqVOvEMTAd4ixMyffN5YNIEdLZWXUx5PJqDbTxSIBWw04HS9gCY4frYQDQ=="],
 
-    "typescript": ["typescript@6.0.2", "https://npm.flatt.tech/typescript/-/typescript-6.0.2.tgz", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ=="],
+    "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "undici": ["undici@7.24.8", "https://npm.flatt.tech/undici/-/undici-7.24.8.tgz", {}, "sha512-6KQ/+QxK49Z/p3HO6E5ZCZWNnCasyZLa5ExaVYyvPxUwKtbCPMKELJOqh7EqOle0t9cH/7d2TaaTRRa6Nhs4YQ=="],
 
