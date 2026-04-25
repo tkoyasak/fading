@@ -13,41 +13,41 @@ xflags::xflags! {
     /// CLI for the `fading` language
     cmd fading {
 
-        /// Download the git bundle from R2 and fetch into the local repository
-        cmd get {}
-
-        /// Start the language server
-        cmd ls {}
-
-        /// Create a new monthly entry (default: current month)
-        cmd new {
-            /// Month: today (current), N (N months back), or YYYY-MM (direct)
-            optional month: String
-        }
-
-        /// Notify of the time
-        cmd notify {}
-
-        /// Open an entry in Helix (default: current month)
+        /// Open an entry in Helix
         cmd open {
-            /// Month to open: today (current), N (N months back), or YYYY-MM (direct)
+            /// today (default), N months back, or YYYY-MM
             optional month: String
         }
 
-        /// Sync entries to KV
+        /// Create a new monthly entry
+        cmd new {
+            /// today (default), N months back, or YYYY-MM
+            optional month: String
+        }
+
+        /// Show a contribution calendar for the past year
+        cmd stats {
+            /// today (default), N months back, or YYYY-MM
+            optional month: String
+        }
+
+        /// Push entries to KV
         cmd push {
-            /// Sync all entries (ignore last synced commit)
+            /// Push all entries, ignoring last synced commit
             optional -f, --full
         }
+
+        /// Download the git bundle from R2
+        cmd get {}
 
         /// Upload the git bundle to R2
         cmd put {}
 
-        /// Show a contribution calendar for the past year up to the given month
-        cmd stats {
-            /// Month: today (current), N (N months back), or YYYY-MM (direct)
-            optional month: String
-        }
+        /// Send a time notification
+        cmd notify {}
+
+        /// Start the language server
+        cmd ls {}
     }
 }
 
@@ -98,16 +98,16 @@ pub trait Cmd {
 
 fn cmd_run() -> anyhow::Result<()> {
     let ctx = Ctx::new()?;
-    let flags = Fading::from_env_or_exit();
+    let flags = Fading::from_env()?;
     match flags.subcommand {
-        FadingCmd::Get(get) => get.run(ctx),
-        FadingCmd::Ls(ls) => ls.run(ctx),
-        FadingCmd::New(new) => new.run(ctx),
-        FadingCmd::Notify(notify) => notify.run(ctx),
         FadingCmd::Open(open) => open.run(ctx),
-        FadingCmd::Push(push) => push.run(ctx),
-        FadingCmd::Put(put) => put.run(ctx),
+        FadingCmd::New(new) => new.run(ctx),
         FadingCmd::Stats(stats) => stats.run(ctx),
+        FadingCmd::Push(push) => push.run(ctx),
+        FadingCmd::Get(get) => get.run(ctx),
+        FadingCmd::Put(put) => put.run(ctx),
+        FadingCmd::Notify(notify) => notify.run(ctx),
+        FadingCmd::Ls(ls) => ls.run(ctx),
     }
 }
 
