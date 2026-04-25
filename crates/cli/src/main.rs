@@ -58,7 +58,11 @@ pub struct Ctx {
 impl Ctx {
     fn new() -> anyhow::Result<Self> {
         let sh = xshell::Shell::new()?;
-        let home = sh.var("FADING_HOME")?;
+        let home = if cfg!(debug_assertions) {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures").to_string()
+        } else {
+            sh.var("FADING_HOME")?
+        };
         let sh = sh.with_current_dir(home);
         Ok(Self { sh })
     }
