@@ -10,13 +10,16 @@ cargo install --path crates/cli
 
 ## Commands
 
-### `fading ls`
+### `fading open [month]`
 
-Start the fading language server.
+Open a fading entry file in Helix editor.
 
-### `fading notify`
-
-Display a macOS notification. Clicking "Open" opens today's entry in Helix.
+```bash
+fading open              # Current month, jump to today's heading
+fading open today        # Current month, jump to today's heading
+fading open 12           # 12 months in the past
+fading open 2025-01      # Specific month
+```
 
 ### `fading new [month]`
 
@@ -31,17 +34,6 @@ fading new 2025-01      # Specific month
 
 Idempotent — skips if the entry already exists.
 
-### `fading open [month]`
-
-Open a fading entry file in Helix editor.
-
-```bash
-fading open              # Current month, jump to today's heading
-fading open today        # Current month, jump to today's heading
-fading open 12           # 12 months in the past
-fading open 2025-01      # Specific month
-```
-
 ### `fading stats [month]`
 
 Show a contribution calendar for the past 365 days of journal writing activity.
@@ -55,31 +47,42 @@ fading stats 2025-01     # Past year up to 2025-01-31
 
 Activity is scaled by quartile (p25/p50/p75) of character counts across written days.
 
-### `fading push [target] [--full]`
+### `fading push [--full]`
 
-Push to Cloudflare (R2 backup and/or KV sync).
+Push entries to Cloudflare KV.
 
 ```bash
-fading push              # R2 backup + KV differential sync
-fading push r2           # R2 backup only
-fading push kv           # KV differential sync only
-fading push kv --full    # KV full sync (ignore last synced commit)
-fading push --full       # R2 backup + KV full sync
+fading push          # Differential push (since last synced commit)
+fading push --full   # Full push (ignore last synced commit)
 ```
 
-R2 and KV operations run independently — if one fails, the other continues.
+### `fading get`
+
+Download the git bundle from R2 and fetch into the local repository.
+
+### `fading put`
+
+Upload the git bundle to R2.
+
+### `fading notify`
+
+Display a macOS notification. Clicking "Open" opens today's entry in Helix.
+
+### `fading ls`
+
+Start the fading language server.
 
 ## Configuration
 
-| Variable                          | Required    | Description                                                          |
-| --------------------------------- | ----------- | -------------------------------------------------------------------- |
-| `FADING_HOME`                     | Yes         | Path to the fading directory                                         |
-| `FADING_CLI_CF_ACCOUNT_ID`        | `push`      | Cloudflare account ID                                                |
-| `FADING_CLI_R2_BUCKET`            | `push` (R2) | Cloudflare R2 bucket name                                            |
-| `FADING_CLI_R2_ACCESS_KEY_ID`     | `push` (R2) | R2 API token access key                                              |
-| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `push` (R2) | R2 API token secret key                                              |
-| `FADING_CLI_CF_API_TOKEN`         | `push` (KV) | Cloudflare API token                                                 |
-| `FADING_CLI_KV_NAMESPACE_ID`      | `push` (KV) | Cloudflare KV namespace ID                                           |
-| `FADING_CLI_ENCRYPTION_KEY`       | No          | AES-256-GCM key for R2 bundle (64 hex chars; `openssl rand -hex 32`) |
+| Variable                          | Required             | Description                                                          |
+| --------------------------------- | -------------------- | -------------------------------------------------------------------- |
+| `FADING_HOME`                     | Yes                  | Path to the fading directory                                         |
+| `FADING_CLI_CF_ACCOUNT_ID`        | `push`, `get`, `put` | Cloudflare account ID                                                |
+| `FADING_CLI_R2_BUCKET`            | `get`, `put`         | Cloudflare R2 bucket name                                            |
+| `FADING_CLI_R2_ACCESS_KEY_ID`     | `get`, `put`         | R2 API token access key                                              |
+| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `get`, `put`         | R2 API token secret key                                              |
+| `FADING_CLI_CF_API_TOKEN`         | `push`               | Cloudflare API token                                                 |
+| `FADING_CLI_KV_NAMESPACE_ID`      | `push`               | Cloudflare KV namespace ID                                           |
+| `FADING_CLI_ENCRYPTION_KEY`       | `get`, `put`         | AES-256-GCM key for R2 bundle (64 hex chars; `openssl rand -hex 32`) |
 
 Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`
