@@ -13,7 +13,7 @@
     "types": "wrangler types"
   },
   "dependencies": {
-    "marked": "18.0.1",
+    "marked": "18.0.2",
     "react": "19.3.0-canary-56824423-20260414",
     "react-dom": "19.3.0-canary-56824423-20260414",
     "react-server-dom-webpack": "19.3.0-canary-56824423-20260414"

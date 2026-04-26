@@ -13,7 +13,7 @@
     "apps/web": {
       "name": "vite-rsc-starter",
       "dependencies": {
-        "marked": "18.0.1",
+        "marked": "18.0.2",
         "react": "19.3.0-canary-56824423-20260414",
         "react-dom": "19.3.0-canary-56824423-20260414",
         "react-server-dom-webpack": "19.3.0-canary-56824423-20260414",
@@ -496,7 +496,7 @@
 
     "magic-string": ["magic-string@0.30.21", "https://npm.flatt.tech/magic-string/-/magic-string-0.30.21.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
-    "marked": ["marked@18.0.1", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-IILJE4Aap/KIGu4ZRCzQcYMxkhumblXnbqfQe+HAD4f982wrRAsJEGKGM653yAioS6g3Yq3yOhjrUebcrtOgRA=="],
+    "marked": ["marked@18.0.2", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-NsmlUYBS/Zg57rgDWMYdnre6OTj4e+qq/JS2ot3KrYLSoHLw+sDu0Nm1ZGpRgYAq6c+b1ekaY5NzVchMCQnzcg=="],
 
     "merge-stream": ["merge-stream@2.0.0", "https://npm.flatt.tech/merge-stream/-/merge-stream-2.0.0.tgz", {}, "sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w=="],
 
