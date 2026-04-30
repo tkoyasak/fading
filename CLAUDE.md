@@ -39,6 +39,16 @@ Rust workspace (Edition 2024, MSRV 1.93.0).
 
 ## Commands
 
+### Secrets (`secretspec`)
+
+Environment variables for CLI commands are managed via [secretspec](https://secretspec.dev). Profiles and vars are defined in `secretspec.toml`.
+
+```bash
+secretspec run -- cargo run -p fading-cli -- push
+```
+
+The `development` profile covers all `FADING_CLI_*` vars. `FADING_HOME` is not included (set separately).
+
 ### Rust
 
 Replace `{package}` with `fading-cli`, `fading-ls`, or `fading-zed`.
