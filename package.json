@@ -5,7 +5,7 @@
     "apps/*"
   ],
   "scripts": {
-    "format": "oxfmt",
+    "fmt": "oxfmt",
     "lint": "oxlint --type-aware --type-check"
   },
   "devDependencies": {
