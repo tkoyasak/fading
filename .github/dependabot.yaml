@@ -1,3 +1,4 @@
+# https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -6,8 +7,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-    allow:
-      - dependency-type: all
     groups:
       cargo-dependencies:
         applies-to: version-updates
@@ -21,8 +20,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-    allow:
-      - dependency-type: all
     groups:
       react:
         applies-to: version-updates
@@ -30,6 +27,12 @@ updates:
           - "react"
           - "react-dom"
           - "react-server-dom-webpack"
+      oxc:
+        applies-to: version-updates
+        patterns:
+          - "oxfmt"
+          - "oxlint"
+          - "oxlint-tsgolint"
       bun-dependencies:
         applies-to: version-updates
         update-types:
