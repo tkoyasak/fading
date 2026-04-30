@@ -17,7 +17,7 @@ aes-gcm = { version = "0.10.3" }
 base16ct = { version = "1.0.0", features = ["alloc"] }
 crop = { version = "0.4.3" }
 env_logger = { version = "0.11.10" }
-jiff = { version = "0.2.23" }
+jiff = { version = "0.2.24" }
 mac-notification-sys = { version = "0.6.12" }
 nojson = { version = "0.3.10" }
 log = { version = "0.4.29" }
