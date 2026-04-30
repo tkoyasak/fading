@@ -162,7 +162,7 @@ mod tests {
         ///
         /// Generates entry IDs in the range 1000-01 to 9999-12 to test edge cases.
         pub(super) fn id() -> impl Strategy<Value = String> {
-            (1000i32..=9999, 01u32..=12).prop_map(|(y, m)| format!("{y:04}-{m:02}"))
+            (1000i32..=9999, 1u32..=12).prop_map(|(y, m)| format!("{y:04}-{m:02}"))
         }
 
         /// Strategy: Generates valid dates using day offset

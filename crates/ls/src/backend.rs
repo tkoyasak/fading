@@ -483,7 +483,7 @@ mod tests {
         let result = response.result().expect("should have result");
 
         // Unmodified document should have no actions (null)
-        assert!(result.is_null() || result.to_string() == "[]");
+        assert!(result.is_null() || *result == "[]");
     }
 
     #[tokio::test]
