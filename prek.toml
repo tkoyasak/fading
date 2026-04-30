@@ -1,0 +1,32 @@
+# Configuration file for `prek`, a git hook framework written in Rust.
+# See https://prek.j178.dev for more information.
+#:schema https://raw.githubusercontent.com/j178/prek/refs/heads/master/prek.schema.json
+
+fail_fast = true
+default_stages = ["pre-commit"]
+
+[[repos]]
+repo = "local"
+hooks = [
+  { id = "gitleaks", name = "gitleaks", entry = "gitleaks git --pre-commit --redact --staged", language = "system", pass_filenames = false, priority = 0 },
+
+  { id = "oxfmt", name = "oxfmt", entry = "bun run fmt", language = "system", pass_filenames = false, priority = 10 },
+
+  { id = "oxlint", name = "oxlint", entry = "bun run lint", language = "system", pass_filenames = false, priority = 20 },
+
+  # { id = "typecheck", name = "typecheck", entry = "bun run typecheck", language = "system", pass_filenames = false, priority = 20 },
+
+  # { id = "test", name = "bun test", entry = "bun run test", language = "system", pass_filenames = false, always_run = true, priority = 30 },
+
+  { id = "cargo-fmt", name = "cargo fmt", entry = "cargo fmt --all", language = "system", types = [
+    "rust",
+  ], pass_filenames = false, priority = 10 },
+
+  { id = "cargo-clippy", name = "cargo clippy", entry = "cargo clippy --workspace --all-targets -- -D warnings", language = "system", types = [
+    "rust",
+  ], pass_filenames = false, priority = 20 },
+
+  { id = "cargo-test", name = "cargo test", entry = "cargo test --workspace", language = "system", types = [
+    "rust",
+  ], pass_filenames = false, priority = 30 },
+]
