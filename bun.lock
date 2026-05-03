@@ -14,9 +14,9 @@
       "name": "vite-rsc-starter",
       "dependencies": {
         "marked": "18.0.2",
-        "react": "19.3.0-canary-142cfde8-20260422",
-        "react-dom": "19.3.0-canary-142cfde8-20260422",
-        "react-server-dom-webpack": "19.3.0-canary-142cfde8-20260422",
+        "react": "19.3.0-canary-56824423-20260414",
+        "react-dom": "19.3.0-canary-56824423-20260414",
+        "react-server-dom-webpack": "19.3.0-canary-56824423-20260414",
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "1.33.1",
@@ -526,11 +526,11 @@
 
     "postcss": ["postcss@8.5.10", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-pMMHxBOZKFU6HgAZ4eyGnwXF/EvPGGqUr0MnZ5+99485wwW41kW91A4LOGxSHhgugZmSChL5AlElNdwlNgcnLQ=="],
 
-    "react": ["react@19.3.0-canary-142cfde8-20260422", "", {}, "sha512-M6hCOD1QAAsjgXjWw9kmR2xAKgwhkPwKGfY8zos5zqx5S8xCRLp5qwiG9YbFHNGyXSyO9NLMIx9oJarBQsw8kA=="],
+    "react": ["react@19.3.0-canary-56824423-20260414", "", {}, "sha512-OKBrhemVpiVAsRCwFekueR0N7EEYsWt0WQIUCBMfQcDXcGKUd6hYFWPLqzGr7P5hBKceVEu6WT8OKdFNod63nw=="],
 
-    "react-dom": ["react-dom@19.3.0-canary-142cfde8-20260422", "", { "dependencies": { "scheduler": "0.28.0-canary-142cfde8-20260422" }, "peerDependencies": { "react": "19.3.0-canary-142cfde8-20260422" } }, "sha512-ieiW+EIvJ5hc4d+0wSQmNenkiAD5MRRiioAXtwf+h6XzCzhLZ4o3XbviJcbM0E8MmFd0gF9xi2hFmv/wxoVbSA=="],
+    "react-dom": ["react-dom@19.3.0-canary-56824423-20260414", "", { "dependencies": { "scheduler": "0.28.0-canary-56824423-20260414" }, "peerDependencies": { "react": "19.3.0-canary-56824423-20260414" } }, "sha512-9JnsjDcc3jcVvAYqL03ypPQKpaW/cda8LsIDr5yHXEg19bfA0ewIKwCllY9a3TCYUQ68lQ5Sos0AQZcGcfICPg=="],
 
-    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-142cfde8-20260422", "", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-142cfde8-20260422", "react-dom": "19.3.0-canary-142cfde8-20260422", "webpack": "^5.59.0" } }, "sha512-Bc0DERvWDIUBmWbyU0x/etHsRNohInaeOjJePmgN/LBhudZrm9S9ectBjiosx7ji+X+3WAi1KY8zV8gMbhihKw=="],
+    "react-server-dom-webpack": ["react-server-dom-webpack@19.3.0-canary-56824423-20260414", "", { "dependencies": { "acorn-loose": "^8.3.0", "neo-async": "^2.6.1", "webpack-sources": "^3.2.0" }, "peerDependencies": { "react": "19.3.0-canary-56824423-20260414", "react-dom": "19.3.0-canary-56824423-20260414", "webpack": "^5.59.0" } }, "sha512-5tAcFEiLqAvvrHhjMcOox+tpqNmlqPD4CqzxT542A0wsRiGs4TCWYPiP4qUWEPtvWeF+kAQVpsGcnZD9Psd4qQ=="],
 
     "require-from-string": ["require-from-string@2.0.2", "", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
@@ -538,7 +538,7 @@
 
     "rsc-html-stream": ["rsc-html-stream@0.0.7", "", {}, "sha512-v9+fuY7usTgvXdNl8JmfXCvSsQbq2YMd60kOeeMIqCJFZ69fViuIxztHei7v5mlMMa2h3SqS+v44Gu9i9xANZA=="],
 
-    "scheduler": ["scheduler@0.28.0-canary-142cfde8-20260422", "", {}, "sha512-E/hR3A+kktYD3k4DiYmnRbU2dytPYtiNjpsTLZN1TV+1/yrivjGQZAAcI380MffxFcEkqEjJWPuF642NrJHTyQ=="],
+    "scheduler": ["scheduler@0.28.0-canary-56824423-20260414", "", {}, "sha512-IUlVFNpuOLEFw04u6aNOLdgp3jq37H9tE8bwli870OveiWSn5oGWZO6rO+aZ10ZqEEBcmT5uIua2f03aWIzkGg=="],
 
     "schema-utils": ["schema-utils@4.3.3", "", { "dependencies": { "@types/json-schema": "^7.0.9", "ajv": "^8.9.0", "ajv-formats": "^2.1.1", "ajv-keywords": "^5.1.0" } }, "sha512-eflK8wEtyOE6+hsaRVPxvUKYCpRgzLqDTb8krvAsRIwOGlHoSgYLgBXoubGgLd2fT41/OUYdb48v4k4WWHQurA=="],
 
