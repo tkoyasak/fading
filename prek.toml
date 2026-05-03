@@ -10,7 +10,7 @@ repo = "local"
 hooks = [
   { id = "gitleaks", name = "gitleaks", entry = "gitleaks git --pre-commit --redact --staged", language = "system", pass_filenames = false, priority = 0 },
 
-  { id = "oxfmt", name = "oxfmt", entry = "bun run fmt", language = "system", pass_filenames = false, priority = 10 },
+  { id = "oxfmt", name = "oxfmt", entry = "bun run fmt -- --check", language = "system", pass_filenames = false, priority = 10 },
 
   { id = "oxlint", name = "oxlint", entry = "bun run lint", language = "system", pass_filenames = false, priority = 20 },
 
@@ -18,7 +18,7 @@ hooks = [
 
   # { id = "test", name = "bun test", entry = "bun run test", language = "system", pass_filenames = false, always_run = true, priority = 30 },
 
-  { id = "cargo-fmt", name = "cargo fmt", entry = "cargo fmt --all", language = "system", types = [
+  { id = "cargo-fmt", name = "cargo fmt", entry = "cargo fmt --all --check", language = "system", types = [
     "rust",
   ], pass_filenames = false, priority = 10 },
 
