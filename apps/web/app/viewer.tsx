@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { Entry } from "./action.tsx";
+import type { Entry } from "./actions.tsx";
 
 interface ViewerProps {
   initial: Promise<Entry | null>;

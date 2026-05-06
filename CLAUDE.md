@@ -79,10 +79,10 @@ env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ### Web (`apps/web`)
 
 ```bash
-bun run dev       # Vite dev server (dev env, local KV)
-bun run build     # dev build → dist/rsc/wrangler.json
-bun run build:prod  # production build → dist/rsc/wrangler.json
-bun run check     # tsc type check
+bun run dev       # React Router dev server (dev env, local KV)
+bun run build     # dev build → build/server/wrangler.json
+bun run build:prod  # production build → build/server/wrangler.json
+bun run check     # react-router typegen + tsc type check
 bun run release   # production build + wrangler deploy --strict
 bun run types     # Regenerate worker-configuration.d.ts
 
@@ -90,7 +90,8 @@ bun run types     # Regenerate worker-configuration.d.ts
 # production: prod KV (d7d628060e0e43d89aeae77dd95160b5), custom domain
 
 # Wrangler environments (wrangler.json has top-level=production, env.dev=dev)
-# - CLOUDFLARE_ENV: Vite plugin uses this at build/dev time to flatten wrangler.json → dist/rsc/wrangler.json
+# - CLOUDFLARE_ENV: Cloudflare Vite plugin uses this at build/dev time to flatten
+#                   wrangler.json → build/server/wrangler.json
 #                   hardcoded in package.json scripts (no .env files)
 # - --env: wrangler CLI uses this directly (e.g. wrangler triggers deploy --env dev)
 
@@ -124,12 +125,12 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 ### Web (`apps/web`)
 
-- **Stack**: Vite 8 + React 19 RSC + `@vitejs/plugin-rsc` + Cloudflare Workers
-- **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `src/global.css`
-- **Entry points**: `src/root.tsx` (RSC root), `src/action.tsx` (`"use server"`), `src/client.tsx` (`"use client"`)
+- **Stack**: Vite 8 + React Router 7 (RSC framework mode, experimental) + `@vitejs/plugin-rsc` + Cloudflare Workers
+- **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `app/global.css`
+- **Layout**: React Router `app/` convention — `app/root.tsx` (Layout/App/ErrorBoundary), `app/routes.ts` (route table), `app/routes/home.tsx` (`ServerComponent` export), `app/actions.tsx` (`"use server"`), `app/viewer.tsx` (`"use client"`)
+- **Wrangler `main`**: `@react-router/dev/config/default-rsc-entries/entry.rsc` — virtual entry resolved by the RR Vite plugin; no hand-written entry files
 - **Data**: Cloudflare KV — `__index` key holds `{keys: string[], commit: string}`; each date key (`YYYYMMDD`) holds markdown content
 - **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
-- **Dev only**: `RawMarkdown` component shows unparsed markdown source below the next button (`import.meta.env.DEV`)
 
 ## Testing
 
