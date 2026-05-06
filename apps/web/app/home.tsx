@@ -21,6 +21,9 @@ async function getRandomEntry(): Promise<Entry | null> {
   }
 
   const key = keys[Math.floor(Math.random() * keys.length)];
+  if (key === undefined) {
+    return null;
+  }
   const raw = await env.KV.get(key, "text");
   if (raw === null) {
     return null;
@@ -36,9 +39,10 @@ async function getRandomEntry(): Promise<Entry | null> {
 }
 
 export async function loader() {
-  return { entry: await getRandomEntry() };
+  const entry = await getRandomEntry();
+  return entry;
 }
 
 export function ServerComponent({ loaderData }: Route.ServerComponentProps) {
-  return <Viewer entry={loaderData.entry} />;
+  return <Viewer entry={loaderData} />;
 }
