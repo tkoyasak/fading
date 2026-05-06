@@ -1,12 +1,16 @@
 import { env } from "cloudflare:workers";
 import { marked } from "marked";
 import type { Route } from "./+types/home";
-import type { Entry } from "./types.ts";
 import { Viewer } from "./viewer.tsx";
 
 interface KvIndex {
   keys: string[];
   commit: string;
+}
+
+export interface Entry {
+  date: string;
+  html: string;
 }
 
 async function getRandomEntry(): Promise<Entry | null> {

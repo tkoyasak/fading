@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRevalidator } from "react-router";
-import type { Entry } from "./types.ts";
+import type { Entry } from "./home.tsx";
 
 interface ViewerProps {
   entry: Entry | null;
