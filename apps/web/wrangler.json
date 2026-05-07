@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "fading",
   "main": "@react-router/dev/config/default-rsc-entries/entry.rsc",
-  "compatibility_date": "2026-04-09",
+  "compatibility_date": "2026-04-26",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "observability": {
