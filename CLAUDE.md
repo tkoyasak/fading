@@ -127,7 +127,7 @@ bun run types     # Regenerate worker-configuration.d.ts
 
 - **Stack**: Vite 8 + React Router 7 (RSC framework mode, experimental) + `@vitejs/plugin-rsc` + Cloudflare Workers
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `app/global.css`
-- **Layout**: React Router `app/` convention — `app/root.tsx` (Layout/App/ErrorBoundary), `app/routes.ts` (route table), `app/routes/home.tsx` (`ServerComponent` export), `app/actions.tsx` (`"use server"`), `app/viewer.tsx` (`"use client"`)
+- **Layout**: React Router `app/` convention — `app/root.tsx` (Layout/App/ErrorBoundary), `app/routes.ts` (route table), `app/home.tsx` (`loader` + `ServerComponent` export), `app/viewer.tsx` (`"use client"`)
 - **Wrangler `main`**: `@react-router/dev/config/default-rsc-entries/entry.rsc` — virtual entry resolved by the RR Vite plugin; no hand-written entry files
 - **Data**: Cloudflare KV — `__index` key holds `{keys: string[], commit: string}`; each date key (`YYYYMMDD`) holds markdown content
 - **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
