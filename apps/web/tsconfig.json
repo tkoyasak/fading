@@ -1,17 +1,29 @@
 {
   "compilerOptions": {
-    "erasableSyntaxOnly": true,
+    "lib": ["ESNext", "DOM"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "types": [
+      "react/canary",
+      "vite/client",
+      "@vitejs/plugin-rsc/types",
+      "@react-router/dev/rsc-types"
+    ],
+    "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
-    "moduleResolution": "Bundler",
-    "module": "ESNext",
-    "target": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "types": ["react/canary", "vite/client", "@vitejs/plugin-rsc/types"],
-    "jsx": "react-jsx"
-  }
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "erasableSyntaxOnly": true,
+    "rootDirs": [".", "./.react-router/types"]
+  },
+  "include": [".react-router/types/**/*", "app/**/*", "worker-configuration.d.ts"]
 }

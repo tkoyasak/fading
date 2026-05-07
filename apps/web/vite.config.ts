@@ -1,14 +1,11 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { unstable_reactRouterRSC as reactRouterRSC } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
 import rsc from "@vitejs/plugin-rsc";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
-    tailwindcss(),
-    react(),
-    rsc(),
     cloudflare({
       viteEnvironment: {
         name: "rsc",
@@ -16,30 +13,29 @@ export default defineConfig({
         childEnvironments: ["ssr"],
       },
     }),
+    tailwindcss(),
+    reactRouterRSC(),
+    rsc({
+      // Workaround: Disable the default server handler from @vitejs/plugin-rsc.
+      // In preview mode, the plugin tries to import the built RSC entry in Node.js,
+      // which fails if your entry uses `cloudflare:*` imports.
+      // The Cloudflare plugin handles requests via workerd instead, so this is safe.
+      serverHandler: false,
+    }),
   ],
   environments: {
-    ssr: {
-      build: {
-        // build `ssr` inside `rsc` directory so that
-        // wrangler can deploy self-contained `dist/rsc`
-        outDir: "./dist/rsc/ssr",
-        rolldownOptions: {
-          input: {
-            index: "./src/framework/entry.ssr.tsx",
-          },
-        },
-      },
+    // Workaround: Exclude react-router from dependency optimization in worker environments.
+    // The reactRouterRSC plugin adds react-router to optimizeDeps.include at the root level
+    // (intended for the client), but this can cause duplicate React instances in the rsc/ssr
+    // environments running inside workerd, leading to "Invalid hook call" errors on first load.
+    rsc: {
       optimizeDeps: {
-        entries: ["./src/framework/entry.ssr.tsx"],
+        exclude: ["react-router"],
       },
     },
-    client: {
-      build: {
-        rolldownOptions: {
-          input: {
-            index: "./src/framework/entry.browser.tsx",
-          },
-        },
+    ssr: {
+      optimizeDeps: {
+        exclude: ["react-router"],
       },
     },
   },

@@ -33,6 +33,7 @@
     "eslint/init-declarations": "off",
     "eslint/max-lines-per-function": "off",
     "eslint/max-statements": ["error", { "max": 50 }],
+    "eslint/no-duplicate-imports": "off",
     "eslint/no-inline-comments": "off",
     "eslint/no-magic-numbers": "off",
     "eslint/no-ternary": "off",

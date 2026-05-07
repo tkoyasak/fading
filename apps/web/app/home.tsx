@@ -1,7 +1,7 @@
-"use server";
-
 import { env } from "cloudflare:workers";
 import { marked } from "marked";
+import type { Route } from "./+types/home";
+import { Viewer } from "./viewer.tsx";
 
 interface KvIndex {
   keys: string[];
@@ -13,7 +13,7 @@ export interface Entry {
   html: string;
 }
 
-export async function getRandomEntry(): Promise<Entry | null> {
+async function getRandomEntry(): Promise<Entry | null> {
   const indexJson = await env.KV.get<KvIndex>("__index", "json");
   const keys = indexJson?.keys ?? [];
   if (keys.length === 0) {
@@ -21,6 +21,9 @@ export async function getRandomEntry(): Promise<Entry | null> {
   }
 
   const key = keys[Math.floor(Math.random() * keys.length)];
+  if (key === undefined) {
+    return null;
+  }
   const raw = await env.KV.get(key, "text");
   if (raw === null) {
     return null;
@@ -33,4 +36,13 @@ export async function getRandomEntry(): Promise<Entry | null> {
     date: `${x} ${a}`,
     html: await marked(raw, { gfm: false }),
   };
+}
+
+export async function loader() {
+  const entry = await getRandomEntry();
+  return entry;
+}
+
+export function ServerComponent({ loaderData }: Route.ServerComponentProps) {
+  return <Viewer entry={loaderData} />;
 }

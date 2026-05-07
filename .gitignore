@@ -8,9 +8,10 @@
 # Node
 /node_modules
 /apps/*/node_modules
-/apps/*/dist
+/apps/*/build
 
 /apps/*/.wrangler
+/apps/*/.react-router
 .dev.vars*
 !.dev.vars.example
 .env*

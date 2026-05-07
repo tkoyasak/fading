@@ -1,37 +1,40 @@
 {
-  "name": "vite-rsc-starter",
+  "name": "fading-web",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "CLOUDFLARE_ENV=dev vite",
-    "build": "CLOUDFLARE_ENV=dev vite build",
-    "build:prod": "vite build",
+    "dev": "CLOUDFLARE_ENV=dev react-router dev",
+    "build": "CLOUDFLARE_ENV=dev react-router build",
+    "build:prod": "react-router build",
     "preview": "vite preview",
-    "upload": "CLOUDFLARE_ENV=dev vite build && wrangler versions upload --env dev",
-    "release": "vite build && wrangler deploy --strict",
-    "check": "tsc",
+    "upload": "CLOUDFLARE_ENV=dev react-router build && wrangler versions upload --env dev",
+    "release": "react-router build && wrangler deploy --strict",
+    "check": "react-router typegen && tsc",
     "types": "wrangler types"
   },
   "dependencies": {
     "marked": "18.0.2",
     "react": "19.3.0-canary-142cfde8-20260422",
     "react-dom": "19.3.0-canary-142cfde8-20260422",
+    "react-router": "7.14.2",
     "react-server-dom-webpack": "19.3.0-canary-142cfde8-20260422"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.33.1",
+    "@react-router/dev": "7.14.2",
     "@tailwindcss/vite": "4.2.4",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.1",
     "@vitejs/plugin-rsc": "0.5.24",
-    "rsc-html-stream": "0.0.7",
     "tailwindcss": "4.2.4",
     "typescript": "6.0.3",
     "vite": "8.0.10",
     "wrangler": "4.84.1"
   },
   "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom",
+    "react-server-dom-webpack": "$react-server-dom-webpack",
     "vite": "$vite"
   }
 }

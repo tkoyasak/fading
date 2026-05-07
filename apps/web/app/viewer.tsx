@@ -1,45 +1,42 @@
 "use client";
 
 import React from "react";
-import type { Entry } from "./action.tsx";
+import { useRevalidator } from "react-router";
+import type { Entry } from "./home.tsx";
 
 interface ViewerProps {
-  initial: Promise<Entry | null>;
-  fetchEntry: () => Promise<Entry | null>;
+  entry: Entry | null;
 }
 
-export function Viewer({ initial, fetchEntry }: ViewerProps) {
-  const [entryPromise, setEntryPromise] = React.useState(initial);
+export function Viewer({ entry }: ViewerProps) {
+  const revalidator = useRevalidator();
   const [isPending, startTransition] = React.useTransition();
+  // isPending covers the sleep inside the transition; revalidator.state covers the
+  // loader refetch that runs after the sleep. Together they span the full round-trip.
+  const showPending = isPending || revalidator.state === "loading";
 
   // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop
   function handleNext() {
-    startTransition(() => {
-      setEntryPromise(
-        new Promise((resolve) => {
-          setTimeout(resolve, 1104);
-          // oxlint-disable-next-line promise/prefer-await-to-then
-        }).then(fetchEntry),
-      );
+    startTransition(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1104);
+      });
+      // https://react.dev/reference/react/useTransition#react-doesnt-treat-my-state-update-after-await-as-a-transition
+      React.startTransition(() => {
+        void revalidator.revalidate();
+      });
     });
   }
 
   return (
     <>
       <main className="mx-auto max-w-sm pb-6">
-        <React.Suspense>
-          <Preview entryPromise={entryPromise} />
-        </React.Suspense>
+        <Preview entry={entry} />
       </main>
       <footer className="fixed right-0 bottom-0 left-0 text-[16px] backdrop-blur-[1px]">
         <div className="mx-auto max-w-sm">
           <React.ViewTransition>
-            <React.Suspense
-              // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
-              fallback={<FallbackFooter />}
-            >
-              <Footer entryPromise={entryPromise} isPending={isPending} onClick={handleNext} />
-            </React.Suspense>
+            <Footer entry={entry} isPending={showPending} onClick={handleNext} />
           </React.ViewTransition>
         </div>
       </footer>
@@ -47,12 +44,11 @@ export function Viewer({ initial, fetchEntry }: ViewerProps) {
   );
 }
 
-interface EntryProps {
-  entryPromise: Promise<Entry | null>;
+interface PreviewProps {
+  entry: Entry | null;
 }
 
-function Preview({ entryPromise }: EntryProps) {
-  const entry = React.use(entryPromise);
+function Preview({ entry }: PreviewProps) {
   return (
     <React.ViewTransition>
       <article
@@ -64,13 +60,12 @@ function Preview({ entryPromise }: EntryProps) {
   );
 }
 
-interface FooterProps extends EntryProps {
+interface FooterProps extends PreviewProps {
   isPending: boolean;
   onClick: () => void;
 }
 
-function Footer({ entryPromise, isPending, onClick }: FooterProps) {
-  const entry = React.use(entryPromise);
+function Footer({ entry, isPending, onClick }: FooterProps) {
   const date = entry?.date ?? "";
   return (
     <div className="flex items-center justify-between">
@@ -101,14 +96,6 @@ function Footer({ entryPromise, isPending, onClick }: FooterProps) {
           <AudioLinesIcon size={24} animating={isPending} />
         </React.ViewTransition>
       </button>
-    </div>
-  );
-}
-
-function FallbackFooter() {
-  return (
-    <div className="flex justify-end">
-      <AudioLinesIcon size={24} animating />
     </div>
   );
 }
