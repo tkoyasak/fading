@@ -8,7 +8,7 @@ interface KvIndex {
   commit: string;
 }
 
-export interface Entry {
+interface Entry {
   date: string;
   html: string;
 }
@@ -44,5 +44,5 @@ export async function loader() {
 }
 
 export function ServerComponent({ loaderData }: Route.ServerComponentProps) {
-  return <Viewer entry={loaderData} />;
+  return <Viewer html={loaderData?.html ?? ""} date={loaderData?.date ?? ""} />;
 }

@@ -2,13 +2,13 @@
 
 import React from "react";
 import { useRevalidator } from "react-router";
-import type { Entry } from "./home.tsx";
 
 interface ViewerProps {
-  entry: Entry | null;
+  html: string;
+  date: string;
 }
 
-export function Viewer({ entry }: ViewerProps) {
+export function Viewer({ html, date }: ViewerProps) {
   const revalidator = useRevalidator();
   const [isPending, startTransition] = React.useTransition();
   // isPending covers the sleep inside the transition; revalidator.state covers the
@@ -31,12 +31,12 @@ export function Viewer({ entry }: ViewerProps) {
   return (
     <>
       <main className="mx-auto max-w-sm pb-6">
-        <Preview entry={entry} />
+        <Preview html={html} />
       </main>
       <footer className="fixed right-0 bottom-0 left-0 text-[16px] backdrop-blur-[1px]">
         <div className="mx-auto max-w-sm">
           <React.ViewTransition>
-            <Footer entry={entry} isPending={showPending} onClick={handleNext} />
+            <Footer date={date} isPending={showPending} onClick={handleNext} />
           </React.ViewTransition>
         </div>
       </footer>
@@ -45,28 +45,28 @@ export function Viewer({ entry }: ViewerProps) {
 }
 
 interface PreviewProps {
-  entry: Entry | null;
+  html: string;
 }
 
-function Preview({ entry }: PreviewProps) {
+function Preview({ html }: PreviewProps) {
   return (
     <React.ViewTransition>
       <article
         className="prose"
         // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
-        dangerouslySetInnerHTML={{ __html: entry?.html ?? "" }}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
     </React.ViewTransition>
   );
 }
 
-interface FooterProps extends PreviewProps {
+interface FooterProps {
+  date: string;
   isPending: boolean;
   onClick: () => void;
 }
 
-function Footer({ entry, isPending, onClick }: FooterProps) {
-  const date = entry?.date ?? "";
+function Footer({ date, isPending, onClick }: FooterProps) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex lining-nums tabular-nums">
