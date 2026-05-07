@@ -11,6 +11,8 @@ interface ViewerProps {
 export function Viewer({ entry }: ViewerProps) {
   const revalidator = useRevalidator();
   const [isPending, startTransition] = React.useTransition();
+  // isPending covers the sleep inside the transition; revalidator.state covers the
+  // loader refetch that runs after the sleep. Together they span the full round-trip.
   const showPending = isPending || revalidator.state === "loading";
 
   // oxlint-disable-next-line react-perf/jsx-no-new-function-as-prop
