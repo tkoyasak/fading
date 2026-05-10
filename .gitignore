@@ -9,6 +9,7 @@
 /node_modules
 /apps/*/node_modules
 /apps/*/build
+/apps/*/dist
 
 /apps/*/.wrangler
 /apps/*/.react-router
@@ -18,3 +19,6 @@
 !.env.example
 
 /.claude
+
+/apps/qwik-beta/server
+/apps/qwik-beta/tmp

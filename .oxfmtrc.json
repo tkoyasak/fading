@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["apps/web/worker-configuration.d.ts", "apps/qwik", "apps/qwik-beta"],
+  "ignorePatterns": ["apps/**/worker-configuration.d.ts", "apps/qwik"],
   "sortImports": {
     "newlinesBetween": false
   },
