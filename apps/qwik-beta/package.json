@@ -11,18 +11,22 @@
     "build": "qwik build",
     "build.client": "vite build",
     "build.preview": "vite build --ssr src/entry.preview.tsx",
+    "build.server": "qwik check-client src dist && vite build -c adapters/cloudflare-workers/vite.config.ts",
     "build.types": "tsc --incremental --noEmit",
-    "deploy": "echo 'Run \"npm run qwik add\" to install a server adapter'",
+    "cf-typegen": "wrangler types",
+    "deploy": "wrangler deploy",
     "dev": "vite --mode ssr",
     "dev.debug": "node --inspect-brk ./node_modules/vite/bin/vite.js --mode ssr --force",
     "fmt": "prettier --write .",
     "fmt.check": "prettier --check .",
     "lint": "eslint \"src/**/*.ts*\"",
     "preview": "qwik build preview && vite preview --open",
+    "serve": "wrangler dev",
     "start": "vite --open --mode ssr",
     "qwik": "qwik"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251228.0",
     "@eslint/js": "latest",
     "@qwik.dev/core": "^2.0.0-beta.34",
     "@qwik.dev/router": "^2.0.0-beta.34",
@@ -35,6 +39,7 @@
     "typescript-eslint": "8.56.1",
     "typescript-plugin-css-modules": "latest",
     "vite": "7.3.1",
-    "vite-tsconfig-paths": "^4.2.1"
+    "vite-tsconfig-paths": "^4.2.1",
+    "wrangler": "^3.0.0"
   }
 }
