@@ -5,7 +5,6 @@
   "scripts": {
     "build": "qwik build",
     "build.client": "vite build",
-    "build.preview": "vite build --ssr src/entry.preview.tsx",
     "build.server": "qwik check-client src dist && vite build -c adapters/cloudflare-workers/vite.config.ts",
     "build.types": "tsc --noEmit",
     "cf-typegen": "wrangler types",
@@ -15,7 +14,6 @@
     "fmt": "oxfmt",
     "fmt.check": "oxfmt --check",
     "lint": "oxlint && eslint .",
-    "preview": "qwik build preview && vite preview --open",
     "serve": "wrangler dev --env dev",
     "qwik": "qwik"
   },
