@@ -1,26 +1,26 @@
 {
   "compilerOptions": {
-    "allowJs": true,
-    "target": "es2020",
-    "module": "esnext",
-    "lib": ["es2022", "DOM", "WebWorker", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "WebWorker"],
     "jsx": "react-jsx",
     "jsxImportSource": "@qwik.dev/core",
-    "types": ["vite/client", "node", "./worker-configuration.d.ts"],
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
+    "types": ["vite/client", "node"],
+    "moduleDetection": "force",
     "moduleResolution": "Bundler",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "incremental": true,
-    "isolatedModules": true,
-    "outDir": "tmp",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
-    "paths": {
-      "~/*": ["./src/*"]
-    }
+    "skipLibCheck": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "erasableSyntaxOnly": true
   },
-  "include": ["src", "./*.d.ts", "./*.config.ts"]
+  "include": ["src", "adapters", "worker-configuration.d.ts", "vite.config.ts"]
 }
