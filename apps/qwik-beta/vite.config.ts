@@ -4,8 +4,8 @@
  */
 import { qwikVite } from "@qwik.dev/core/optimizer";
 import { qwikRouter } from "@qwik.dev/router/vite";
-import { defineConfig, type UserConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
 import pkg from "./package.json";
 
 type PkgDep = Record<string, string>;
@@ -17,55 +17,53 @@ const { dependencies = {}, devDependencies = {} } = pkg as any as {
 errorOnDuplicatesPkgDeps(devDependencies, dependencies);
 
 let platform = {};
- 
-if (process.env.NODE_ENV === 'development') {
-  const { getPlatformProxy } = await import('wrangler');
+
+if (process.env.NODE_ENV === "development") {
+  const { getPlatformProxy } = await import("wrangler");
   platform = await getPlatformProxy();
 }
 
 /**
  * Note that Vite normally starts from `index.html` but the qwikRouter plugin makes start at `src/entry.ssr.tsx` instead.
  */
-export default defineConfig(({ command, mode }): UserConfig => {
-  return {
-    plugins: [qwikRouter({ platform }), qwikVite(), tsconfigPaths({ root: "." })],
-    // This tells Vite which dependencies to pre-build in dev mode.
-    optimizeDeps: {
-      // Put problematic deps that break bundling here, mostly those with binaries.
-      // For example ['better-sqlite3'] if you use that in server functions.
-      exclude: [],
-    },
+export default defineConfig({
+  plugins: [qwikRouter({ platform }), qwikVite(), tailwindcss()],
+  // This tells Vite which dependencies to pre-build in dev mode.
+  optimizeDeps: {
+    // Put problematic deps that break bundling here, mostly those with binaries.
+    // For example ['better-sqlite3'] if you use that in server functions.
+    exclude: [],
+  },
 
-    /**
-     * This is an advanced setting. It improves the bundling of your server code. To use it, make sure you understand when your consumed packages are dependencies or dev dependencies. (otherwise things will break in production)
-     */
-    // ssr:
-    //   command === "build" && mode === "production"
-    //     ? {
-    //         // All dev dependencies should be bundled in the server build
-    //         noExternal: Object.keys(devDependencies),
-    //         // Anything marked as a dependency will not be bundled
-    //         // These should only be production binary deps (including deps of deps), CLI deps, and their module graph
-    //         // If a dep-of-dep needs to be external, add it here
-    //         // For example, if something uses `bcrypt` but you don't have it as a dep, you can write
-    //         // external: [...Object.keys(dependencies), 'bcrypt']
-    //         external: Object.keys(dependencies),
-    //       }
-    //     : undefined,
+  /**
+   * This is an advanced setting. It improves the bundling of your server code. To use it, make sure you understand when your consumed packages are dependencies or dev dependencies. (otherwise things will break in production)
+   */
+  // ssr:
+  //   command === "build" && mode === "production"
+  //     ? {
+  //         // All dev dependencies should be bundled in the server build
+  //         noExternal: Object.keys(devDependencies),
+  //         // Anything marked as a dependency will not be bundled
+  //         // These should only be production binary deps (including deps of deps), CLI deps, and their module graph
+  //         // If a dep-of-dep needs to be external, add it here
+  //         // For example, if something uses `bcrypt` but you don't have it as a dep, you can write
+  //         // external: [...Object.keys(dependencies), 'bcrypt']
+  //         external: Object.keys(dependencies),
+  //       }
+  //     : undefined,
 
-    server: {
-      headers: {
-        // Don't cache the server response in dev mode
-        "Cache-Control": "public, max-age=0",
-      },
+  server: {
+    headers: {
+      // Don't cache the server response in dev mode
+      "Cache-Control": "public, max-age=0",
     },
-    preview: {
-      headers: {
-        // Do cache the server response in preview (non-adapter production build)
-        "Cache-Control": "public, max-age=600",
-      },
+  },
+  preview: {
+    headers: {
+      // Do cache the server response in preview (non-adapter production build)
+      "Cache-Control": "public, max-age=600",
     },
-  };
+  },
 });
 
 // *** utils ***
@@ -75,21 +73,14 @@ export default defineConfig(({ command, mode }): UserConfig => {
  * @param {Object} devDependencies - List of development dependencies
  * @param {Object} dependencies - List of production dependencies
  */
-function errorOnDuplicatesPkgDeps(
-  devDependencies: PkgDep,
-  dependencies: PkgDep,
-) {
-  let msg = "";
+function errorOnDuplicatesPkgDeps(devDependencies: PkgDep, dependencies: PkgDep) {
+  let msg: string;
   // Create an array 'duplicateDeps' by filtering devDependencies.
   // If a dependency also exists in dependencies, it is considered a duplicate.
-  const duplicateDeps = Object.keys(devDependencies).filter(
-    (dep) => dependencies[dep],
-  );
+  const duplicateDeps = Object.keys(devDependencies).filter((dep) => dependencies[dep]);
 
   // include any known qwik packages
-  const qwikPkg = Object.keys(dependencies).filter((value) =>
-    /qwik/i.test(value),
-  );
+  const qwikPkg = Object.keys(dependencies).filter((value) => /qwik/i.test(value));
 
   // any errors for missing "qwik-router-config"
   // [PLUGIN_ERROR]: Invalid module "@qwik-router-config" is not a valid package
