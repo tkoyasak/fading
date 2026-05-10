@@ -1,24 +1,22 @@
 {
-  "name": "my-qwik-empty-starter",
+  "name": "fading-qwik-beta",
   "private": true,
-  "description": "Blank project with routing included",
   "type": "module",
   "scripts": {
     "build": "qwik build",
     "build.client": "vite build",
     "build.preview": "vite build --ssr src/entry.preview.tsx",
     "build.server": "qwik check-client src dist && vite build -c adapters/cloudflare-workers/vite.config.ts",
-    "build.types": "tsc --incremental --noEmit",
+    "build.types": "tsc --noEmit",
     "cf-typegen": "wrangler types",
     "deploy": "wrangler deploy",
     "dev": "vite --mode ssr",
     "dev.debug": "node --inspect-brk ./node_modules/vite/bin/vite.js --mode ssr --force",
-    "fmt": "prettier --write .",
-    "fmt.check": "prettier --check .",
-    "lint": "eslint \"src/**/*.ts*\"",
+    "fmt": "oxfmt",
+    "fmt.check": "oxfmt --check",
+    "lint": "oxlint && eslint .",
     "preview": "qwik build preview && vite preview --open",
     "serve": "wrangler dev",
-    "start": "vite --open --mode ssr",
     "qwik": "qwik"
   },
   "dependencies": {
@@ -31,15 +29,10 @@
     "@types/node": "25.6.0",
     "eslint": "10.3.0",
     "eslint-plugin-qwik": "2.0.0-beta.34",
-    "prettier": "3.8.3",
     "tailwindcss": "4.2.4",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.1",
     "vite": "7.3.2",
     "wrangler": "4.87.0"
-  },
-  "engines": {
-    "node": "^18.17.0 || ^20.3.0 || >=21.0.0"
-  },
-  "engines-annotation": "Mostly required by sharp which needs a Node-API v9 compatible runtime"
+  }
 }
