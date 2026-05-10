@@ -16,7 +16,7 @@
     "fmt.check": "oxfmt --check",
     "lint": "oxlint && eslint .",
     "preview": "qwik build preview && vite preview --open",
-    "serve": "wrangler dev",
+    "serve": "wrangler dev --env dev",
     "qwik": "qwik"
   },
   "dependencies": {
