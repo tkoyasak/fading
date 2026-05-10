@@ -26,6 +26,13 @@
    * databases, object storage, AI inference, real-time communication and more.
    * https://developers.cloudflare.com/workers/runtime-apis/bindings/
    */
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "d7d628060e0e43d89aeae77dd95160b5",
+      "preview_id": "0d8eec8f81a34da393ee7e7a36712656",
+    },
+  ],
   /**
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
