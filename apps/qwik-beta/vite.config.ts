@@ -16,12 +16,19 @@ const { dependencies = {}, devDependencies = {} } = pkg as any as {
 };
 errorOnDuplicatesPkgDeps(devDependencies, dependencies);
 
+let platform = {};
+ 
+if (process.env.NODE_ENV === 'development') {
+  const { getPlatformProxy } = await import('wrangler');
+  platform = await getPlatformProxy();
+}
+
 /**
  * Note that Vite normally starts from `index.html` but the qwikRouter plugin makes start at `src/entry.ssr.tsx` instead.
  */
 export default defineConfig(({ command, mode }): UserConfig => {
   return {
-    plugins: [qwikRouter(), qwikVite(), tsconfigPaths({ root: "." })],
+    plugins: [qwikRouter({ platform }), qwikVite(), tsconfigPaths({ root: "." })],
     // This tells Vite which dependencies to pre-build in dev mode.
     optimizeDeps: {
       // Put problematic deps that break bundling here, mostly those with binaries.
