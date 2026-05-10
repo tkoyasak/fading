@@ -12,41 +12,43 @@ interface Entry {
   html: string;
 }
 
-async function loadRandomEntry(kv: KVNamespace): Promise<Entry | null> {
-  const indexData = await kv.get<KvIndex>("__index", "json");
-  const keys = indexData?.keys ?? [];
-  if (keys.length === 0) return null;
-
-  const key = keys[Math.floor(Math.random() * keys.length)];
-  if (key === undefined) return null;
-
-  const raw = await kv.get(key, "text");
-  if (raw === null) return null;
-
-  const x = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-  const a = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(x).getDay()];
-
-  return {
-    date: `${x} ${a}`,
-    html: await marked(raw, { gfm: false }),
-  };
+function getKv(platform: unknown): KVNamespace {
+  const p = platform as { env?: Env };
+  const kv = p?.env?.KV;
+  if (!kv) throw "KV namespace not available";
+  return kv;
 }
 
-function getKv(platform: unknown): KVNamespace | null {
-  const p = platform as { env?: Env };
-  return p?.env?.KV ?? null;
+async function loadRandomEntry(platform: unknown): Promise<Entry> {
+  try {
+    const kv = getKv(platform);
+    const indexData = await kv.get<KvIndex>("__index", "json");
+    const keys = indexData?.keys ?? [];
+    if (keys.length === 0) throw "No entries in KV";
+
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    if (key === undefined) throw "No entry key found";
+
+    const raw = await kv.get(key, "text");
+    if (raw === null) throw `Entry not found: ${key}`;
+
+    const x = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const day = days[new Date(x).getDay()];
+    if (day === undefined) throw `Invalid date: ${x}`;
+
+    return { date: `${x} ${day}`, html: await marked(raw, { gfm: false }) };
+  } catch (e) {
+    return { date: "", html: String(e) };
+  }
 }
 
 export const useEntry = routeLoader$(async (event) => {
-  const kv = getKv(event.platform);
-  if (!kv) return null;
-  return loadRandomEntry(kv);
+  return loadRandomEntry(event.platform);
 });
 
 const fetchNewEntry = server$(async function () {
-  const kv = getKv(this.platform);
-  if (!kv) return null;
-  return loadRandomEntry(kv);
+  return loadRandomEntry(this.platform);
 });
 
 const BAR_COUNT = 8;
@@ -102,23 +104,18 @@ const AudioLinesIcon = component$<{ size: number; animating: Signal<boolean> }>(
 
 export default component$(() => {
   const entry = useEntry();
-  const currentDate = useSignal(entry.value?.date ?? "");
-  const currentHtml = useSignal(entry.value?.html ?? "");
+  const currentDate = useSignal(entry.value.date);
+  const currentHtml = useSignal(entry.value.html);
   const isPending = useSignal(false);
 
   const handleNext = $(async () => {
     if (isPending.value) return;
     isPending.value = true;
-    await new Promise<void>((resolve) => setTimeout(resolve, 1104));
-    try {
-      const newEntry = await fetchNewEntry();
-      if (newEntry) {
-        currentDate.value = newEntry.date;
-        currentHtml.value = newEntry.html;
-      }
-    } finally {
-      isPending.value = false;
-    }
+    await new Promise((resolve) => setTimeout(resolve, 1104));
+    const newEntry = await fetchNewEntry();
+    currentDate.value = newEntry.date;
+    currentHtml.value = newEntry.html;
+    isPending.value = false;
   });
 
   return (
