@@ -55,37 +55,40 @@ const NoiseCanvas = component$<{ visible: Signal<boolean> }>((props) => {
   const canvasRef = useSignal<HTMLCanvasElement>();
 
   // oxlint-disable-next-line qwik/no-use-visible-task
-  useVisibleTask$(({ track, cleanup }) => {
-    const isVisible = track(() => props.visible.value);
-    const canvas = canvasRef.value;
-    if (!canvas) return;
+  useVisibleTask$(
+    ({ track, cleanup }) => {
+      const isVisible = track(() => props.visible.value);
+      const canvas = canvasRef.value;
+      if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    const W = canvas.width;
-    const H = canvas.height;
-    const img = ctx.createImageData(W, H);
-    let rafId: number | undefined;
+      const W = canvas.width;
+      const H = canvas.height;
+      const img = ctx.createImageData(W, H);
+      let rafId: number | undefined;
 
-    if (isVisible) {
-      const drawNoise = () => {
-        for (let i = 0; i < img.data.length; i += 4) {
-          img.data[i] = Math.random() * 255;
-          img.data[i + 1] = Math.random() * 255;
-          img.data[i + 2] = Math.random() * 255;
-          img.data[i + 3] = 255;
-        }
-        ctx.putImageData(img, 0, 0);
-        rafId = requestAnimationFrame(drawNoise);
-      };
-      drawNoise();
-    }
+      if (isVisible) {
+        const loop = () => {
+          for (let i = 0; i < img.data.length; i += 4) {
+            img.data[i] = Math.random() * 255;
+            img.data[i + 1] = Math.random() * 255;
+            img.data[i + 2] = Math.random() * 255;
+            img.data[i + 3] = 255;
+          }
+          ctx.putImageData(img, 0, 0);
+          rafId = requestAnimationFrame(loop);
+        };
+        loop();
+      }
 
-    cleanup(() => {
-      if (rafId !== undefined) cancelAnimationFrame(rafId);
-    });
-  });
+      cleanup(() => {
+        if (rafId !== undefined) cancelAnimationFrame(rafId);
+      });
+    },
+    { strategy: "document-ready" },
+  );
 
   return (
     <canvas
