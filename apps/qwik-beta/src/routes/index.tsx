@@ -1,4 +1,4 @@
-import { component$, useSignal, useTask$, $, type Signal } from "@qwik.dev/core";
+import { component$, useSignal, useVisibleTask$, $, type Signal } from "@qwik.dev/core";
 import { routeLoader$, server$ } from "@qwik.dev/router";
 import type { DocumentHead } from "@qwik.dev/router";
 import { marked } from "marked";
@@ -51,54 +51,52 @@ const fetchNewEntry = server$(async function () {
   return loadRandomEntry(this.platform);
 });
 
-const BAR_COUNT = 8;
+const NoiseCanvas = component$<{ visible: Signal<boolean> }>((props) => {
+  const canvasRef = useSignal<HTMLCanvasElement>();
 
-const AudioLinesIcon = component$<{ size: number; animating: Signal<boolean> }>((props) => {
-  const isAnimating = useSignal(props.animating.value);
-  const completedCount = useSignal(0);
+  // oxlint-disable-next-line qwik/no-use-visible-task
+  useVisibleTask$(({ track, cleanup }) => {
+    const isVisible = track(() => props.visible.value);
+    const canvas = canvasRef.value;
+    if (!canvas) return;
 
-  useTask$(({ track }) => {
-    const anim = track(() => props.animating.value);
-    if (anim) {
-      isAnimating.value = true;
-      completedCount.value = 0;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const img = ctx.createImageData(W, H);
+    let rafId: number | undefined;
+
+    if (isVisible) {
+      const drawNoise = () => {
+        for (let i = 0; i < img.data.length; i += 4) {
+          img.data[i] = Math.random() * 255;
+          img.data[i + 1] = Math.random() * 255;
+          img.data[i + 2] = Math.random() * 255;
+          img.data[i + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+        rafId = requestAnimationFrame(drawNoise);
+      };
+      drawNoise();
     }
+
+    cleanup(() => {
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+    });
   });
 
   return (
-    <svg
-      width={props.size}
-      height={props.size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      class={isAnimating.value ? "audio-lines animating" : "audio-lines"}
-      onAnimationIteration$={() => {
-        if (!props.animating.value) {
-          completedCount.value += 1;
-          if (completedCount.value > BAR_COUNT) {
-            isAnimating.value = false;
-            completedCount.value = 0;
-          }
-        }
-      }}
-    >
-      <rect x="1" width="2" rx="1" />
-      <rect x="5" width="2" rx="1" />
-      <rect x="9" width="2" rx="1" />
-      <rect x="13" width="2" rx="1" />
-      <rect x="17" width="2" rx="1" />
-      <rect x="21" width="2" rx="1" />
-      {isAnimating.value && (
-        <>
-          <rect class="bar-ping" x="1" width="2" rx="1" />
-          <rect class="bar-ping" x="5" width="2" rx="1" />
-          <rect class="bar-ping" x="9" width="2" rx="1" />
-          <rect class="bar-ping" x="13" width="2" rx="1" />
-          <rect class="bar-ping" x="17" width="2" rx="1" />
-          <rect class="bar-ping" x="21" width="2" rx="1" />
-        </>
-      )}
-    </svg>
+    <canvas
+      ref={canvasRef}
+      width={200}
+      height={150}
+      class={[
+        "fixed inset-0 z-50 h-screen w-screen [image-rendering:pixelated]",
+        props.visible.value ? "" : "hidden",
+      ]}
+    />
   );
 });
 
@@ -120,6 +118,7 @@ export default component$(() => {
 
   return (
     <>
+      <NoiseCanvas visible={isPending} />
       <main class="mx-auto max-w-sm pb-6">
         <article class="prose" dangerouslySetInnerHTML={currentHtml.value} />
       </main>
@@ -143,13 +142,21 @@ export default component$(() => {
                 {currentDate.value[13]}
               </span>
             </div>
-            <button
-              type="button"
-              disabled={isPending.value}
-              onClick$={handleNext}
-              class="flex items-center gap-1"
-            >
-              <AudioLinesIcon size={24} animating={isPending} />
+            <button type="button" disabled={isPending.value} onClick$={handleNext}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="1em"
+                height="1em"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-astroid-icon lucide-astroid text-[#0009F3]"
+              >
+                <path d="M12.983 21.186a1 1 0 0 1-1.966 0 10 10 0 0 0-8.203-8.203 1 1 0 0 1 0-1.966 10 10 0 0 0 8.203-8.203 1 1 0 0 1 1.966 0 10 10 0 0 0 8.203 8.203 1 1 0 0 1 0 1.966 10 10 0 0 0-8.203 8.203" />
+              </svg>
             </button>
           </div>
         </div>
