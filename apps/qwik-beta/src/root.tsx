@@ -1,9 +1,12 @@
-import { component$ } from "@qwik.dev/core";
+import { component$, useStyles$ } from "@qwik.dev/core";
 import { DocumentHeadTags, RouterOutlet, useLocation, useQwikRouter } from "@qwik.dev/router";
-import "./global.css";
+import styles from "./global.css?inline";
 
 export default component$(() => {
   useQwikRouter();
+
+  useStyles$(styles);
+
   const { url } = useLocation();
 
   /**
