@@ -1,6 +1,7 @@
 import { $, component$, type Signal, useSignal, useVisibleTask$ } from "@qwik.dev/core";
 import { type DocumentHead, routeLoader$, server$ } from "@qwik.dev/router";
 import { marked } from "marked";
+import { createErr, createOk, isOk, type Result, unwrapErr, unwrapOk } from "option-t/plain_result";
 
 interface KvIndex {
   keys: string[];
@@ -18,34 +19,26 @@ declare global {
   }
 }
 
-async function loadRandomEntry(platform: QwikRouterPlatform): Promise<Entry> {
-  try {
-    const kv = platform.env?.KV;
-    if (!kv) throw new Error("KV namespace not available");
+async function loadRandomEntry(platform: QwikRouterPlatform): Promise<Result<Entry, string>> {
+  const kv = platform.env?.KV;
+  if (!kv) return createErr("KV namespace not available");
 
-    const indexData = await kv.get<KvIndex>("__index", "json");
-    const keys = indexData?.keys ?? [];
-    if (keys.length === 0) throw new Error("No entries in KV");
+  const indexData = await kv.get<KvIndex>("__index", "json");
+  const keys = indexData?.keys ?? [];
+  if (keys.length === 0) return createErr("No entries in KV");
 
-    const key = keys[Math.floor(Math.random() * keys.length)];
-    if (key === undefined) throw new Error("No entry key found");
+  const key = keys[Math.floor(Math.random() * keys.length)];
+  if (key === undefined) return createErr("No entry key found");
 
-    const raw = await kv.get(key, "text");
-    if (raw === null) throw new Error(`Entry not found: ${key}`);
+  const raw = await kv.get(key, "text");
+  if (raw === null) return createErr(`Entry not found: ${key}`);
 
-    const date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const day = days[new Date(date).getUTCDay()];
-    if (day === undefined) throw new Error(`Invalid date: ${date}`);
+  const date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const day = days[new Date(date).getUTCDay()];
+  if (day === undefined) return createErr(`Invalid date: ${date}`);
 
-    return { date, day, html: await marked(raw, { gfm: false }) };
-  } catch (e) {
-    return {
-      date: "",
-      day: "",
-      html: e instanceof Error ? e.message : String(e),
-    };
-  }
+  return createOk({ date, day, html: await marked(raw, { gfm: false }) });
 }
 
 export const useEntry = routeLoader$(async (event) => {
@@ -192,9 +185,7 @@ const NoiseCanvas = component$<{ visible: Signal<boolean>; animating: Signal<boo
 
 export default component$(() => {
   const entry = useEntry();
-  const currentDate = useSignal(entry.value.date);
-  const currentDay = useSignal(entry.value.day);
-  const currentHtml = useSignal(entry.value.html);
+  const currentResult = useSignal<Result<Entry, string>>(entry.value);
   const isPending = useSignal(false);
   const isAnimating = useSignal(false);
 
@@ -202,27 +193,37 @@ export default component$(() => {
     if (isAnimating.value || isPending.value) return;
     isPending.value = true;
     await new Promise((resolve) => setTimeout(resolve, TRANSITION_MS));
-    const newEntry = await fetchNewEntry();
-    currentDate.value = newEntry.date;
-    currentDay.value = newEntry.day;
-    currentHtml.value = newEntry.html;
+    currentResult.value = await fetchNewEntry();
     isPending.value = false;
   });
+
+  const r = currentResult.value;
+  const ok = isOk(r) ? unwrapOk(r) : null;
 
   return (
     <>
       <NoiseCanvas visible={isPending} animating={isAnimating} />
       <main class="mx-auto max-w-sm pb-6">
-        <article class="prose" dangerouslySetInnerHTML={currentHtml.value} />
+        {ok ? (
+          <article class="prose" dangerouslySetInnerHTML={ok.html} />
+        ) : (
+          <article class="prose">
+            <p>{unwrapErr(r)}</p>
+          </article>
+        )}
       </main>
       <footer class="fixed right-0 bottom-0 left-0 text-[16px] backdrop-blur-[1px]">
         <div class="mx-auto max-w-sm">
           <div class="flex items-center justify-between">
             <div class="flex lining-nums tabular-nums">
-              {Array.from(currentDate.value).map((c, i) => (
-                <span key={i}>{c}</span>
-              ))}
-              {currentDay.value && <span class="ml-1">{currentDay.value}</span>}
+              {ok && (
+                <>
+                  {Array.from(ok.date).map((c, i) => (
+                    <span key={i}>{c}</span>
+                  ))}
+                  <span class="ml-1">{ok.day}</span>
+                </>
+              )}
             </div>
             <button
               type="button"
