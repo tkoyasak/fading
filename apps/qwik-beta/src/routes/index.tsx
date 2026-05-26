@@ -19,6 +19,8 @@ declare global {
   }
 }
 
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
 async function loadRandomEntry(platform: QwikRouterPlatform): Promise<Result<Entry, string>> {
   const kv = platform.env?.KV;
   if (!kv) return createErr("KV namespace not available");
@@ -34,8 +36,7 @@ async function loadRandomEntry(platform: QwikRouterPlatform): Promise<Result<Ent
   if (raw === null) return createErr(`Entry not found: ${key}`);
 
   const date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const day = days[new Date(date).getUTCDay()];
+  const day = DOW[new Date(date).getUTCDay()];
   if (day === undefined) return createErr(`Invalid date: ${date}`);
 
   return createOk({ date, day, html: await marked(raw, { gfm: false }) });
@@ -50,10 +51,12 @@ const fetchNewEntry = server$(async function () {
 });
 
 const NOISE_COLORS = [
-  [0x00, 0x09, 0xf3], // blue (weight 2)
-  [0x00, 0x09, 0xf3],
-  [0xff, 0x50, 0x31], // orange (weight 2)
-  [0xff, 0x50, 0x31],
+  [0x00, 0x09, 0xf3], // blue
+  [0xff, 0x50, 0x31], // orange
+  [0xfe, 0xef, 0x00], // yellow
+  [0xdf, 0x06, 0x71], // pink
+  [0x5c, 0xff, 0x0b], // light-green
+  [0x00, 0x9e, 0xe3], // light-blue
 ] as const;
 
 const TRANSITION_MS = 1104;
