@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, warn};
 use tower_lsp_server::jsonrpc;
 use tower_lsp_server::ls_types::{
     CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
@@ -34,20 +34,29 @@ impl Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         debug!("fading-ls initialize.");
-        let has_fading_root = params.workspace_folders.as_ref().is_some_and(|folders| {
-            if folders.len() == 1
-                && let Some(folder) = folders.first()
-            {
-                let path = folder.uri.path().as_str();
+        let fading_home = std::env::var("FADING_HOME").ok();
+        let workspace_path = params
+            .workspace_folders
+            .as_ref()
+            .filter(|folders| folders.len() == 1)
+            .and_then(|folders| folders.first())
+            .map(|folder| folder.uri.path().as_str());
 
-                // Check if FADING_HOME matches workspace path
-                std::env::var("FADING_HOME").is_ok_and(|fading_dir| path == fading_dir)
-            } else {
-                false
-            }
-        });
+        // Activate only when this single-root workspace is exactly FADING_HOME.
+        let is_fading_workspace = match (&fading_home, workspace_path) {
+            (Some(home), Some(path)) => path == home.as_str(),
+            _ => false,
+        };
 
-        if has_fading_root {
+        if is_fading_workspace {
+            debug!("fading-ls activating for workspace: {workspace_path:?}");
+        } else {
+            warn!(
+                "fading-ls not activating: FADING_HOME={fading_home:?}, workspace={workspace_path:?}"
+            );
+        }
+
+        if is_fading_workspace {
             Ok(InitializeResult {
                 server_info: Some(ServerInfo {
                     name: "fading".to_string(),
