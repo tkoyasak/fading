@@ -8,7 +8,7 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      cargo-dependencies:
+      cargo-deps:
         applies-to: version-updates
         update-types:
           - minor
