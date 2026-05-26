@@ -5,20 +5,4 @@
 # Wasm
 **/*.wasm
 
-# Node
-/node_modules
-/apps/*/node_modules
-/apps/*/build
-/apps/*/dist
-
-/apps/*/.wrangler
-/apps/*/.react-router
-.dev.vars*
-!.dev.vars.example
-.env*
-!.env.example
-
 /.claude
-
-/apps/qwik-beta/server
-/apps/qwik-beta/tmp

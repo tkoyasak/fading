@@ -35,7 +35,6 @@ Rust workspace (Edition 2024, MSRV 1.93.0).
 - `crates/cli`: `fading-cli` — CLI binary (open, new, stats, push, get, put, notify, ls commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
-- `apps/web`: Web viewer — Vite + React RSC + Cloudflare Workers
 
 ## Commands
 
@@ -76,30 +75,6 @@ cargo run -p fading-cli -- ls
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 ```
 
-### Web (`apps/web`)
-
-```bash
-bun run dev       # React Router dev server (dev env, local KV)
-bun run build     # dev build → build/server/wrangler.json
-bun run build:prod  # production build → build/server/wrangler.json
-bun run check     # react-router typegen + tsc type check
-bun run release   # production build + wrangler deploy --strict
-bun run types     # Regenerate worker-configuration.d.ts
-
-# dev: preview KV (0d8eec8f81a34da393ee7e7a36712656), workers.dev
-# production: prod KV (d7d628060e0e43d89aeae77dd95160b5), custom domain
-
-# Wrangler environments (wrangler.json has top-level=production, env.dev=dev)
-# - CLOUDFLARE_ENV: Cloudflare Vite plugin uses this at build/dev time to flatten
-#                   wrangler.json → build/server/wrangler.json
-#                   hardcoded in package.json scripts (no .env files)
-# - --env: wrangler CLI uses this directly (e.g. wrangler triggers deploy --env dev)
-
-# Upload dev version (generates preview URL):
-#   bun run build && bun wrangler versions upload
-#   bun wrangler triggers deploy --env dev   # run once to enable workers.dev
-```
-
 ## Key Patterns
 
 ### CLI (`fading-cli`)
@@ -122,15 +97,6 @@ bun run types     # Regenerate worker-configuration.d.ts
 - **Document storage**: `papaya::HashMap` for concurrent access
 - **Text operations**: `crop::Rope` for incremental edits
 - **Parsing**: `tree-sitter-md` for heading analysis
-
-### Web (`apps/web`)
-
-- **Stack**: Vite 8 + React Router 7 (RSC framework mode, experimental) + `@vitejs/plugin-rsc` + Cloudflare Workers
-- **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), custom prose styles in `app/global.css`
-- **Layout**: React Router `app/` convention — `app/root.tsx` (Layout/App/ErrorBoundary), `app/routes.ts` (route table), `app/home.tsx` (`loader` + `ServerComponent` export), `app/viewer.tsx` (`"use client"`)
-- **Wrangler `main`**: `@react-router/dev/config/default-rsc-entries/entry.rsc` — virtual entry resolved by the RR Vite plugin; no hand-written entry files
-- **Data**: Cloudflare KV — `__index` key holds `{keys: string[], commit: string}`; each date key (`YYYYMMDD`) holds markdown content
-- **Rendering**: `marked` parses markdown to HTML on the server; `dangerouslySetInnerHTML` renders it on the client
 
 ## Testing
 
