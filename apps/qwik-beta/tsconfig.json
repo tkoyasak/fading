@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "WebWorker"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "@qwik.dev/core",
+    "types": ["vite/client", "node"],
+    "moduleDetection": "force",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src", "adapters", "worker-configuration.d.ts", "vite.config.ts"]
+}

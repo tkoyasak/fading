@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fading-qwik-beta",
+  "main": "./dist/_worker.js",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "binding": "ASSET",
+    "directory": "./dist",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "d7d628060e0e43d89aeae77dd95160b5",
+    },
+  ],
+  "env": {
+    "dev": {
+      "workers_dev": true,
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "0d8eec8f81a34da393ee7e7a36712656",
+        },
+      ],
+    },
+  },
+}
