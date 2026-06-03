@@ -84,7 +84,7 @@ Days with no content use `<!-- -->` as a placeholder:
 今日は良い日だった．
 ```
 
-The placeholder preserves blank lines when running a Markdown formatter (e.g. oxfmt). Days whose content is only `<!-- -->` are treated as empty and excluded from KV sync.
+The placeholder preserves blank lines when running a Markdown formatter (e.g. oxfmt). Days whose content is only `<!-- -->` are treated as empty.
 
 ## Formatting
 

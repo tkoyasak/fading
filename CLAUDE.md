@@ -26,13 +26,13 @@ modified = 2026-01-15
 
 - **Frontmatter**: TOML enclosed in `+++` — `id` (YYYY-MM, matches filename), `created`, `modified` (auto-updated by LS)
 - **Entries**: Separated by `###### YYYY-MM-DD Day` headings
-- **Empty days**: Use `<!-- -->` as placeholder (preserved by Markdown formatters; excluded from KV sync)
+- **Empty days**: Use `<!-- -->` as placeholder (preserved by Markdown formatters)
 
 ## Repository Structure
 
 Rust workspace (Edition 2024, MSRV 1.93.0).
 
-- `crates/cli`: `fading-cli` — CLI binary (open, new, stats, push, get, put, notify, ls commands)
+- `crates/cli`: `fading-cli` — CLI binary (open, new, stats, get, put, notify, ls commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
 
@@ -43,7 +43,7 @@ Rust workspace (Edition 2024, MSRV 1.93.0).
 Environment variables for CLI commands are managed via [secretspec](https://secretspec.dev). Profiles and vars are defined in `secretspec.toml`.
 
 ```bash
-secretspec run -- cargo run -p fading-cli -- push
+secretspec run -- cargo run -p fading-cli -- put
 ```
 
 The `development` profile covers all `FADING_CLI_*` vars. `FADING_HOME` is not included (set separately).
@@ -65,8 +65,6 @@ cargo run -p fading-cli -- new 2026-04
 cargo run -p fading-cli -- stats
 cargo run -p fading-cli -- stats 2026-04
 cargo run -p fading-cli -- stats 1   # 1 month back
-cargo run -p fading-cli -- push
-cargo run -p fading-cli -- push --full
 cargo run -p fading-cli -- get
 cargo run -p fading-cli -- put
 cargo run -p fading-cli -- notify
@@ -81,13 +79,11 @@ env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
 
 - `xflags` macro generates argument parsing in `src/flags.rs`
 - Commands implement `Cmd` trait: `run(self) -> anyhow::Result<()>`
-- `FADING_HOME` env var is required for `open`, `new`, `push`, `get`, and `put` commands
-- `FADING_CLI_CF_ACCOUNT_ID` env var is required for `push`, `get`, `put` (Cloudflare account ID)
+- `FADING_HOME` env var is required for `open`, `new`, `get`, and `put` commands
+- `FADING_CLI_CF_ACCOUNT_ID` env var is required for `get`, `put` (Cloudflare account ID)
 - `FADING_CLI_R2_BUCKET` env var is required for `get`, `put` (R2 bucket name)
 - `FADING_CLI_R2_ACCESS_KEY_ID` env var is required for `get`, `put` (R2 API token access key)
 - `FADING_CLI_R2_SECRET_ACCESS_KEY` env var is required for `get`, `put` (R2 API token secret key)
-- `FADING_CLI_CF_API_TOKEN` env var is required for `push` (Cloudflare API token)
-- `FADING_CLI_KV_NAMESPACE_ID` env var is required for `push` (KV namespace ID)
 - `FADING_CLI_ENCRYPTION_KEY` env var is required for `get` and `put` (64 hex chars = 32-byte AES-256-GCM key; generate with `openssl rand -hex 32`)
 
 ### Language Server (`fading-ls`)
