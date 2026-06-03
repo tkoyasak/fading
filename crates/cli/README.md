@@ -47,15 +47,6 @@ fading stats 2025-01     # Past year up to 2025-01-31
 
 Activity is scaled by quartile (p25/p50/p75) of character counts across written days.
 
-### `fading push [--full]`
-
-Push entries to Cloudflare KV.
-
-```bash
-fading push          # Differential push (since last synced commit)
-fading push --full   # Full push (ignore last synced commit)
-```
-
 ### `fading get`
 
 Download the git bundle from R2 and fetch into the local repository.
@@ -74,15 +65,13 @@ Start the fading language server.
 
 ## Configuration
 
-| Variable                          | Required             | Description                                                          |
-| --------------------------------- | -------------------- | -------------------------------------------------------------------- |
-| `FADING_HOME`                     | Yes                  | Path to the fading directory                                         |
-| `FADING_CLI_CF_ACCOUNT_ID`        | `push`, `get`, `put` | Cloudflare account ID                                                |
-| `FADING_CLI_R2_BUCKET`            | `get`, `put`         | Cloudflare R2 bucket name                                            |
-| `FADING_CLI_R2_ACCESS_KEY_ID`     | `get`, `put`         | R2 API token access key                                              |
-| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `get`, `put`         | R2 API token secret key                                              |
-| `FADING_CLI_CF_API_TOKEN`         | `push`               | Cloudflare API token                                                 |
-| `FADING_CLI_KV_NAMESPACE_ID`      | `push`               | Cloudflare KV namespace ID                                           |
-| `FADING_CLI_ENCRYPTION_KEY`       | `get`, `put`         | AES-256-GCM key for R2 bundle (64 hex chars; `openssl rand -hex 32`) |
+| Variable                          | Required     | Description                                                          |
+| --------------------------------- | ------------ | -------------------------------------------------------------------- |
+| `FADING_HOME`                     | Yes          | Path to the fading directory                                         |
+| `FADING_CLI_CF_ACCOUNT_ID`        | `get`, `put` | Cloudflare account ID                                                |
+| `FADING_CLI_R2_BUCKET`            | `get`, `put` | Cloudflare R2 bucket name                                            |
+| `FADING_CLI_R2_ACCESS_KEY_ID`     | `get`, `put` | R2 API token access key                                              |
+| `FADING_CLI_R2_SECRET_ACCESS_KEY` | `get`, `put` | R2 API token secret key                                              |
+| `FADING_CLI_ENCRYPTION_KEY`       | `get`, `put` | AES-256-GCM key for R2 bundle (64 hex chars; `openssl rand -hex 32`) |
 
 Entry file location: `${FADING_HOME}/entries/${YYYY-MM}.md`

@@ -388,7 +388,6 @@ dependencies = [
  "fading-ls",
  "jiff",
  "mac-notification-sys",
- "nojson",
  "pulldown-cmark",
  "shiguredo_s3",
  "tokio",
@@ -947,12 +946,6 @@ dependencies = [
  "adler2",
  "simd-adler32",
 ]
-
-[[package]]
-name = "nojson"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a90a4644cecb7a8b61107b516e815559a7b973ff90541a9481b7f15fd880bff"
 
 [[package]]
 name = "num-conv"

@@ -1,6 +1,5 @@
 mod crypto;
 mod entry;
-mod kv;
 mod ls;
 mod month;
 mod new;
@@ -29,12 +28,6 @@ xflags::xflags! {
         cmd stats {
             /// today (default), N months back, or YYYY-MM
             optional month: String
-        }
-
-        /// Push entries to KV
-        cmd push {
-            /// Push all entries, ignoring last synced commit
-            optional -f, --full
         }
 
         /// Download the git bundle from R2
@@ -86,14 +79,6 @@ impl Ctx {
     pub fn encryption_key(&self) -> anyhow::Result<String> {
         Ok(self.sh.var("FADING_CLI_ENCRYPTION_KEY")?)
     }
-
-    pub fn cf_api_token(&self) -> anyhow::Result<String> {
-        Ok(self.sh.var("FADING_CLI_CF_API_TOKEN")?)
-    }
-
-    pub fn kv_namespace_id(&self) -> anyhow::Result<String> {
-        Ok(self.sh.var("FADING_CLI_KV_NAMESPACE_ID")?)
-    }
 }
 
 pub trait Cmd {
@@ -107,7 +92,6 @@ fn cmd_run() -> anyhow::Result<()> {
         FadingCmd::Open(open) => open.run(ctx),
         FadingCmd::New(new) => new.run(ctx),
         FadingCmd::Stats(stats) => stats.run(ctx),
-        FadingCmd::Push(push) => push.run(ctx),
         FadingCmd::Get(get) => get.run(ctx),
         FadingCmd::Put(put) => put.run(ctx),
         FadingCmd::Notify(notify) => notify.run(ctx),
