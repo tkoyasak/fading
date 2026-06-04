@@ -92,115 +92,11 @@ fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)>
         .collect()
 }
 
-/// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
-const CELLS: [&str; 5] = [
-    "\x1b[38;2;70;70;70m·\x1b[0m",
-    "\x1b[38;2;190;120;80m░\x1b[0m",
-    "\x1b[38;2;210;105;60m▒\x1b[0m",
-    "\x1b[38;2;220;90;45m▓\x1b[0m",
-    "\x1b[38;2;225;70;30m█\x1b[0m",
-];
-
-/// One grid column: Monday..Sunday, `None` for days outside the window.
-type Week = [Option<Date>; 7];
-
-/// Activity scale derived from quartiles of the written days' character counts.
-struct Scale {
-    p25: usize,
-    p50: usize,
-    p75: usize,
-}
-
-impl Scale {
-    fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
-        if char_counts.is_empty() {
-            return Self {
-                p25: 0,
-                p50: 0,
-                p75: 0,
-            };
-        }
-
-        let mut values: Vec<usize> = char_counts.values().copied().collect();
-        values.sort_unstable();
-
-        let pct = |p: f64| -> usize {
-            let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
-            values[i]
-        };
-
-        Self {
-            p25: pct(0.25),
-            p50: pct(0.50),
-            p75: pct(0.75),
-        }
-    }
-
-    /// The pre-styled cell for a day of `size` chars, banded as 0 = no activity
-    /// then the p25/p50/p75 quartiles (levels 1..=4).
-    fn cell(&self, size: usize) -> &'static str {
-        if size == 0 {
-            CELLS[0]
-        } else if size <= self.p25 {
-            CELLS[1]
-        } else if size <= self.p50 {
-            CELLS[2]
-        } else if size <= self.p75 {
-            CELLS[3]
-        } else {
-            CELLS[4]
-        }
-    }
-}
-
-/// Build the weekly columns spanning `from..=to`, starting on the Monday of the
-/// week containing `from`. Two trailing empty weeks are appended so a month
-/// label at the last column is never truncated.
-fn build_weeks(from: Date, to: Date) -> Result<Vec<Week>> {
-    let week_start_offset = from.weekday().to_monday_zero_offset() as i64;
-    let mut col_start = from
-        .checked_sub(week_start_offset.days())
-        .context("grid start date arithmetic")?;
-
-    let mut weeks = Vec::new();
-    loop {
-        let mut week: Week = [None; 7];
-        for (i, slot) in week.iter_mut().enumerate() {
-            let day = col_start
-                .checked_add((i as i64).days())
-                .context("day offset arithmetic")?;
-            if day >= from && day <= to {
-                *slot = Some(day);
-            }
-        }
-        weeks.push(week);
-        let week_end = col_start
-            .checked_add(6.days())
-            .context("week end arithmetic")?;
-        if week_end >= to {
-            break;
-        }
-        col_start = col_start
-            .checked_add(7.days())
-            .context("next week arithmetic")?;
-    }
-    weeks.push([None; 7]);
-    weeks.push([None; 7]);
-    Ok(weeks)
-}
-
-/// A character per week column, labeling each column that holds the 1st of a
-/// month with its 3-letter abbreviation (blank-padded elsewhere).
-fn month_label_row(weeks: &[Week]) -> Vec<char> {
-    let mut row = vec![' '; weeks.len()];
-    for (i, week) in weeks.iter().enumerate() {
-        if let Some(d) = week.iter().find_map(|d| d.filter(|d| d.day() == 1)) {
-            for (j, ch) in month_abbr(d.month()).chars().enumerate() {
-                row[i + j] = ch;
-            }
-        }
-    }
-    row
+fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
+    let grid = Grid::new(char_counts, from, to)?;
+    let mut out = io::stdout().lock();
+    write!(out, "{grid}").context("failed to write to stdout")?;
+    Ok(())
 }
 
 /// The contribution calendar for one window, renderable via [`fmt::Display`].
@@ -277,11 +173,57 @@ impl fmt::Display for Grid<'_> {
     }
 }
 
-fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
-    let grid = Grid::new(char_counts, from, to)?;
-    let mut out = io::stdout().lock();
-    write!(out, "{grid}").context("failed to write to stdout")?;
-    Ok(())
+/// One grid column: Monday..Sunday, `None` for days outside the window.
+type Week = [Option<Date>; 7];
+
+/// Build the weekly columns spanning `from..=to`, starting on the Monday of the
+/// week containing `from`. Two trailing empty weeks are appended so a month
+/// label at the last column is never truncated.
+fn build_weeks(from: Date, to: Date) -> Result<Vec<Week>> {
+    let week_start_offset = from.weekday().to_monday_zero_offset() as i64;
+    let mut col_start = from
+        .checked_sub(week_start_offset.days())
+        .context("grid start date arithmetic")?;
+
+    let mut weeks = Vec::new();
+    loop {
+        let mut week: Week = [None; 7];
+        for (i, slot) in week.iter_mut().enumerate() {
+            let day = col_start
+                .checked_add((i as i64).days())
+                .context("day offset arithmetic")?;
+            if day >= from && day <= to {
+                *slot = Some(day);
+            }
+        }
+        weeks.push(week);
+        let week_end = col_start
+            .checked_add(6.days())
+            .context("week end arithmetic")?;
+        if week_end >= to {
+            break;
+        }
+        col_start = col_start
+            .checked_add(7.days())
+            .context("next week arithmetic")?;
+    }
+    weeks.push([None; 7]);
+    weeks.push([None; 7]);
+    Ok(weeks)
+}
+
+/// A character per week column, labeling each column that holds the 1st of a
+/// month with its 3-letter abbreviation (blank-padded elsewhere).
+fn month_label_row(weeks: &[Week]) -> Vec<char> {
+    let mut row = vec![' '; weeks.len()];
+    for (i, week) in weeks.iter().enumerate() {
+        if let Some(d) = week.iter().find_map(|d| d.filter(|d| d.day() == 1)) {
+            for (j, ch) in month_abbr(d.month()).chars().enumerate() {
+                row[i + j] = ch;
+            }
+        }
+    }
+    row
 }
 
 fn month_abbr(month: i8) -> &'static str {
@@ -299,6 +241,64 @@ fn month_abbr(month: i8) -> &'static str {
         11 => "Nov",
         12 => "Dec",
         _ => "???",
+    }
+}
+
+/// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
+const CELLS: [&str; 5] = [
+    "\x1b[38;2;70;70;70m·\x1b[0m",
+    "\x1b[38;2;190;120;80m░\x1b[0m",
+    "\x1b[38;2;210;105;60m▒\x1b[0m",
+    "\x1b[38;2;220;90;45m▓\x1b[0m",
+    "\x1b[38;2;225;70;30m█\x1b[0m",
+];
+
+/// Activity scale derived from quartiles of the written days' character counts.
+struct Scale {
+    p25: usize,
+    p50: usize,
+    p75: usize,
+}
+
+impl Scale {
+    fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
+        if char_counts.is_empty() {
+            return Self {
+                p25: 0,
+                p50: 0,
+                p75: 0,
+            };
+        }
+
+        let mut values: Vec<usize> = char_counts.values().copied().collect();
+        values.sort_unstable();
+
+        let pct = |p: f64| -> usize {
+            let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
+            values[i]
+        };
+
+        Self {
+            p25: pct(0.25),
+            p50: pct(0.50),
+            p75: pct(0.75),
+        }
+    }
+
+    /// The pre-styled cell for a day of `size` chars, banded as 0 = no activity
+    /// then the p25/p50/p75 quartiles (levels 1..=4).
+    fn cell(&self, size: usize) -> &'static str {
+        if size == 0 {
+            CELLS[0]
+        } else if size <= self.p25 {
+            CELLS[1]
+        } else if size <= self.p50 {
+            CELLS[2]
+        } else if size <= self.p75 {
+            CELLS[3]
+        } else {
+            CELLS[4]
+        }
     }
 }
 
