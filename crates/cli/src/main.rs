@@ -1,7 +1,7 @@
+mod arg;
 mod crypto;
 mod entry;
 mod ls;
-mod month;
 mod new;
 mod notify;
 mod open;
@@ -15,19 +15,19 @@ xflags::xflags! {
         /// Open an entry in Helix
         cmd open {
             /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
-            optional month: String
+            optional when: String
         }
 
         /// Create a new monthly entry
         cmd new {
             /// this month (default), N months back, or YYYY-MM
-            optional month: String
+            optional when: String
         }
 
         /// Show a contribution calendar for the past year
         cmd stats {
             /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
-            optional month: String
+            optional when: String
         }
 
         /// Download the git bundle from R2

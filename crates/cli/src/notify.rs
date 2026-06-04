@@ -18,7 +18,7 @@ impl Cmd for Notify {
             .send()?;
 
         if let NotificationResponse::ActionButton(_) = response {
-            Open { month: None }.run(ctx)?;
+            Open { when: None }.run(ctx)?;
         }
 
         Ok(())
