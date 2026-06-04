@@ -3,12 +3,12 @@ use std::fmt::Write;
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 
-use crate::{Cmd, Ctx, New, month::parse_month};
+use crate::{Cmd, Ctx, New, month::Arg};
 
 impl Cmd for New {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let id = parse_month(self.month.as_deref())?;
+        let id = Arg::classify(self.month.as_deref())?.new_month()?;
         let path = format!("entries/{id}.md");
 
         if sh.path_exists(&path) {

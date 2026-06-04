@@ -1,27 +1,15 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use jiff::{ToSpan, Zoned, civil::Date};
+use jiff::{ToSpan, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Ctx, Stats, month::parse_month};
+use crate::{Cmd, Ctx, Stats, month::Arg};
 
 impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let id = parse_month(self.month.as_deref())?;
-        let today = Zoned::now().date();
-        let to = if self.month.is_none() {
-            today
-        } else {
-            let last: Date = format!("{id}-01").parse().context("date parse")?;
-            let last = last
-                .checked_add(1.months())
-                .context("date arithmetic")?
-                .checked_sub(1.days())
-                .context("date arithmetic")?;
-            last.min(today)
-        };
+        let to = Arg::classify(self.month.as_deref())?.stats_to()?;
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
         let char_counts = find_char_counts(&sh, from, to)?;

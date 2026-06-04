@@ -1,29 +1,28 @@
 use anyhow::{Context, Result, bail};
-use jiff::Zoned;
+use jiff::civil::Date;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Ctx, Open, month::parse_month};
+use crate::{Cmd, Ctx, Open, month::Arg};
 
 impl Cmd for Open {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let id = parse_month(self.month.as_deref())?;
+        let date = Arg::classify(self.month.as_deref())?.open_date()?;
+        let id = date.strftime("%Y-%m");
         let path = format!("entries/{id}.md");
 
         if !sh.path_exists(&path) {
             bail!("File not found: {path}");
         }
 
-        let jump_to_today = matches!(self.month.as_deref(), None | Some("today"));
-        let line = jump_to_today.then(|| find_today_line(&sh, &path)).flatten();
+        let line = find_date_line(&sh, &path, date);
         open_in_ghostty(&sh, &path, line)
     }
 }
 
-/// Find the 1-indexed line number of today's heading in the file, if present.
-fn find_today_line(sh: &Shell, path: &str) -> Option<usize> {
-    let today = Zoned::now().strftime("%Y-%m-%d").to_string();
-    let prefix = format!("###### {today}");
+/// Find the 1-indexed line number of the given date's heading in the file, if present.
+fn find_date_line(sh: &Shell, path: &str, date: Date) -> Option<usize> {
+    let prefix = format!("###### {}", date.strftime("%Y-%m-%d"));
     let content = sh.read_file(path).ok()?;
     content
         .lines()

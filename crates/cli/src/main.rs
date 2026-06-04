@@ -14,19 +14,19 @@ xflags::xflags! {
 
         /// Open an entry in Helix
         cmd open {
-            /// today (default), N months back, or YYYY-MM
+            /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
             optional month: String
         }
 
         /// Create a new monthly entry
         cmd new {
-            /// today (default), N months back, or YYYY-MM
+            /// this month (default), N months back, or YYYY-MM
             optional month: String
         }
 
         /// Show a contribution calendar for the past year
         cmd stats {
-            /// today (default), N months back, or YYYY-MM
+            /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
             optional month: String
         }
 
