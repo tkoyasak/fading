@@ -2,12 +2,12 @@ use anyhow::{Context, Result, bail};
 use jiff::civil::Date;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Ctx, Open, arg::Arg};
+use crate::{Cmd, Ctx, Open, arg::When};
 
 impl Cmd for Open {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let date = Arg::classify(self.when.as_deref())?.open_date()?;
+        let date = self.when.unwrap_or(When::Now).open_date()?;
         let id = date.strftime("%Y-%m");
         let path = format!("entries/{id}.md");
 

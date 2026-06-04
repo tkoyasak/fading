@@ -8,6 +8,8 @@ mod open;
 mod r2;
 mod stats;
 
+use arg::When;
+
 xflags::xflags! {
     /// CLI for the `fading` language
     cmd fading {
@@ -15,19 +17,19 @@ xflags::xflags! {
         /// Open an entry in Helix
         cmd open {
             /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
-            optional when: String
+            optional when: When
         }
 
         /// Create a new monthly entry
         cmd new {
             /// this month (default), N months back, or YYYY-MM
-            optional when: String
+            optional when: When
         }
 
         /// Show a contribution calendar for the past year
         cmd stats {
             /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
-            optional when: String
+            optional when: When
         }
 
         /// Download the git bundle from R2

@@ -4,12 +4,12 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Ctx, Stats, arg::Arg};
+use crate::{Cmd, Ctx, Stats, arg::When};
 
 impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let to = Arg::classify(self.when.as_deref())?.stats_to()?;
+        let to = self.when.unwrap_or(When::Now).stats_to()?;
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
         let char_counts = find_char_counts(&sh, from, to)?;
