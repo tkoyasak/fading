@@ -16,9 +16,9 @@ Open a fading entry file in Helix editor.
 
 ```bash
 fading open              # Current month, jump to today's heading
-fading open today        # Current month, jump to today's heading
-fading open 12           # 12 months in the past
-fading open 2025-01      # Specific month
+fading open 12           # 12 months back, jump to the 1st
+fading open 2025-01      # Specific month, jump to the 1st
+fading open 2025-01-15   # Specific date, jump to that heading
 ```
 
 ### `fading new [month]`
@@ -27,12 +27,11 @@ Create a new monthly entry file.
 
 ```bash
 fading new              # Current month
-fading new today        # Current month
-fading new 12           # 12 months in the past
+fading new 12           # 12 months back
 fading new 2025-01      # Specific month
 ```
 
-Idempotent — skips if the entry already exists.
+Idempotent — skips if the entry already exists. A date (`YYYY-MM-DD`) is rejected.
 
 ### `fading stats [month]`
 
@@ -40,9 +39,9 @@ Show a contribution calendar for the past 365 days of journal writing activity.
 
 ```bash
 fading stats             # Past year up to today
-fading stats today       # Past year up to today
-fading stats 1           # Past year up to 1 month in the past
+fading stats 1           # Past year up to the end of last month
 fading stats 2025-01     # Past year up to 2025-01-31
+fading stats 2025-01-15  # Past year up to 2025-01-15
 ```
 
 Activity is scaled by quartile (p25/p50/p75) of character counts across written days.
