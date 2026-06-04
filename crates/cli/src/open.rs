@@ -2,24 +2,12 @@ use anyhow::{Context, Result, bail};
 use jiff::civil::Date;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Ctx, Open, When};
-
-impl When {
-    /// Resolve to the date `open` opens to and jumps to.
-    fn open_date(&self) -> Result<Date> {
-        Ok(match self {
-            When::Now => crate::flags::today(),
-            When::MonthsBack(n) => crate::flags::months_back(*n)?.first_of_month(),
-            When::Month(date) => *date,
-            When::Day(date) => *date,
-        })
-    }
-}
+use crate::{Cmd, Ctx, Open, When, flags};
 
 impl Cmd for Open {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let date = self.when.unwrap_or(When::Now).open_date()?;
+        let date = self.when.unwrap_or_default().open_date()?;
         let id = date.strftime("%Y-%m");
         let path = format!("entries/{id}.md");
 
@@ -29,6 +17,18 @@ impl Cmd for Open {
 
         let line = find_date_line(&sh, &path, date);
         open_in_ghostty(&sh, &path, line)
+    }
+}
+
+impl When {
+    /// Resolve to the date `open` opens to and jumps to.
+    fn open_date(&self) -> Result<Date> {
+        Ok(match self {
+            When::Now => flags::today(),
+            When::MonthsBack(n) => flags::months_back(*n)?.first_of_month(),
+            When::Month(date) => *date,
+            When::Day(date) => *date,
+        })
     }
 }
 

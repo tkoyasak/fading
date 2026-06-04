@@ -44,9 +44,10 @@ xflags::xflags! {
 /// An explicit argument is parsed via [`FromStr`]; its absence is treated as
 /// [`When::Now`] by each command. A bare number is always an offset in months,
 /// never a year — e.g. `2026` means 2026 months back, not the year 2026.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) enum When {
     /// No argument — today / the current month.
+    #[default]
     Now,
     /// `N` — N months back.
     MonthsBack(i64),

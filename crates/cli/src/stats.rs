@@ -4,30 +4,30 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Ctx, Stats, When};
-
-impl When {
-    /// Resolve to the end date of the one-year window `stats` renders.
-    fn stats_to(&self) -> Result<Date> {
-        let today = crate::flags::today();
-        let to = match self {
-            When::Now => today,
-            When::MonthsBack(n) => crate::flags::months_back(*n)?.last_of_month(),
-            When::Month(date) => date.last_of_month(),
-            When::Day(date) => *date,
-        };
-        Ok(to.min(today))
-    }
-}
+use crate::{Cmd, Ctx, Stats, When, flags};
 
 impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let to = self.when.unwrap_or(When::Now).stats_to()?;
+        let to = self.when.unwrap_or_default().stats_to()?;
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
         let char_counts = find_char_counts(&sh, from, to)?;
         render_grid(&char_counts, from, to)
+    }
+}
+
+impl When {
+    /// Resolve to the end date of the one-year window `stats` renders.
+    fn stats_to(&self) -> Result<Date> {
+        let today = flags::today();
+        let to = match self {
+            When::Now => today,
+            When::MonthsBack(n) => flags::months_back(*n)?.last_of_month(),
+            When::Month(date) => date.last_of_month(),
+            When::Day(date) => *date,
+        };
+        Ok(to.min(today))
     }
 }
 

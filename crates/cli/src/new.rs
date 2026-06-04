@@ -3,25 +3,12 @@ use std::fmt::Write;
 use anyhow::{Context, Result, bail};
 use jiff::{ToSpan, Zoned, civil::Date};
 
-use crate::{Cmd, Ctx, New, When};
-
-impl When {
-    /// Resolve to the `YYYY-MM` month `new` creates. A date is rejected.
-    fn new_month(&self) -> Result<String> {
-        let date = match self {
-            When::Now => crate::flags::today(),
-            When::MonthsBack(n) => crate::flags::months_back(*n)?,
-            When::Month(date) => *date,
-            When::Day(_) => bail!("`new` takes a month (YYYY-MM), not a date"),
-        };
-        Ok(date.strftime("%Y-%m").to_string())
-    }
-}
+use crate::{Cmd, Ctx, New, When, flags};
 
 impl Cmd for New {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
-        let id = self.when.unwrap_or(When::Now).new_month()?;
+        let id = self.when.unwrap_or_default().new_month()?;
         let path = format!("entries/{id}.md");
 
         if sh.path_exists(&path) {
@@ -36,6 +23,19 @@ impl Cmd for New {
         sh.write_file(&path, &content)?;
         println!("Created entry: {}", sh.current_dir().join(&path).display());
         Ok(())
+    }
+}
+
+impl When {
+    /// Resolve to the `YYYY-MM` month `new` creates. A date is rejected.
+    fn new_month(&self) -> Result<String> {
+        let date = match self {
+            When::Now => flags::today(),
+            When::MonthsBack(n) => flags::months_back(*n)?,
+            When::Month(date) => *date,
+            When::Day(_) => bail!("`new` takes a month (YYYY-MM), not a date"),
+        };
+        Ok(date.strftime("%Y-%m").to_string())
     }
 }
 

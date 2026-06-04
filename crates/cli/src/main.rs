@@ -8,7 +8,7 @@ mod open;
 mod r2;
 mod stats;
 
-pub(crate) use flags::*;
+use flags::*;
 
 pub struct Ctx {
     pub sh: xshell::Shell,
