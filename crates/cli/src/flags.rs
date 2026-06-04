@@ -3,6 +3,42 @@ use std::str::FromStr;
 use anyhow::{Context, Result, anyhow, bail};
 use jiff::{ToSpan, Zoned, civil::Date};
 
+xflags::xflags! {
+    /// CLI for the `fading` language
+    cmd fading {
+
+        /// Open an entry in Helix
+        cmd open {
+            /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
+            optional when: When
+        }
+
+        /// Create a new monthly entry
+        cmd new {
+            /// this month (default), N months back, or YYYY-MM
+            optional when: When
+        }
+
+        /// Show a contribution calendar for the past year
+        cmd stats {
+            /// today (default), N months back, YYYY-MM, or YYYY-MM-DD
+            optional when: When
+        }
+
+        /// Download the git bundle from R2
+        cmd get {}
+
+        /// Upload the git bundle to R2
+        cmd put {}
+
+        /// Send a time notification
+        cmd notify {}
+
+        /// Start the language server
+        cmd ls {}
+    }
+}
+
 /// Parsed form of the optional argument shared by `open`, `new`, and `stats`.
 ///
 /// An explicit argument is parsed via [`FromStr`]; its absence is treated as

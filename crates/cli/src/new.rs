@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::{Context, Result};
 use jiff::{ToSpan, Zoned, civil::Date};
 
-use crate::{Cmd, Ctx, New, arg::When};
+use crate::{Cmd, Ctx, New, When};
 
 impl Cmd for New {
     fn run(self, ctx: Ctx) -> Result<()> {

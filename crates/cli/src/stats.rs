@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use jiff::{ToSpan, civil::Date};
 use xshell::Shell;
 
-use crate::{Cmd, Ctx, Stats, arg::When};
+use crate::{Cmd, Ctx, Stats, When};
 
 impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {

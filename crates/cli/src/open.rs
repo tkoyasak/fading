@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use jiff::civil::Date;
 use xshell::{Shell, cmd};
 
-use crate::{Cmd, Ctx, Open, arg::When};
+use crate::{Cmd, Ctx, Open, When};
 
 impl Cmd for Open {
     fn run(self, ctx: Ctx) -> Result<()> {
