@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use jiff::{ToSpan, civil::Date};
 use xshell::Shell;
 
@@ -63,10 +63,7 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
             .collect();
         handles
             .into_iter()
-            .map(|h| {
-                h.join()
-                    .unwrap_or_else(|_| Err(anyhow::anyhow!("thread panicked")))
-            })
+            .map(|h| h.join().unwrap_or_else(|_| bail!("thread panicked")))
             .collect()
     });
 
@@ -93,79 +90,93 @@ fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)>
         .collect()
 }
 
-fn activity_level(size: usize, p25: usize, p50: usize, p75: usize) -> u8 {
-    if size == 0 {
-        0
-    } else if size <= p25 {
-        1
-    } else if size <= p50 {
-        2
-    } else if size <= p75 {
-        3
-    } else {
-        4
+const RESET: &str = "\x1b[0m";
+const DIM: &str = "\x1b[38;2;130;130;130m";
+/// Activity level colors (orange gradient), level 1..=4.
+const COLORS: [&str; 4] = [
+    "\x1b[38;2;190;120;80m",
+    "\x1b[38;2;210;105;60m",
+    "\x1b[38;2;220;90;45m",
+    "\x1b[38;2;225;70;30m",
+];
+/// Color for zero-activity (level 0) days.
+const INACTIVE: &str = "\x1b[38;2;70;70;70m";
+/// Cell glyph per activity level 0..=4.
+const CELLS: [&str; 5] = ["·", "░", "▒", "▓", "█"];
+
+/// One grid column: Monday..Sunday, `None` for days outside the window.
+type Week = [Option<Date>; 7];
+
+/// Activity scale derived from quartiles of the written days' character counts.
+struct Scale {
+    p25: usize,
+    p50: usize,
+    p75: usize,
+}
+
+impl Scale {
+    fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
+        let mut values: Vec<usize> = char_counts.values().copied().collect();
+        values.sort_unstable();
+        let pct = |p: f64| -> usize {
+            if values.is_empty() {
+                return 0;
+            }
+            let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
+            values[i]
+        };
+        Self {
+            p25: pct(0.25),
+            p50: pct(0.50),
+            p75: pct(0.75),
+        }
+    }
+
+    /// 0 = no activity, 1..=4 = increasing quartile bands.
+    fn level(&self, size: usize) -> u8 {
+        if size == 0 {
+            0
+        } else if size <= self.p25 {
+            1
+        } else if size <= self.p50 {
+            2
+        } else if size <= self.p75 {
+            3
+        } else {
+            4
+        }
+    }
+
+    fn cell(&self, size: usize) -> &'static str {
+        CELLS[self.level(size) as usize]
+    }
+
+    fn color(&self, size: usize) -> &'static str {
+        match self.level(size) {
+            0 => INACTIVE,
+            level => COLORS[(level - 1) as usize],
+        }
     }
 }
 
-fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
-    const R: &str = "\x1b[0m";
-    const DIM: &str = "\x1b[38;2;130;130;130m";
-    // Activity level colors (orange gradient)
-    const C: [&str; 4] = [
-        "\x1b[38;2;190;120;80m",
-        "\x1b[38;2;210;105;60m",
-        "\x1b[38;2;220;90;45m",
-        "\x1b[38;2;225;70;30m",
-    ];
-    // Inactive
-    const CDOT: &str = "\x1b[38;2;70;70;70m";
-    const CELLS: [&str; 5] = ["·", "░", "▒", "▓", "█"];
-
-    println!(
-        "  {DIM}{} –> {}{R}",
-        from.strftime("%Y-%m-%d"),
-        to.strftime("%Y-%m-%d")
-    );
-    println!();
-
-    // Compute quartile thresholds from written days
-    let mut values: Vec<usize> = char_counts.values().copied().collect();
-    values.sort_unstable();
-    let pct = |p: f64| -> usize {
-        if values.is_empty() {
-            return 0;
-        }
-        let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
-        values[i]
-    };
-    let (p25, p50, p75) = (pct(0.25), pct(0.50), pct(0.75));
-
-    let cell = |size: usize| CELLS[activity_level(size, p25, p50, p75) as usize];
-    let color = |size: usize| {
-        let level = activity_level(size, p25, p50, p75);
-        if level == 0 {
-            CDOT
-        } else {
-            C[(level - 1) as usize]
-        }
-    };
-
-    // Start at Monday of the week containing `from`
+/// Build the weekly columns spanning `from..=to`, starting on the Monday of the
+/// week containing `from`. Two trailing empty weeks are appended so a month
+/// label at the last column is never truncated.
+fn build_weeks(from: Date, to: Date) -> Result<Vec<Week>> {
     let week_start_offset = from.weekday().to_monday_zero_offset() as i64;
-    let grid_start = from
+    let mut col_start = from
         .checked_sub(week_start_offset.days())
         .context("grid start date arithmetic")?;
 
-    let mut weeks: Vec<[Option<Date>; 7]> = Vec::new();
-    let mut col_start = grid_start;
+    let mut weeks = Vec::new();
     loop {
-        let mut week = [None; 7];
-        for i in 0..7i64 {
+        let mut week: Week = [None; 7];
+        for (i, slot) in week.iter_mut().enumerate() {
             let day = col_start
-                .checked_add(i.days())
+                .checked_add((i as i64).days())
                 .context("day offset arithmetic")?;
             if day >= from && day <= to {
-                week[i as usize] = Some(day);
+                *slot = Some(day);
             }
         }
         weeks.push(week);
@@ -179,34 +190,53 @@ fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Resu
             .checked_add(7.days())
             .context("next week arithmetic")?;
     }
-    // Two trailing empty weeks so a month name at the last column is never truncated.
     weeks.push([None; 7]);
     weeks.push([None; 7]);
+    Ok(weeks)
+}
 
-    // Month labels row — place 3-char abbr at the week column containing the 1st of each month.
-    let mut label_row = vec![' '; weeks.len()];
+/// A character per week column, labeling each column that holds the 1st of a
+/// month with its 3-letter abbreviation (blank-padded elsewhere).
+fn month_label_row(weeks: &[Week]) -> Vec<char> {
+    let mut row = vec![' '; weeks.len()];
     for (i, week) in weeks.iter().enumerate() {
         if let Some(d) = week.iter().find_map(|d| d.filter(|d| d.day() == 1)) {
             for (j, ch) in month_abbr(d.month()).chars().enumerate() {
-                label_row[i + j] = ch;
+                row[i + j] = ch;
             }
         }
     }
+    row
+}
+
+fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
+    let scale = Scale::from_counts(char_counts);
+    let weeks = build_weeks(from, to)?;
+
+    // Header
+    println!(
+        "  {DIM}{} –> {}{RESET}",
+        from.strftime("%Y-%m-%d"),
+        to.strftime("%Y-%m-%d")
+    );
+    println!();
+
+    // Month labels row
     print!("      ");
-    for ch in &label_row {
-        print!("{DIM}{ch}{R}");
+    for ch in month_label_row(&weeks) {
+        print!("{DIM}{ch}{RESET}");
     }
     println!();
 
     // Day rows: Mon(0)..Sun(6), all labeled
     let day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    for row in 0..7usize {
-        print!("  {DIM}{}{R} ", day_labels[row]);
+    for (row, label) in day_labels.iter().enumerate() {
+        print!("  {DIM}{label}{RESET} ");
         for week in &weeks {
             match week[row] {
                 Some(d) => {
                     let size = char_counts.get(&d).copied().unwrap_or(0);
-                    print!("{}{}{R}", color(size), cell(size));
+                    print!("{}{}{RESET}", scale.color(size), scale.cell(size));
                 }
                 None => print!(" "),
             }
@@ -215,15 +245,15 @@ fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Resu
     }
 
     // Legend + summary
-    let total_days = (from.series(1.days())).take_while(|d| *d <= to).count();
+    let total_days = from.series(1.days()).take_while(|d| *d <= to).count();
     let written_days = char_counts.len();
     println!();
     println!(
-        "      {DIM}Less{R} {}░{R} {}▒{R} {}▓{R} {}█{R} {DIM}More{R}",
-        C[0], C[1], C[2], C[3]
+        "      {DIM}Less{RESET} {}░{RESET} {}▒{RESET} {}▓{RESET} {}█{RESET} {DIM}More{RESET}",
+        COLORS[0], COLORS[1], COLORS[2], COLORS[3]
     );
     println!();
-    println!("  {DIM}{written_days} / {total_days} days written{R}");
+    println!("  {DIM}{written_days} / {total_days} days written{RESET}");
     Ok(())
 }
 
@@ -335,19 +365,49 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
-    #[test]
-    fn activity_level_zero() {
-        assert_eq!(activity_level(0, 10, 20, 30), 0);
+    fn scale(p25: usize, p50: usize, p75: usize) -> Scale {
+        Scale { p25, p50, p75 }
     }
 
     #[test]
-    fn activity_level_boundaries() {
-        assert_eq!(activity_level(10, 10, 20, 30), 1); // exactly p25
-        assert_eq!(activity_level(11, 10, 20, 30), 2); // between p25 and p50
-        assert_eq!(activity_level(20, 10, 20, 30), 2); // exactly p50
-        assert_eq!(activity_level(21, 10, 20, 30), 3); // between p50 and p75
-        assert_eq!(activity_level(30, 10, 20, 30), 3); // exactly p75
-        assert_eq!(activity_level(31, 10, 20, 30), 4); // above p75
+    fn scale_level_zero() {
+        assert_eq!(scale(10, 20, 30).level(0), 0);
+    }
+
+    #[test]
+    fn scale_level_boundaries() {
+        let s = scale(10, 20, 30);
+        assert_eq!(s.level(10), 1); // exactly p25
+        assert_eq!(s.level(11), 2); // between p25 and p50
+        assert_eq!(s.level(20), 2); // exactly p50
+        assert_eq!(s.level(21), 3); // between p50 and p75
+        assert_eq!(s.level(30), 3); // exactly p75
+        assert_eq!(s.level(31), 4); // above p75
+    }
+
+    #[test]
+    fn scale_from_empty_counts_is_zero() {
+        let s = Scale::from_counts(&HashMap::new());
+        assert_eq!((s.p25, s.p50, s.p75), (0, 0, 0));
+    }
+
+    #[test]
+    fn build_weeks_single_week_plus_trailing_empties() {
+        // Mon 2026-01-05 .. Sun 2026-01-11
+        let weeks = build_weeks(date(2026, 1, 5), date(2026, 1, 11)).unwrap();
+        assert_eq!(weeks.len(), 3); // 1 real week + 2 trailing empty
+        assert_eq!(weeks[0][0], Some(date(2026, 1, 5)));
+        assert_eq!(weeks[0][6], Some(date(2026, 1, 11)));
+        assert!(weeks[1].iter().all(Option::is_none));
+        assert!(weeks[2].iter().all(Option::is_none));
+    }
+
+    #[test]
+    fn month_label_row_places_abbr_at_first_of_month() {
+        // 2026-01-01 (Thu) — its week column is the first, so "Jan" starts at col 0.
+        let weeks = build_weeks(date(2026, 1, 1), date(2026, 1, 7)).unwrap();
+        let row = month_label_row(&weeks);
+        assert_eq!(&row[0..3], ['J', 'a', 'n']);
     }
 
     #[test]
