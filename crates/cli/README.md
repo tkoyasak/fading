@@ -27,7 +27,7 @@ Create a new monthly entry file.
 
 ```bash
 fading new              # Current month
-fading new 12           # 12 months in the past
+fading new 12           # 12 months back
 fading new 2025-01      # Specific month
 ```
 
