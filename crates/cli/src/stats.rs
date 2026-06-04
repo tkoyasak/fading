@@ -92,8 +92,6 @@ fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)>
         .collect()
 }
 
-const RESET: &str = "\x1b[0m";
-const DIM: &str = "\x1b[38;2;130;130;130m";
 /// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
 const CELLS: [&str; 5] = [
     "\x1b[38;2;70;70;70m·\x1b[0m",
@@ -231,7 +229,7 @@ impl fmt::Display for Grid<'_> {
         // Header
         writeln!(
             f,
-            "  {DIM}{} –> {}{RESET}",
+            "  {} –> {}",
             self.from.strftime("%Y-%m-%d"),
             self.to.strftime("%Y-%m-%d")
         )?;
@@ -240,14 +238,14 @@ impl fmt::Display for Grid<'_> {
         // Month labels row
         f.write_str("      ")?;
         for ch in month_label_row(&self.weeks) {
-            write!(f, "{DIM}{ch}{RESET}")?;
+            write!(f, "{ch}")?;
         }
         writeln!(f)?;
 
         // Day rows: Mon(0)..Sun(6), all labeled
         let day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         for (row, label) in day_labels.iter().enumerate() {
-            write!(f, "  {DIM}{label}{RESET} ")?;
+            write!(f, "  {label} ")?;
             for week in &self.weeks {
                 match week[row] {
                     Some(d) => {
@@ -270,14 +268,11 @@ impl fmt::Display for Grid<'_> {
         writeln!(f)?;
         writeln!(
             f,
-            "      {DIM}Less{RESET} {} {} {} {} {DIM}More{RESET}",
+            "      Less {} {} {} {} More",
             CELLS[1], CELLS[2], CELLS[3], CELLS[4]
         )?;
         writeln!(f)?;
-        writeln!(
-            f,
-            "  {DIM}{written_days} / {total_days} days written{RESET}"
-        )?;
+        writeln!(f, "  {written_days} / {total_days} days written")?;
         Ok(())
     }
 }
