@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::io::{self, Write as _};
 
 use anyhow::{Context, Result, bail};
 use jiff::{ToSpan, civil::Date};
@@ -92,17 +94,14 @@ fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)>
 
 const RESET: &str = "\x1b[0m";
 const DIM: &str = "\x1b[38;2;130;130;130m";
-/// Activity level colors (orange gradient), level 1..=4.
-const COLORS: [&str; 4] = [
-    "\x1b[38;2;190;120;80m",
-    "\x1b[38;2;210;105;60m",
-    "\x1b[38;2;220;90;45m",
-    "\x1b[38;2;225;70;30m",
+/// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
+const CELLS: [&str; 5] = [
+    "\x1b[38;2;70;70;70m·\x1b[0m",
+    "\x1b[38;2;190;120;80m░\x1b[0m",
+    "\x1b[38;2;210;105;60m▒\x1b[0m",
+    "\x1b[38;2;220;90;45m▓\x1b[0m",
+    "\x1b[38;2;225;70;30m█\x1b[0m",
 ];
-/// Color for zero-activity (level 0) days.
-const INACTIVE: &str = "\x1b[38;2;70;70;70m";
-/// Cell glyph per activity level 0..=4.
-const CELLS: [&str; 5] = ["·", "░", "▒", "▓", "█"];
 
 /// One grid column: Monday..Sunday, `None` for days outside the window.
 type Week = [Option<Date>; 7];
@@ -116,15 +115,22 @@ struct Scale {
 
 impl Scale {
     fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
+        if char_counts.is_empty() {
+            return Self {
+                p25: 0,
+                p50: 0,
+                p75: 0,
+            };
+        }
+
         let mut values: Vec<usize> = char_counts.values().copied().collect();
         values.sort_unstable();
+
         let pct = |p: f64| -> usize {
-            if values.is_empty() {
-                return 0;
-            }
             let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
             values[i]
         };
+
         Self {
             p25: pct(0.25),
             p50: pct(0.50),
@@ -132,29 +138,19 @@ impl Scale {
         }
     }
 
-    /// 0 = no activity, 1..=4 = increasing quartile bands.
-    fn level(&self, size: usize) -> u8 {
-        if size == 0 {
-            0
-        } else if size <= self.p25 {
-            1
-        } else if size <= self.p50 {
-            2
-        } else if size <= self.p75 {
-            3
-        } else {
-            4
-        }
-    }
-
+    /// The pre-styled cell for a day of `size` chars, banded as 0 = no activity
+    /// then the p25/p50/p75 quartiles (levels 1..=4).
     fn cell(&self, size: usize) -> &'static str {
-        CELLS[self.level(size) as usize]
-    }
-
-    fn color(&self, size: usize) -> &'static str {
-        match self.level(size) {
-            0 => INACTIVE,
-            level => COLORS[(level - 1) as usize],
+        if size == 0 {
+            CELLS[0]
+        } else if size <= self.p25 {
+            CELLS[1]
+        } else if size <= self.p50 {
+            CELLS[2]
+        } else if size <= self.p75 {
+            CELLS[3]
+        } else {
+            CELLS[4]
         }
     }
 }
@@ -209,51 +205,87 @@ fn month_label_row(weeks: &[Week]) -> Vec<char> {
     row
 }
 
-fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
-    let scale = Scale::from_counts(char_counts);
-    let weeks = build_weeks(from, to)?;
+/// The contribution calendar for one window, renderable via [`fmt::Display`].
+struct Grid<'a> {
+    char_counts: &'a HashMap<Date, usize>,
+    scale: Scale,
+    weeks: Vec<Week>,
+    from: Date,
+    to: Date,
+}
 
-    // Header
-    println!(
-        "  {DIM}{} –> {}{RESET}",
-        from.strftime("%Y-%m-%d"),
-        to.strftime("%Y-%m-%d")
-    );
-    println!();
-
-    // Month labels row
-    print!("      ");
-    for ch in month_label_row(&weeks) {
-        print!("{DIM}{ch}{RESET}");
+impl<'a> Grid<'a> {
+    fn new(char_counts: &'a HashMap<Date, usize>, from: Date, to: Date) -> Result<Self> {
+        Ok(Self {
+            scale: Scale::from_counts(char_counts),
+            weeks: build_weeks(from, to)?,
+            char_counts,
+            from,
+            to,
+        })
     }
-    println!();
+}
 
-    // Day rows: Mon(0)..Sun(6), all labeled
-    let day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    for (row, label) in day_labels.iter().enumerate() {
-        print!("  {DIM}{label}{RESET} ");
-        for week in &weeks {
-            match week[row] {
-                Some(d) => {
-                    let size = char_counts.get(&d).copied().unwrap_or(0);
-                    print!("{}{}{RESET}", scale.color(size), scale.cell(size));
-                }
-                None => print!(" "),
-            }
+impl fmt::Display for Grid<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Header
+        writeln!(
+            f,
+            "  {DIM}{} –> {}{RESET}",
+            self.from.strftime("%Y-%m-%d"),
+            self.to.strftime("%Y-%m-%d")
+        )?;
+        writeln!(f)?;
+
+        // Month labels row
+        f.write_str("      ")?;
+        for ch in month_label_row(&self.weeks) {
+            write!(f, "{DIM}{ch}{RESET}")?;
         }
-        println!();
-    }
+        writeln!(f)?;
 
-    // Legend + summary
-    let total_days = from.series(1.days()).take_while(|d| *d <= to).count();
-    let written_days = char_counts.len();
-    println!();
-    println!(
-        "      {DIM}Less{RESET} {}░{RESET} {}▒{RESET} {}▓{RESET} {}█{RESET} {DIM}More{RESET}",
-        COLORS[0], COLORS[1], COLORS[2], COLORS[3]
-    );
-    println!();
-    println!("  {DIM}{written_days} / {total_days} days written{RESET}");
+        // Day rows: Mon(0)..Sun(6), all labeled
+        let day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        for (row, label) in day_labels.iter().enumerate() {
+            write!(f, "  {DIM}{label}{RESET} ")?;
+            for week in &self.weeks {
+                match week[row] {
+                    Some(d) => {
+                        let size = self.char_counts.get(&d).copied().unwrap_or(0);
+                        f.write_str(self.scale.cell(size))?;
+                    }
+                    None => f.write_str(" ")?,
+                }
+            }
+            writeln!(f)?;
+        }
+
+        // Legend + summary
+        let total_days = self
+            .from
+            .series(1.days())
+            .take_while(|d| *d <= self.to)
+            .count();
+        let written_days = self.char_counts.len();
+        writeln!(f)?;
+        writeln!(
+            f,
+            "      {DIM}Less{RESET} {} {} {} {} {DIM}More{RESET}",
+            CELLS[1], CELLS[2], CELLS[3], CELLS[4]
+        )?;
+        writeln!(f)?;
+        writeln!(
+            f,
+            "  {DIM}{written_days} / {total_days} days written{RESET}"
+        )?;
+        Ok(())
+    }
+}
+
+fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
+    let grid = Grid::new(char_counts, from, to)?;
+    let mut out = io::stdout().lock();
+    write!(out, "{grid}").context("failed to write to stdout")?;
     Ok(())
 }
 
@@ -370,25 +402,31 @@ mod tests {
     }
 
     #[test]
-    fn scale_level_zero() {
-        assert_eq!(scale(10, 20, 30).level(0), 0);
-    }
-
-    #[test]
-    fn scale_level_boundaries() {
+    fn scale_cell_band_boundaries() {
         let s = scale(10, 20, 30);
-        assert_eq!(s.level(10), 1); // exactly p25
-        assert_eq!(s.level(11), 2); // between p25 and p50
-        assert_eq!(s.level(20), 2); // exactly p50
-        assert_eq!(s.level(21), 3); // between p50 and p75
-        assert_eq!(s.level(30), 3); // exactly p75
-        assert_eq!(s.level(31), 4); // above p75
+        assert_eq!(s.cell(0), CELLS[0]); // no activity
+        assert_eq!(s.cell(10), CELLS[1]); // exactly p25
+        assert_eq!(s.cell(11), CELLS[2]); // between p25 and p50
+        assert_eq!(s.cell(20), CELLS[2]); // exactly p50
+        assert_eq!(s.cell(21), CELLS[3]); // between p50 and p75
+        assert_eq!(s.cell(30), CELLS[3]); // exactly p75
+        assert_eq!(s.cell(31), CELLS[4]); // above p75
     }
 
     #[test]
     fn scale_from_empty_counts_is_zero() {
         let s = Scale::from_counts(&HashMap::new());
         assert_eq!((s.p25, s.p50, s.p75), (0, 0, 0));
+    }
+
+    #[test]
+    fn grid_renders_header_and_summary() {
+        let counts = HashMap::from([(date(2026, 1, 1), 5)]);
+        let out = Grid::new(&counts, date(2026, 1, 1), date(2026, 1, 7))
+            .unwrap()
+            .to_string();
+        assert!(out.contains("2026-01-01 –> 2026-01-07"));
+        assert!(out.contains("1 / 7 days written"));
     }
 
     #[test]
