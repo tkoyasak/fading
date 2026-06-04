@@ -6,6 +6,20 @@ use xshell::Shell;
 
 use crate::{Cmd, Ctx, Stats, When};
 
+impl When {
+    /// Resolve to the end date of the one-year window `stats` renders.
+    fn stats_to(&self) -> Result<Date> {
+        let today = crate::flags::today();
+        let to = match self {
+            When::Now => today,
+            When::MonthsBack(n) => crate::flags::months_back(*n)?.last_of_month(),
+            When::Month(date) => date.last_of_month(),
+            When::Day(date) => *date,
+        };
+        Ok(to.min(today))
+    }
+}
+
 impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
@@ -235,6 +249,19 @@ fn month_abbr(month: i8) -> &'static str {
 mod tests {
     use super::*;
     use jiff::civil::date;
+
+    #[test]
+    fn stats_to_for_past_month_is_month_end() {
+        // A clearly-past month is not clamped to today.
+        let when: When = "2020-02".parse().unwrap();
+        assert_eq!(when.stats_to().unwrap(), date(2020, 2, 29));
+    }
+
+    #[test]
+    fn stats_to_for_past_day_is_exact() {
+        let when: When = "2020-02-10".parse().unwrap();
+        assert_eq!(when.stats_to().unwrap(), date(2020, 2, 10));
+    }
 
     #[test]
     fn empty_content_returns_empty() {

@@ -4,6 +4,18 @@ use xshell::{Shell, cmd};
 
 use crate::{Cmd, Ctx, Open, When};
 
+impl When {
+    /// Resolve to the date `open` opens to and jumps to.
+    fn open_date(&self) -> Result<Date> {
+        Ok(match self {
+            When::Now => crate::flags::today(),
+            When::MonthsBack(n) => crate::flags::months_back(*n)?.first_of_month(),
+            When::Month(date) => *date,
+            When::Day(date) => *date,
+        })
+    }
+}
+
 impl Cmd for Open {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
@@ -92,4 +104,22 @@ end tell"#
 
 fn escape_applescript(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::When;
+    use jiff::civil::date;
+
+    #[test]
+    fn open_date_for_month_is_first_day() {
+        let when: When = "2026-04".parse().unwrap();
+        assert_eq!(when.open_date().unwrap(), date(2026, 4, 1));
+    }
+
+    #[test]
+    fn open_date_for_day_is_exact() {
+        let when: When = "2026-04-15".parse().unwrap();
+        assert_eq!(when.open_date().unwrap(), date(2026, 4, 15));
+    }
 }

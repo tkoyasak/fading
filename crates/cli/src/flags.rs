@@ -82,46 +82,13 @@ impl FromStr for When {
     }
 }
 
-impl When {
-    /// Resolve to the date `open` opens to and jumps to.
-    pub(crate) fn open_date(&self) -> Result<Date> {
-        Ok(match self {
-            When::Now => today(),
-            When::MonthsBack(n) => months_back(*n)?.first_of_month(),
-            When::Month(date) => *date,
-            When::Day(date) => *date,
-        })
-    }
-
-    /// Resolve to the `YYYY-MM` month `new` creates. A date is rejected.
-    pub(crate) fn new_month(&self) -> Result<String> {
-        let date = match self {
-            When::Now => today(),
-            When::MonthsBack(n) => months_back(*n)?,
-            When::Month(date) => *date,
-            When::Day(_) => bail!("`new` takes a month (YYYY-MM), not a date"),
-        };
-        Ok(date.strftime("%Y-%m").to_string())
-    }
-
-    /// Resolve to the end date of the one-year window `stats` renders.
-    pub(crate) fn stats_to(&self) -> Result<Date> {
-        let today = today();
-        let to = match self {
-            When::Now => today,
-            When::MonthsBack(n) => months_back(*n)?.last_of_month(),
-            When::Month(date) => date.last_of_month(),
-            When::Day(date) => *date,
-        };
-        Ok(to.min(today))
-    }
-}
-
-fn today() -> Date {
+/// Today's date. Used by each command's `When` resolution.
+pub(crate) fn today() -> Date {
     Zoned::now().date()
 }
 
-fn months_back(n: i64) -> Result<Date> {
+/// The date `n` months before today. Used by each command's `When` resolution.
+pub(crate) fn months_back(n: i64) -> Result<Date> {
     today()
         .checked_add((-n).months())
         .with_context(|| format!("Failed to go back {n} months"))
@@ -181,48 +148,5 @@ mod tests {
     fn invalid_format_rejected() {
         assert!(parse("not-valid").is_err());
         assert!(parse("2026/04").is_err());
-    }
-
-    #[test]
-    fn open_date_for_month_is_first_day() {
-        assert_eq!(
-            parse("2026-04").unwrap().open_date().unwrap(),
-            date(2026, 4, 1)
-        );
-    }
-
-    #[test]
-    fn open_date_for_day_is_exact() {
-        assert_eq!(
-            parse("2026-04-15").unwrap().open_date().unwrap(),
-            date(2026, 4, 15)
-        );
-    }
-
-    #[test]
-    fn new_month_for_month() {
-        assert_eq!(parse("2026-04").unwrap().new_month().unwrap(), "2026-04");
-    }
-
-    #[test]
-    fn new_month_rejects_date() {
-        assert!(parse("2026-04-15").unwrap().new_month().is_err());
-    }
-
-    #[test]
-    fn stats_to_for_past_month_is_month_end() {
-        // A clearly-past month is not clamped to today.
-        assert_eq!(
-            parse("2020-02").unwrap().stats_to().unwrap(),
-            date(2020, 2, 29)
-        );
-    }
-
-    #[test]
-    fn stats_to_for_past_day_is_exact() {
-        assert_eq!(
-            parse("2020-02-10").unwrap().stats_to().unwrap(),
-            date(2020, 2, 10)
-        );
     }
 }
