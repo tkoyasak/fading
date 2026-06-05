@@ -1,51 +1,56 @@
 use jiff::civil::Date;
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
-/// Parse fading entries from markdown content.
-/// Returns (date, content) pairs, excluding empty entries and `<!-- -->` placeholders.
-pub(crate) fn parse_entries(content: &str) -> Vec<(Date, String)> {
-    let opts = Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
+/// Parse a fading entry file's contents line by line and count characters per day.
+/// Returns (date, char_count) for every written day (char_count > 0),
+/// excluding empty entries and `<!-- -->` placeholders.
+pub(crate) fn parse_char_counts(content: &str) -> Vec<(Date, usize)> {
     let mut entries = Vec::new();
     let mut current_date: Option<Date> = None;
-    let mut content_start: usize = 0;
-    let mut in_h6 = false;
-    let mut heading_text = String::new();
+    let mut chars: usize = 0;
+    let mut in_frontmatter = false;
+    let mut first_line = true;
 
-    for (event, range) in Parser::new_ext(content, opts).into_offset_iter() {
-        match event {
-            Event::End(TagEnd::MetadataBlock(_)) => {
-                content_start = range.end;
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Skip the TOML frontmatter delimited by `+++` at the top of the file.
+        if first_line {
+            first_line = false;
+            if trimmed == "+++" {
+                in_frontmatter = true;
+                continue;
             }
-            Event::Start(Tag::Heading {
-                level: HeadingLevel::H6,
-                ..
-            }) => {
-                if let Some(date) = current_date.take() {
-                    let trimmed = content[content_start..range.start].trim();
-                    if !trimmed.is_empty() && trimmed != "<!-- -->" {
-                        entries.push((date, trimmed.to_string()));
-                    }
-                }
-                in_h6 = true;
-                heading_text.clear();
+        }
+        if in_frontmatter {
+            if trimmed == "+++" {
+                in_frontmatter = false;
             }
-            Event::Text(text) if in_h6 => {
-                heading_text.push_str(&text);
+            continue;
+        }
+
+        // An h6 heading (`###### YYYY-MM-DD ...`) starts a new entry. Exactly six
+        // `#` match: a seventh `#` falls where the prefix expects a space.
+        if let Some(rest) = line.strip_prefix("###### ") {
+            if let Some(date) = current_date.take()
+                && chars > 0
+            {
+                entries.push((date, chars));
             }
-            Event::End(TagEnd::Heading(_)) if in_h6 => {
-                in_h6 = false;
-                current_date = heading_text.get(..10).and_then(|s| s.parse().ok());
-                content_start = range.end;
-            }
-            _ => {}
+            current_date = rest.get(..10).and_then(|s| s.parse().ok());
+            chars = 0;
+            continue;
+        }
+
+        // Otherwise it's entry content; count its characters.
+        if current_date.is_some() && !trimmed.is_empty() && trimmed != "<!-- -->" {
+            chars += trimmed.chars().count();
         }
     }
 
-    if let Some(date) = current_date {
-        let trimmed = content[content_start..].trim();
-        if !trimmed.is_empty() && trimmed != "<!-- -->" {
-            entries.push((date, trimmed.to_string()));
-        }
+    if let Some(date) = current_date
+        && chars > 0
+    {
+        entries.push((date, chars));
     }
 
     entries
@@ -59,36 +64,39 @@ mod tests {
     const FRONTMATTER: &str =
         "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-01\n+++\n";
 
+    fn parse(content: &str) -> Vec<(Date, usize)> {
+        parse_char_counts(content)
+    }
+
     #[test]
     fn empty_content_returns_no_entries() {
-        assert!(parse_entries("").is_empty());
+        assert!(parse("").is_empty());
     }
 
     #[test]
     fn only_frontmatter_returns_no_entries() {
-        assert!(parse_entries(FRONTMATTER).is_empty());
+        assert!(parse(FRONTMATTER).is_empty());
     }
 
     #[test]
     fn single_entry_with_content() {
         let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n");
-        let entries = parse_entries(&content);
+        let entries = parse(&content);
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].0, date(2026, 1, 1));
-        assert_eq!(entries[0].1, "hello");
+        assert_eq!(entries[0], (date(2026, 1, 1), 5));
     }
 
     #[test]
     fn placeholder_entry_excluded() {
         let content = format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n<!-- -->\n");
-        assert!(parse_entries(&content).is_empty());
+        assert!(parse(&content).is_empty());
     }
 
     #[test]
     fn empty_entry_excluded() {
         let content =
             format!("{FRONTMATTER}\n###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n");
-        let entries = parse_entries(&content);
+        let entries = parse(&content);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].0, date(2026, 1, 2));
     }
@@ -98,9 +106,30 @@ mod tests {
         let content = format!(
             "{FRONTMATTER}\n###### 2026-01-01 Thu\n\nhello\n\n###### 2026-01-02 Fri\n\nworld\n"
         );
-        let entries = parse_entries(&content);
+        let entries = parse(&content);
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].1, "hello");
-        assert_eq!(entries[1].1, "world");
+        assert_eq!(entries[0], (date(2026, 1, 1), 5));
+        assert_eq!(entries[1], (date(2026, 1, 2), 5));
+    }
+
+    #[test]
+    fn counts_unicode_chars_not_bytes() {
+        let content = "###### 2026-01-01 Thu\n\nこんにちは\n";
+        let entries = parse(content);
+        assert_eq!(entries[0].1, 5);
+    }
+
+    #[test]
+    fn multiple_lines_summed() {
+        let content = "###### 2026-01-01 Thu\n\nhello\nworld\n";
+        let entries = parse(content);
+        assert_eq!(entries[0].1, 10);
+    }
+
+    #[test]
+    fn works_without_frontmatter() {
+        let content = "###### 2026-01-01 Thu\n\nhello\n";
+        let entries = parse(content);
+        assert_eq!(entries, vec![(date(2026, 1, 1), 5)]);
     }
 }

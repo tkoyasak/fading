@@ -76,19 +76,11 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
     Ok(map)
 }
 
+/// Count characters per day, keeping only days within `from..=to`.
 fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
-    crate::entry::parse_entries(content)
+    crate::entry::parse_char_counts(content)
         .into_iter()
         .filter(|(date, _)| *date >= from && *date <= to)
-        .filter_map(|(date, text)| {
-            let chars: usize = text
-                .lines()
-                .map(|l| l.trim())
-                .filter(|l| !l.is_empty() && *l != "<!-- -->")
-                .map(|l| l.chars().count())
-                .sum();
-            (chars > 0).then_some((date, chars))
-        })
         .collect()
 }
 
@@ -320,29 +312,15 @@ mod tests {
         assert_eq!(when.stats_to().unwrap(), date(2020, 2, 10));
     }
 
+    fn counts(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
+        count_chars_by_day(content, from, to)
+    }
+
     #[test]
     fn empty_content_returns_empty() {
         let from = date(2026, 1, 1);
         let to = date(2026, 1, 31);
-        assert!(count_chars_by_day("", from, to).is_empty());
-    }
-
-    #[test]
-    fn single_day_counted() {
-        let content = "###### 2026-01-01 Thu\n\nhello\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], (date(2026, 1, 1), 5));
-    }
-
-    #[test]
-    fn placeholder_not_counted() {
-        let content = "###### 2026-01-01 Thu\n\n<!-- -->\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        assert!(count_chars_by_day(content, from, to).is_empty());
+        assert!(counts("", from, to).is_empty());
     }
 
     #[test]
@@ -350,37 +328,9 @@ mod tests {
         let content = "###### 2025-12-31 Wed\n\nhello\n\n###### 2026-01-01 Thu\n\nworld\n";
         let from = date(2026, 1, 1);
         let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
+        let result = counts(content, from, to);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].0, date(2026, 1, 1));
-    }
-
-    #[test]
-    fn counts_unicode_chars_not_bytes() {
-        let content = "###### 2026-01-01 Thu\n\nこんにちは\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
-        assert_eq!(result[0].1, 5);
-    }
-
-    #[test]
-    fn multiple_lines_summed() {
-        let content = "###### 2026-01-01 Thu\n\nhello\nworld\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
-        assert_eq!(result[0].1, 10);
-    }
-
-    #[test]
-    fn zero_char_day_excluded() {
-        let content = "###### 2026-01-01 Thu\n\n###### 2026-01-02 Fri\n\nhello\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, date(2026, 1, 2));
     }
 
     #[test]
@@ -388,7 +338,7 @@ mod tests {
         let content = "###### 2026-01-01 Thu\n\nfirst\n\n###### 2026-01-31 Sat\n\nlast\n";
         let from = date(2026, 1, 1);
         let to = date(2026, 1, 31);
-        let result = count_chars_by_day(content, from, to);
+        let result = counts(content, from, to);
         assert_eq!(result.len(), 2);
     }
 
