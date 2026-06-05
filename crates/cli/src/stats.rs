@@ -144,27 +144,28 @@ fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Resu
 }
 
 /// The contribution calendar for one window, renderable via [`fmt::Display`].
-struct Grid<'a> {
-    char_counts: &'a HashMap<Date, usize>,
-    scale: Scale,
+struct Grid {
+    month_labels: Vec<char>,
     weeks: Vec<Week>,
+    written_days: usize,
     from: Date,
     to: Date,
 }
 
-impl<'a> Grid<'a> {
-    fn new(char_counts: &'a HashMap<Date, usize>, from: Date, to: Date) -> Result<Self> {
+impl Grid {
+    fn new(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<Self> {
+        let (weeks, month_labels) = build_grid(char_counts, from, to)?;
         Ok(Self {
-            scale: Scale::from_counts(char_counts),
-            weeks: build_weeks(from, to)?,
-            char_counts,
+            month_labels,
+            weeks,
+            written_days: char_counts.len(),
             from,
             to,
         })
     }
 }
 
-impl fmt::Display for Grid<'_> {
+impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Header
         writeln!(
@@ -177,7 +178,7 @@ impl fmt::Display for Grid<'_> {
 
         // Month labels row
         f.write_str("      ")?;
-        for ch in month_label_row(&self.weeks) {
+        for ch in &self.month_labels {
             write!(f, "{ch}")?;
         }
         writeln!(f)?;
@@ -188,10 +189,7 @@ impl fmt::Display for Grid<'_> {
             write!(f, "  {label} ")?;
             for week in &self.weeks {
                 match week[row] {
-                    Some(d) => {
-                        let size = self.char_counts.get(&d).copied().unwrap_or(0);
-                        f.write_str(self.scale.cell(size))?;
-                    }
+                    Some(glyph) => f.write_str(glyph)?,
                     None => f.write_str(" ")?,
                 }
             }
@@ -199,12 +197,8 @@ impl fmt::Display for Grid<'_> {
         }
 
         // Legend + summary
-        let total_days = self
-            .from
-            .series(1.days())
-            .take_while(|d| *d <= self.to)
-            .count();
-        let written_days = self.char_counts.len();
+        let total_days = (self.to - self.from).get_days() + 1;
+        let written_days = self.written_days;
         writeln!(f)?;
         writeln!(
             f,
@@ -217,30 +211,44 @@ impl fmt::Display for Grid<'_> {
     }
 }
 
-/// One grid column: Monday..Sunday, `None` for days outside the window.
-type Week = [Option<Date>; 7];
+/// One grid column: Monday..Sunday, each day's pre-styled glyph or `None` outside
+/// the window.
+type Week = [Option<&'static str>; 7];
 
-/// Build the weekly columns spanning `from..=to`, starting on the Monday of the
-/// week containing `from`. Two trailing empty weeks are appended so a month
-/// label at the last column is never truncated.
-fn build_weeks(from: Date, to: Date) -> Result<Vec<Week>> {
+/// Build the columns spanning `from..=to` and the month-label row in one walk.
+/// Columns start on the Monday of `from`'s week; a column holding the 1st of a
+/// month begins its abbreviation, which flows into following columns (two trailing
+/// empty columns leave room for the last label to finish).
+fn build_grid(
+    char_counts: &HashMap<Date, usize>,
+    from: Date,
+    to: Date,
+) -> Result<(Vec<Week>, Vec<char>)> {
+    let scale = Scale::from_counts(char_counts);
     let week_start_offset = from.weekday().to_monday_zero_offset() as i64;
     let mut col_start = from
         .checked_sub(week_start_offset.days())
         .context("grid start date arithmetic")?;
 
     let mut weeks = Vec::new();
+    let mut month_labels = Vec::new();
+    let mut label_chars = "".chars();
     loop {
         let mut week: Week = [None; 7];
         for (i, slot) in week.iter_mut().enumerate() {
             let day = col_start
                 .checked_add((i as i64).days())
                 .context("day offset arithmetic")?;
-            if day >= from && day <= to {
-                *slot = Some(day);
+            if (from..=to).contains(&day) {
+                *slot = Some(scale.cell(char_counts.get(&day).copied().unwrap_or(0)));
+                if day.day() == 1 {
+                    label_chars = month_abbr(day.month()).chars();
+                }
             }
         }
         weeks.push(week);
+        month_labels.push(label_chars.next().unwrap_or(' '));
+
         let week_end = col_start
             .checked_add(6.days())
             .context("week end arithmetic")?;
@@ -251,23 +259,11 @@ fn build_weeks(from: Date, to: Date) -> Result<Vec<Week>> {
             .checked_add(7.days())
             .context("next week arithmetic")?;
     }
-    weeks.push([None; 7]);
-    weeks.push([None; 7]);
-    Ok(weeks)
-}
-
-/// A character per week column, labeling each column that holds the 1st of a
-/// month with its 3-letter abbreviation (blank-padded elsewhere).
-fn month_label_row(weeks: &[Week]) -> Vec<char> {
-    let mut row = vec![' '; weeks.len()];
-    for (i, week) in weeks.iter().enumerate() {
-        if let Some(d) = week.iter().find_map(|d| d.filter(|d| d.day() == 1)) {
-            for (j, ch) in month_abbr(d.month()).chars().enumerate() {
-                row[i + j] = ch;
-            }
-        }
+    for _ in 0..2 {
+        weeks.push([None; 7]);
+        month_labels.push(label_chars.next().unwrap_or(' '));
     }
-    row
+    Ok((weeks, month_labels))
 }
 
 fn month_abbr(month: i8) -> &'static str {
@@ -485,22 +481,24 @@ mod tests {
     }
 
     #[test]
-    fn build_weeks_single_week_plus_trailing_empties() {
-        // Mon 2026-01-05 .. Sun 2026-01-11
-        let weeks = build_weeks(date(2026, 1, 5), date(2026, 1, 11)).unwrap();
-        assert_eq!(weeks.len(), 3); // 1 real week + 2 trailing empty
-        assert_eq!(weeks[0][0], Some(date(2026, 1, 5)));
-        assert_eq!(weeks[0][6], Some(date(2026, 1, 11)));
+    fn build_grid_single_week_plus_trailing_empties() {
+        // Mon 2026-01-05 .. Sun 2026-01-11: one filled column plus two trailing empties.
+        let counts = HashMap::from([(date(2026, 1, 5), 100)]);
+        let (weeks, _) = build_grid(&counts, date(2026, 1, 5), date(2026, 1, 11)).unwrap();
+        assert_eq!(weeks.len(), 3);
+        assert_eq!(weeks[0][0], Some(CELLS[1])); // Mon: written
+        assert_eq!(weeks[0][6], Some(CELLS[0])); // Sun: unwritten
         assert!(weeks[1].iter().all(Option::is_none));
         assert!(weeks[2].iter().all(Option::is_none));
     }
 
     #[test]
-    fn month_label_row_places_abbr_at_first_of_month() {
-        // 2026-01-01 (Thu) — its week column is the first, so "Jan" starts at col 0.
-        let weeks = build_weeks(date(2026, 1, 1), date(2026, 1, 7)).unwrap();
-        let row = month_label_row(&weeks);
-        assert_eq!(&row[0..3], ['J', 'a', 'n']);
+    fn grid_labels_first_of_month() {
+        // 2026-01-01 (Thu) — its week column is the first, so "Jan" labels the row.
+        let out = Grid::new(&HashMap::new(), date(2026, 1, 1), date(2026, 1, 7))
+            .unwrap()
+            .to_string();
+        assert!(out.contains("Jan"));
     }
 
     #[test]
