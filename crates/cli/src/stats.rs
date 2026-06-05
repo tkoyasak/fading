@@ -168,13 +168,12 @@ impl Grid {
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Header
-        writeln!(
+        write!(
             f,
-            "  {} –> {}",
+            "  {} –> {}\n\n",
             self.from.strftime("%Y-%m-%d"),
             self.to.strftime("%Y-%m-%d")
         )?;
-        writeln!(f)?;
 
         // Month labels row
         f.write_str("      ")?;
@@ -197,16 +196,13 @@ impl fmt::Display for Grid {
         }
 
         // Legend + summary
-        let total_days = (self.to - self.from).get_days() + 1;
-        let written_days = self.written_days;
-        writeln!(f)?;
-        writeln!(
+        write!(
             f,
-            "      Less {} {} {} {} More",
+            "\n      Less {} {} {} {} More\n\n",
             CELLS[1], CELLS[2], CELLS[3], CELLS[4]
         )?;
-        writeln!(f)?;
-        writeln!(f, "  {written_days} / {total_days} days written")?;
+        let total_days = (self.to - self.from).get_days() + 1;
+        writeln!(f, "  {} / {total_days} days written", self.written_days)?;
         Ok(())
     }
 }
@@ -494,11 +490,9 @@ mod tests {
 
     #[test]
     fn grid_labels_first_of_month() {
-        // 2026-01-01 (Thu) — its week column is the first, so "Jan" labels the row.
-        let out = Grid::new(&HashMap::new(), date(2026, 1, 1), date(2026, 1, 7))
-            .unwrap()
-            .to_string();
-        assert!(out.contains("Jan"));
+        // 2026-01-01 (Thu) — its week column is the first, so "Jan" starts at col 0.
+        let (_, labels) = build_grid(&HashMap::new(), date(2026, 1, 1), date(2026, 1, 7)).unwrap();
+        assert_eq!(&labels[0..3], ['J', 'a', 'n']);
     }
 
     #[test]
