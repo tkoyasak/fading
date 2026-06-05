@@ -1,5 +1,4 @@
 mod crypto;
-mod entry;
 mod flags;
 mod ls;
 mod new;
