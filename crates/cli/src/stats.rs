@@ -59,7 +59,7 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
                         return Ok(vec![]);
                     }
                     let content = sh.read_file(&path)?;
-                    Ok(count_chars_by_day(&content, from, to))
+                    Ok(crate::entry::parse_char_counts(&content, from, to))
                 })
             })
             .collect();
@@ -74,14 +74,6 @@ fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, us
         map.extend(result?);
     }
     Ok(map)
-}
-
-/// Count characters per day, keeping only days within `from..=to`.
-fn count_chars_by_day(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
-    crate::entry::parse_char_counts(content)
-        .into_iter()
-        .filter(|(date, _)| *date >= from && *date <= to)
-        .collect()
 }
 
 fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Result<()> {
@@ -310,36 +302,6 @@ mod tests {
     fn stats_to_for_past_day_is_exact() {
         let when: When = "2020-02-10".parse().unwrap();
         assert_eq!(when.stats_to().unwrap(), date(2020, 2, 10));
-    }
-
-    fn counts(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
-        count_chars_by_day(content, from, to)
-    }
-
-    #[test]
-    fn empty_content_returns_empty() {
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        assert!(counts("", from, to).is_empty());
-    }
-
-    #[test]
-    fn date_before_range_excluded() {
-        let content = "###### 2025-12-31 Wed\n\nhello\n\n###### 2026-01-01 Thu\n\nworld\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = counts(content, from, to);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, date(2026, 1, 1));
-    }
-
-    #[test]
-    fn boundary_dates_included() {
-        let content = "###### 2026-01-01 Thu\n\nfirst\n\n###### 2026-01-31 Sat\n\nlast\n";
-        let from = date(2026, 1, 1);
-        let to = date(2026, 1, 31);
-        let result = counts(content, from, to);
-        assert_eq!(result.len(), 2);
     }
 
     fn scale(p25: usize, p50: usize, p75: usize) -> Scale {

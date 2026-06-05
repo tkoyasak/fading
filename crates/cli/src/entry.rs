@@ -1,9 +1,9 @@
 use jiff::civil::Date;
 
 /// Parse a fading entry file's contents line by line and count characters per day.
-/// Returns (date, char_count) for every written day (char_count > 0),
-/// excluding empty entries and `<!-- -->` placeholders.
-pub(crate) fn parse_char_counts(content: &str) -> Vec<(Date, usize)> {
+/// Returns (date, char_count) for every written day within `from..=to` that has
+/// content, excluding empty entries and `<!-- -->` placeholders.
+pub(crate) fn parse_char_counts(content: &str, from: Date, to: Date) -> Vec<(Date, usize)> {
     let mut entries = Vec::new();
     let mut current_date: Option<Date> = None;
     let mut chars: usize = 0;
@@ -36,7 +36,11 @@ pub(crate) fn parse_char_counts(content: &str) -> Vec<(Date, usize)> {
             {
                 entries.push((date, chars));
             }
-            current_date = rest.get(..10).and_then(|s| s.parse().ok());
+            // Out-of-range dates become `None`, so the content below is never counted.
+            current_date = rest
+                .get(..10)
+                .and_then(|s| s.parse().ok())
+                .filter(|d| (from..=to).contains(d));
             chars = 0;
             continue;
         }
@@ -64,8 +68,9 @@ mod tests {
     const FRONTMATTER: &str =
         "+++\nid = \"2026-01\"\ncreated = 2026-01-01\nmodified = 2026-01-01\n+++\n";
 
+    /// Parse with a range wide enough to keep every test date.
     fn parse(content: &str) -> Vec<(Date, usize)> {
-        parse_char_counts(content)
+        parse_char_counts(content, date(2000, 1, 1), date(2100, 1, 1))
     }
 
     #[test]
@@ -131,5 +136,20 @@ mod tests {
         let content = "###### 2026-01-01 Thu\n\nhello\n";
         let entries = parse(content);
         assert_eq!(entries, vec![(date(2026, 1, 1), 5)]);
+    }
+
+    #[test]
+    fn date_before_range_excluded() {
+        let content = "###### 2025-12-31 Wed\n\nhello\n\n###### 2026-01-01 Thu\n\nworld\n";
+        let entries = parse_char_counts(content, date(2026, 1, 1), date(2026, 1, 31));
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, date(2026, 1, 1));
+    }
+
+    #[test]
+    fn boundary_dates_included() {
+        let content = "###### 2026-01-01 Thu\n\nfirst\n\n###### 2026-01-31 Sat\n\nlast\n";
+        let entries = parse_char_counts(content, date(2026, 1, 1), date(2026, 1, 31));
+        assert_eq!(entries.len(), 2);
     }
 }
