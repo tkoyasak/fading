@@ -195,7 +195,11 @@ impl fmt::Display for Grid {
         writeln!(
             f,
             "      Less {} {} {} {} More\n\n  {} / {total_days} days written",
-            CELLS[1], CELLS[2], CELLS[3], CELLS[4], self.written_days
+            Scale::CELLS[1],
+            Scale::CELLS[2],
+            Scale::CELLS[3],
+            Scale::CELLS[4],
+            self.written_days
         )?;
         Ok(())
     }
@@ -266,15 +270,6 @@ fn build_grid(
     Ok((weeks, month_labels))
 }
 
-/// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
-const CELLS: [&str; 5] = [
-    "\x1b[38;2;70;70;70m·\x1b[0m",
-    "\x1b[38;2;190;120;80m░\x1b[0m",
-    "\x1b[38;2;210;105;60m▒\x1b[0m",
-    "\x1b[38;2;220;90;45m▓\x1b[0m",
-    "\x1b[38;2;225;70;30m█\x1b[0m",
-];
-
 /// Activity scale derived from quartiles of the written days' character counts.
 struct Scale {
     p25: usize,
@@ -283,6 +278,15 @@ struct Scale {
 }
 
 impl Scale {
+    /// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
+    const CELLS: [&'static str; 5] = [
+        "\x1b[38;2;70;70;70m·\x1b[0m",
+        "\x1b[38;2;190;120;80m░\x1b[0m",
+        "\x1b[38;2;210;105;60m▒\x1b[0m",
+        "\x1b[38;2;220;90;45m▓\x1b[0m",
+        "\x1b[38;2;225;70;30m█\x1b[0m",
+    ];
+
     fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
         if char_counts.is_empty() {
             return Self {
@@ -311,15 +315,15 @@ impl Scale {
     /// then the p25/p50/p75 quartiles (levels 1..=4).
     fn cell(&self, size: usize) -> &'static str {
         if size == 0 {
-            CELLS[0]
+            Self::CELLS[0]
         } else if size <= self.p25 {
-            CELLS[1]
+            Self::CELLS[1]
         } else if size <= self.p50 {
-            CELLS[2]
+            Self::CELLS[2]
         } else if size <= self.p75 {
-            CELLS[3]
+            Self::CELLS[3]
         } else {
-            CELLS[4]
+            Self::CELLS[4]
         }
     }
 }
@@ -437,13 +441,13 @@ mod tests {
     #[test]
     fn scale_cell_band_boundaries() {
         let s = scale(10, 20, 30);
-        assert_eq!(s.cell(0), CELLS[0]); // no activity
-        assert_eq!(s.cell(10), CELLS[1]); // exactly p25
-        assert_eq!(s.cell(11), CELLS[2]); // between p25 and p50
-        assert_eq!(s.cell(20), CELLS[2]); // exactly p50
-        assert_eq!(s.cell(21), CELLS[3]); // between p50 and p75
-        assert_eq!(s.cell(30), CELLS[3]); // exactly p75
-        assert_eq!(s.cell(31), CELLS[4]); // above p75
+        assert_eq!(s.cell(0), Scale::CELLS[0]); // no activity
+        assert_eq!(s.cell(10), Scale::CELLS[1]); // exactly p25
+        assert_eq!(s.cell(11), Scale::CELLS[2]); // between p25 and p50
+        assert_eq!(s.cell(20), Scale::CELLS[2]); // exactly p50
+        assert_eq!(s.cell(21), Scale::CELLS[3]); // between p50 and p75
+        assert_eq!(s.cell(30), Scale::CELLS[3]); // exactly p75
+        assert_eq!(s.cell(31), Scale::CELLS[4]); // above p75
     }
 
     #[test]
@@ -468,8 +472,8 @@ mod tests {
         let counts = HashMap::from([(date(2026, 1, 5), 100)]);
         let (weeks, _) = build_grid(&counts, date(2026, 1, 5), date(2026, 1, 11)).unwrap();
         assert_eq!(weeks.len(), 3);
-        assert_eq!(weeks[0][0], Some(CELLS[1])); // Mon: written
-        assert_eq!(weeks[0][6], Some(CELLS[0])); // Sun: unwritten
+        assert_eq!(weeks[0][0], Some(Scale::CELLS[1])); // Mon: written
+        assert_eq!(weeks[0][6], Some(Scale::CELLS[0])); // Sun: unwritten
         assert!(weeks[1].iter().all(Option::is_none));
         assert!(weeks[2].iter().all(Option::is_none));
     }
