@@ -168,9 +168,9 @@ impl Grid {
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Header
-        write!(
+        writeln!(
             f,
-            "  {} –> {}\n\n",
+            "  {} –> {}\n",
             self.from.strftime("%F"),
             self.to.strftime("%F")
         )?;
@@ -190,15 +190,15 @@ impl fmt::Display for Grid {
             }
             writeln!(f)?;
         }
+        writeln!(f)?;
 
         // Legend + summary
-        write!(
-            f,
-            "\n      Less {} {} {} {} More\n\n",
-            CELLS[1], CELLS[2], CELLS[3], CELLS[4]
-        )?;
         let total_days = (self.to - self.from).get_days() + 1;
-        writeln!(f, "  {} / {total_days} days written", self.written_days)?;
+        writeln!(
+            f,
+            "      Less {} {} {} {} More\n\n  {} / {total_days} days written",
+            CELLS[1], CELLS[2], CELLS[3], CELLS[4], self.written_days
+        )?;
         Ok(())
     }
 }
