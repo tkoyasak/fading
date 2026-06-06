@@ -145,7 +145,7 @@ fn render_grid(char_counts: &HashMap<Date, usize>, from: Date, to: Date) -> Resu
 
 /// The contribution calendar for one window, renderable via [`fmt::Display`].
 struct Grid {
-    month_labels: Vec<char>,
+    month_labels: String,
     weeks: Vec<Week>,
     written_days: usize,
     from: Date,
@@ -171,16 +171,12 @@ impl fmt::Display for Grid {
         write!(
             f,
             "  {} –> {}\n\n",
-            self.from.strftime("%Y-%m-%d"),
-            self.to.strftime("%Y-%m-%d")
+            self.from.strftime("%F"),
+            self.to.strftime("%F")
         )?;
 
         // Month labels row
-        f.write_str("      ")?;
-        for ch in &self.month_labels {
-            write!(f, "{ch}")?;
-        }
-        writeln!(f)?;
+        writeln!(f, "      {}", self.month_labels)?;
 
         // Day rows: Mon(0)..Sun(6), all labeled
         let day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -219,18 +215,22 @@ fn build_grid(
     char_counts: &HashMap<Date, usize>,
     from: Date,
     to: Date,
-) -> Result<(Vec<Week>, Vec<char>)> {
+) -> Result<(Vec<Week>, String)> {
     let scale = Scale::from_counts(char_counts);
     let week_start_offset = from.weekday().to_monday_zero_offset() as i64;
     let mut col_start = from
         .checked_sub(week_start_offset.days())
         .context("grid start date arithmetic")?;
 
+    // `month_labels` holds one ASCII char per column, so its length tracks how many
+    // columns are already labeled. A month's 3-char abbreviation begins in the column
+    // holding its 1st and spills into the next two; since months sit >=4 columns apart
+    // the abbreviations never collide, and otherwise we pad a single space.
     let mut weeks = Vec::new();
-    let mut month_labels = Vec::new();
-    let mut label_chars = "".chars();
+    let mut month_labels = String::new();
     loop {
         let mut week: Week = [None; 7];
+        let mut first_of_month = None;
         for (i, slot) in week.iter_mut().enumerate() {
             let day = col_start
                 .checked_add((i as i64).days())
@@ -238,12 +238,16 @@ fn build_grid(
             if (from..=to).contains(&day) {
                 *slot = Some(scale.cell(char_counts.get(&day).copied().unwrap_or(0)));
                 if day.day() == 1 {
-                    label_chars = month_abbr(day.month()).chars();
+                    first_of_month = Some(day);
                 }
             }
         }
         weeks.push(week);
-        month_labels.push(label_chars.next().unwrap_or(' '));
+        if let Some(day) = first_of_month {
+            month_labels.push_str(&day.strftime("%b").to_string());
+        } else if month_labels.len() < weeks.len() {
+            month_labels.push(' ');
+        }
 
         let week_end = col_start
             .checked_add(6.days())
@@ -257,27 +261,11 @@ fn build_grid(
     }
     for _ in 0..2 {
         weeks.push([None; 7]);
-        month_labels.push(label_chars.next().unwrap_or(' '));
+        if month_labels.len() < weeks.len() {
+            month_labels.push(' ');
+        }
     }
     Ok((weeks, month_labels))
-}
-
-fn month_abbr(month: i8) -> &'static str {
-    match month {
-        1 => "Jan",
-        2 => "Feb",
-        3 => "Mar",
-        4 => "Apr",
-        5 => "May",
-        6 => "Jun",
-        7 => "Jul",
-        8 => "Aug",
-        9 => "Sep",
-        10 => "Oct",
-        11 => "Nov",
-        12 => "Dec",
-        _ => "???",
-    }
 }
 
 /// Pre-styled cell per activity level 0..=4 (color + glyph + reset baked in).
@@ -492,22 +480,18 @@ mod tests {
     fn grid_labels_first_of_month() {
         // 2026-01-01 (Thu) — its week column is the first, so "Jan" starts at col 0.
         let (_, labels) = build_grid(&HashMap::new(), date(2026, 1, 1), date(2026, 1, 7)).unwrap();
-        assert_eq!(&labels[0..3], ['J', 'a', 'n']);
+        assert_eq!(&labels[0..3], "Jan");
     }
 
     #[test]
-    fn month_abbr_all_valid() {
-        let expected = [
-            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        ];
-        for (i, name) in expected.iter().enumerate() {
-            assert_eq!(month_abbr((i + 1) as i8), *name);
-        }
-    }
-
-    #[test]
-    fn month_abbr_invalid() {
-        assert_eq!(month_abbr(0), "???");
-        assert_eq!(month_abbr(13), "???");
+    fn grid_labels_align_across_months() {
+        // Over a multi-month window every column carries exactly one label char and
+        // each month's abbreviation appears, so the spilled abbreviations stay aligned.
+        let (weeks, labels) =
+            build_grid(&HashMap::new(), date(2026, 1, 1), date(2026, 3, 31)).unwrap();
+        assert_eq!(labels.len(), weeks.len());
+        assert!(labels.contains("Jan"));
+        assert!(labels.contains("Feb"));
+        assert!(labels.contains("Mar"));
     }
 }
