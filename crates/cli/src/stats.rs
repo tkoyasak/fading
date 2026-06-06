@@ -12,6 +12,8 @@ impl Cmd for Stats {
     fn run(self, ctx: Ctx) -> Result<()> {
         let sh = ctx.sh;
         let to = self.when.unwrap_or_default().stats_to()?;
+        // 364 = 52 weeks exactly, so the window is always whole weeks with `from`
+        // and `to` on the same weekday — leap-year independent, unlike `1.year()`.
         let from = to.checked_sub(364.days()).context("date arithmetic")?;
 
         let char_counts = find_char_counts(&sh, from, to)?;
@@ -35,17 +37,13 @@ impl When {
 
 fn find_char_counts(sh: &Shell, from: Date, to: Date) -> Result<HashMap<Date, usize>> {
     let mut paths = Vec::new();
-    let mut cursor = from.first_of_month();
+    let (mut y, mut m) = (from.year(), from.month());
     loop {
-        let (y, m) = (cursor.year(), cursor.month());
         paths.push(format!("entries/{y:04}-{m:02}.md"));
         if y == to.year() && m == to.month() {
             break;
         }
-        cursor = cursor
-            .checked_add(1.months())
-            .context("date arithmetic")?
-            .first_of_month();
+        (y, m) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
     }
 
     let results: Vec<Result<Vec<(Date, usize)>>> = std::thread::scope(|s| {
