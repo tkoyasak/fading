@@ -389,7 +389,6 @@ dependencies = [
  "jiff",
  "mac-notification-sys",
  "shiguredo_s3",
- "tokio",
  "ureq",
  "xflags",
  "xshell",

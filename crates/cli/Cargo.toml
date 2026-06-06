@@ -17,7 +17,6 @@ base16ct.workspace = true
 jiff.workspace = true
 mac-notification-sys.workspace = true
 shiguredo_s3.workspace = true
-tokio.workspace = true
 ureq.workspace = true
 xflags.workspace = true
 xshell.workspace = true

@@ -5,7 +5,12 @@ mod code_actions;
 mod diagnostics;
 mod document;
 
-pub async fn run() {
+pub fn run() -> std::io::Result<()> {
+    tokio::runtime::Runtime::new()?.block_on(serve());
+    Ok(())
+}
+
+async fn serve() {
     env_logger::init();
 
     let stdin = tokio::io::stdin();
