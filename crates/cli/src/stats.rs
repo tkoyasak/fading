@@ -266,11 +266,10 @@ impl fmt::Display for Grid {
 /// the window.
 type Week = [Option<&'static str>; 7];
 
-/// Activity scale derived from quartiles of the written days' character counts.
+/// Activity scale relative to the busiest day: its character count is 100%, and
+/// four equal bands split `0%..=100%` into levels 1..=4.
 struct Scale {
-    p25: usize,
-    p50: usize,
-    p75: usize,
+    max: usize,
 }
 
 impl Scale {
@@ -284,43 +283,19 @@ impl Scale {
     ];
 
     fn from_counts(char_counts: &HashMap<Date, usize>) -> Self {
-        if char_counts.is_empty() {
-            return Self {
-                p25: 0,
-                p50: 0,
-                p75: 0,
-            };
-        }
-
-        let mut values: Vec<usize> = char_counts.values().copied().collect();
-        values.sort_unstable();
-
-        let pct = |p: f64| -> usize {
-            let i = ((values.len() as f64 * p) as usize).min(values.len() - 1);
-            values[i]
-        };
-
         Self {
-            p25: pct(0.25),
-            p50: pct(0.50),
-            p75: pct(0.75),
+            max: char_counts.values().copied().max().unwrap_or(0),
         }
     }
 
-    /// The pre-styled cell for a day of `size` chars, banded as 0 = no activity
-    /// then the p25/p50/p75 quartiles (levels 1..=4).
+    /// The pre-styled cell for a day of `size` chars: level 0 = no activity, then
+    /// four equal bands of the maximum (levels 1..=4), so the busiest day fills.
     fn cell(&self, size: usize) -> &'static str {
-        if size == 0 {
-            Self::CELLS[0]
-        } else if size <= self.p25 {
-            Self::CELLS[1]
-        } else if size <= self.p50 {
-            Self::CELLS[2]
-        } else if size <= self.p75 {
-            Self::CELLS[3]
-        } else {
-            Self::CELLS[4]
+        if size == 0 || self.max == 0 {
+            return Self::CELLS[0];
         }
+        let level = (size * 4).div_ceil(self.max).min(4);
+        Self::CELLS[level]
     }
 }
 
@@ -430,26 +405,32 @@ mod tests {
         assert_eq!(when.stats_to().unwrap(), date(2020, 2, 10));
     }
 
-    fn scale(p25: usize, p50: usize, p75: usize) -> Scale {
-        Scale { p25, p50, p75 }
+    #[test]
+    fn scale_cell_band_boundaries() {
+        // Max 100, so the bands are 0%..=25%, ..50%, ..75%, ..100% of 100 chars.
+        let s = Scale { max: 100 };
+        assert_eq!(s.cell(0), Scale::CELLS[0]); // no activity
+        assert_eq!(s.cell(1), Scale::CELLS[1]); // bottom of band 1
+        assert_eq!(s.cell(25), Scale::CELLS[1]); // 25%
+        assert_eq!(s.cell(26), Scale::CELLS[2]); // just over 25%
+        assert_eq!(s.cell(50), Scale::CELLS[2]); // 50%
+        assert_eq!(s.cell(51), Scale::CELLS[3]); // just over 50%
+        assert_eq!(s.cell(75), Scale::CELLS[3]); // 75%
+        assert_eq!(s.cell(76), Scale::CELLS[4]); // just over 75%
+        assert_eq!(s.cell(100), Scale::CELLS[4]); // the busiest day fills
     }
 
     #[test]
-    fn scale_cell_band_boundaries() {
-        let s = scale(10, 20, 30);
-        assert_eq!(s.cell(0), Scale::CELLS[0]); // no activity
-        assert_eq!(s.cell(10), Scale::CELLS[1]); // exactly p25
-        assert_eq!(s.cell(11), Scale::CELLS[2]); // between p25 and p50
-        assert_eq!(s.cell(20), Scale::CELLS[2]); // exactly p50
-        assert_eq!(s.cell(21), Scale::CELLS[3]); // between p50 and p75
-        assert_eq!(s.cell(30), Scale::CELLS[3]); // exactly p75
-        assert_eq!(s.cell(31), Scale::CELLS[4]); // above p75
+    fn scale_from_counts_takes_max() {
+        let counts = HashMap::from([(date(2026, 1, 1), 40), (date(2026, 1, 2), 120)]);
+        assert_eq!(Scale::from_counts(&counts).max, 120);
     }
 
     #[test]
     fn scale_from_empty_counts_is_zero() {
         let s = Scale::from_counts(&HashMap::new());
-        assert_eq!((s.p25, s.p50, s.p75), (0, 0, 0));
+        assert_eq!(s.max, 0);
+        assert_eq!(s.cell(0), Scale::CELLS[0]);
     }
 
     #[test]
@@ -468,7 +449,7 @@ mod tests {
         let counts = HashMap::from([(date(2026, 1, 5), 100)]);
         let grid = Grid::new(&counts, date(2026, 1, 5), date(2026, 1, 11)).unwrap();
         assert_eq!(grid.weeks.len(), 3);
-        assert_eq!(grid.weeks[0][0], Some(Scale::CELLS[1])); // Mon: written
+        assert_eq!(grid.weeks[0][0], Some(Scale::CELLS[4])); // Mon: written, the busiest day
         assert_eq!(grid.weeks[0][6], Some(Scale::CELLS[0])); // Sun: unwritten
         assert!(grid.weeks[1].iter().all(Option::is_none));
         assert!(grid.weeks[2].iter().all(Option::is_none));
