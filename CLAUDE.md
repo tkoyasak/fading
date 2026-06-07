@@ -35,6 +35,13 @@ Rust workspace (Edition 2024, MSRV 1.93.0).
 - `crates/cli`: `fading-cli` — CLI binary (open, new, stats, get, put, notify, ls commands)
 - `crates/ls`: `fading-ls` — Language server (sync, code actions, diagnostics)
 - `crates/zed`: `fading-zed` — Zed editor extension (cdylib)
+- `crates/xtask`: `xtask` — developer tasks (fixture generation)
+
+`fixtures/entries/*.md` are **generated** (git-ignored). In debug builds `fading-cli`
+uses `fixtures` as `FADING_HOME`. Two steps, both git-ignored:
+`cargo xtask corpus` downloads the source corpus into `crates/xtask/corpus/` (needs
+`gh`), then `cargo xtask fixtures` regenerates the entries from that cache (offline).
+Sources are listed in `crates/xtask/works.txt`.
 
 ## Commands
 
@@ -71,6 +78,9 @@ cargo run -p fading-cli -- notify
 cargo run -p fading-cli -- ls
 
 env UPDATE_XFLAGS=1 cargo build -p fading-cli   # Regenerate xflags code
+
+cargo xtask corpus     # Download source corpus into crates/xtask/corpus (needs `gh`)
+cargo xtask fixtures   # Regenerate fixtures/entries/*.md from the cached corpus
 ```
 
 ## Key Patterns
