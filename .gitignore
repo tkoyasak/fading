@@ -5,4 +5,10 @@
 # Wasm
 **/*.wasm
 
+# Fetched source corpus (download with `cargo xtask corpus`)
+/crates/xtask/corpus
+
+# Generated fixtures (regenerate with `cargo xtask fixtures`)
+/fixtures/entries
+
 /.claude

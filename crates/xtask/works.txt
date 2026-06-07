@@ -1,0 +1,16 @@
+# Source works for fixture text, from:
+# https://github.com/levelevel/AozoraTxt
+# One work path per line — ruby-less (`_txt_utf8_`) versions only.
+# Blank lines and lines starting with `#` are ignored.
+# Currently: Dazai Osamu essays / diaries.
+
+person_utf8/000035/43311_txt_utf8_kugatsu_jugatsu_juichigatsu.txt
+person_utf8/000035/52235_txt_utf8_rokugatsu_jukunichi.txt
+person_utf8/000035/42362_txt_utf8_inakamono.txt
+person_utf8/000035/5005_txt_utf8_chizu.txt
+person_utf8/000035/4358_txt_utf8_junshin.txt
+person_utf8/000035/259_txt_utf8_gyakko.txt
+person_utf8/000035/1603_txt_utf8_kakumei.txt
+person_utf8/000035/2262_txt_utf8_sarumen_kanja_kyu.txt
+person_utf8/000035/52292_txt_utf8_watashino_chosakushu.txt
+person_utf8/000035/52344_txt_utf8_gyofukukini_tsuite.txt
