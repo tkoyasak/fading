@@ -1,0 +1,27 @@
+use-grammars = { only = ["markdown"] }
+
+[language-server.fading]
+command = "fading"
+args = ["ls"]
+
+[[language]]
+name = "fading"
+scope = "source.fading"
+file-types = { glob = "entries/*.md" }
+language-servers = ["fading"]
+grammar = "markdown"
+
+[language.soft-wrap]
+enable = true
+max-wrap = 3
+max-indent-retain = 0
+wrap-indicator = ""
+wrap-at-text-width = false
+
+[language.auto-pairs]
+'(' = ')'
+'{' = '}'
+'[' = ']'
+'"' = '"'
+"'" = "'"
+'`' = '`'
