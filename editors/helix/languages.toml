@@ -5,11 +5,10 @@ command = "fading"
 args = ["ls"]
 
 [[language]]
-name = "fading"
-scope = "source.fading"
-file-types = { glob = "entries/*.md" }
+name = "markdown"
+file-types = [{ glob = "entries/*.md" }]
 language-servers = ["fading"]
-grammar = "markdown"
+code-action-on-save = ["source.updateMetadata.fading"]
 
 [language.soft-wrap]
 enable = true
@@ -19,9 +18,16 @@ wrap-indicator = ""
 wrap-at-text-width = false
 
 [language.auto-pairs]
+# halfwidth
 '(' = ')'
 '{' = '}'
 '[' = ']'
 '"' = '"'
 "'" = "'"
 '`' = '`'
+# fullwidth
+'（' = '）'
+'『' = '』'
+'「' = '」'
+'“' = '”'
+'‘' = '’'
