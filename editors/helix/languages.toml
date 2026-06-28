@@ -8,7 +8,7 @@ args = ["ls"]
 name = "markdown"
 file-types = [{ glob = "entries/*.md" }]
 language-servers = ["fading"]
-code-action-on-save = ["source.updateMetadata.fading"]
+code-actions-on-save = ["source.updateMetadata.fading"]
 
 [language.soft-wrap]
 enable = true
