@@ -51,16 +51,15 @@ fading ls
 Add to `~/.config/helix/languages.toml`:
 
 ```toml
-[[language]]
-name = "fading"
-scope = "source.fading"
-file-types = ["md"]
-roots = []
-language-servers = ["fading-ls"]
-
-[language-server.fading-ls]
+[language-server.fading]
 command = "fading"
 args = ["ls"]
+
+[[language]]
+name = "markdown"
+file-types = [{ glob = "entries/*.md" }]
+language-servers = ["fading"]
+code-actions-on-save = ["source.updateMetadata.fading"]
 ```
 
 #### Zed
