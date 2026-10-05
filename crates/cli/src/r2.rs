@@ -1,7 +1,8 @@
 use std::io::Read;
+use std::time::SystemTime;
 
 use anyhow::{Context, Result, anyhow};
-use shiguredo_s3::{Credential, S3Client, S3Config, S3Request};
+use shiguredo_s3::{ChecksumAlgorithm, ChecksumMode, Client, Config, Credentials, S3Request};
 use xshell::cmd;
 
 use crate::{Cmd, Ctx, Get, Put, crypto::decrypt, crypto::encrypt};
@@ -13,7 +14,7 @@ const ERROR_CODE_REFERENCE: &str =
 struct R2Config {
     bucket: String,
     encryption_key: String,
-    client: S3Client,
+    client: Client,
 }
 
 impl R2Config {
@@ -23,17 +24,23 @@ impl R2Config {
         let access_key_id = ctx.r2_access_key_id()?;
         let secret_access_key = ctx.r2_secret_access_key()?;
         let encryption_key = ctx.encryption_key()?;
-        let config = S3Config::builder()
+        let config = Config::builder()
             .region("auto")
-            .credential(Credential::new(access_key_id, secret_access_key))
+            .credentials_provider(Credentials::new(
+                access_key_id,
+                secret_access_key,
+                None,
+                None,
+                "Static",
+            ))
             .endpoint(format!("https://{account_id}.r2.cloudflarestorage.com"))
-            .use_path_style(true)
+            .force_path_style(true)
             .build()
             .context("Failed to build S3 config")?;
         Ok(Self {
             bucket,
             encryption_key,
-            client: S3Client::new(config),
+            client: Client::from_conf(config),
         })
     }
 }
@@ -80,8 +87,8 @@ impl Cmd for Put {
             .key(R2_OBJECT_KEY)
             .body(encrypted)
             .content_type("application/octet-stream")
-            .checksum_algorithm("CRC64NVME")
-            .build_request()
+            .checksum_algorithm(ChecksumAlgorithm::Crc64Nvme)
+            .build_request(SystemTime::now())
             .context("Failed to build PUT request")?;
 
         let url = request_url(&req);
@@ -108,8 +115,8 @@ impl Cmd for Get {
             .get_object()
             .bucket(&cfg.bucket)
             .key(R2_OBJECT_KEY)
-            .checksum_mode("ENABLED")
-            .build_request()
+            .checksum_mode(ChecksumMode::Enabled)
+            .build_request(SystemTime::now())
             .context("Failed to build GET request")?;
 
         let url = request_url(&req);
