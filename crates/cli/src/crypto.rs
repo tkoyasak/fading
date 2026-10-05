@@ -1,4 +1,4 @@
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+use aes_gcm::aead::{Aead, Generate, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use anyhow::{Context, Result};
 
@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 /// Output format: `[nonce (12 B)][ciphertext + tag (16 B)]`.
 pub(crate) fn encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
     let cipher = build_cipher(key_hex)?;
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let nonce = Nonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|_| anyhow::anyhow!("Encryption failed"))?;
@@ -26,9 +26,10 @@ pub(crate) fn decrypt(key_hex: &str, data: &[u8]) -> Result<Vec<u8>> {
     }
 
     let cipher = build_cipher(key_hex)?;
-    let nonce = Nonce::from_slice(&data[..NONCE_LEN]);
+    let nonce = Nonce::try_from(&data[..NONCE_LEN])
+        .map_err(|_| anyhow::anyhow!("Decryption failed (wrong key or corrupted data)"))?;
     cipher
-        .decrypt(nonce, &data[NONCE_LEN..])
+        .decrypt(&nonce, &data[NONCE_LEN..])
         .map_err(|_| anyhow::anyhow!("Decryption failed (wrong key or corrupted data)"))
 }
 
